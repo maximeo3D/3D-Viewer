@@ -1,81 +1,83 @@
 # 3D Model Viewer
 
-A 3D model viewer built with Three.js that displays a rotating cube as a starting point.
+A 3D model viewer built with Three.js that displays a static grey cube with full camera controls.
 
 ## Features
 
-- 3D scene with a rotating cube
+- 3D scene with a static grey cube (no rotation)
 - Interactive camera controls (orbit, zoom, pan)
-- Lighting and shadows
-- Wireframe overlay
-- Ground plane for reference
+- Clean dark background
+- Latest Three.js v0.179.0 via CDN
 - Responsive design
 
-## Installation
+## Quick Start
 
-1. Make sure you have Node.js installed (v16 or higher)
-2. Clone this repository
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+### Development Server (WSL Recommended)
 
-## Usage
+**Option 1: Native WSL Terminal**
+```bash
+wsl
+cd /home/maximeo/repos/3DViewer/3D-Viewer
+python3 -m http.server 8001
+```
 
-### Development Server
+**Option 2: From PowerShell**
+```bash
+wsl -d Ubuntu-24.04 -e bash -c "cd /home/maximeo/repos/3DViewer/3D-Viewer && python3 -m http.server 8001"
+```
 
-Start the development server:
+Then open your browser to `http://localhost:8001`
+
+### Alternative: Node.js Server
 ```bash
 npm run dev
 ```
-
-This will:
-- Start a local HTTP server on port 8000
-- Open your browser automatically
-- Display the 3D cube viewer
-
-### Manual Start
-
-If you prefer to start manually:
-```bash
-npm start
-```
-
-Then open your browser and navigate to `http://localhost:8000`
+*Note: May have path issues in WSL environment*
 
 ## Controls
 
-- **Mouse Left Click + Drag**: Rotate the camera around the scene
+- **Mouse Left Click + Drag**: Orbit the camera around the scene
 - **Mouse Right Click + Drag**: Pan the camera
 - **Mouse Wheel**: Zoom in/out
-- **Touch**: Pinch to zoom, drag to rotate
 
 ## Project Structure
 
 ```
 3D-Viewer/
-├── index.html          # Main HTML file
-├── main.js            # Three.js application code
-├── package.json       # Project dependencies and scripts
-├── node_modules/      # Installed packages (Three.js)
-└── README.md          # This file
+├── index.html          # Main HTML with Three.js CDN imports
+├── main.js            # 3D scene logic
+├── style.css          # External styles
+├── package.json       # Project dependencies
+├── .gitignore         # Git exclusions
+├── README.md          # This file
+└── PROJECT_NOTES.md   # Detailed development notes
 ```
 
 ## Technologies Used
 
-- **Three.js**: 3D graphics library
-- **WebGL**: Hardware-accelerated 3D graphics
+- **Three.js v0.179.0**: 3D graphics library (CDN)
 - **ES6 Modules**: Modern JavaScript module system
+- **WebGL**: Hardware-accelerated 3D graphics
+- **Python 3**: Development server
 
-## Next Steps
+## Troubleshooting
 
-This project is set up as a foundation for a 3D model viewer. Future enhancements could include:
+### Server Shows Windows Root Folder
+**Problem**: PowerShell-to-WSL path interpretation issues
+**Solution**: Use native WSL terminal or WSL command execution
 
-- Loading external 3D models (GLTF, OBJ, etc.)
-- Material editor
-- Multiple object support
-- Animation controls
-- Export functionality
+### Port Conflicts
+```bash
+taskkill /F /IM node.exe
+taskkill /F /IM python.exe
+```
+
+### Three.js Not Loading
+**Solution**: CDN imports are already implemented and should work reliably
+
+## Development Notes
+
+For detailed development history, technical decisions, and troubleshooting steps, see `PROJECT_NOTES.md`.
 
 ## Browser Compatibility
 
