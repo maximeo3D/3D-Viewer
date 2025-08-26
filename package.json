@@ -1,0 +1,26 @@
+{
+  "name": "3d-viewer",
+  "version": "1.0.0",
+  "description": "A 3D model viewer built with Three.js",
+  "main": "main.js",
+  "scripts": {
+    "dev": "npx http-server . -p 8000 -o",
+    "start": "npx http-server . -p 8000 -o",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maximeo3D/3D-Viewer.git"
+  },
+  "keywords": ["threejs", "3d", "viewer", "webgl"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/maximeo3D/3D-Viewer/issues"
+  },
+  "homepage": "https://github.com/maximeo3D/3D-Viewer#readme",
+  "dependencies": {
+    "three": "^0.162.0"
+  }
+}
