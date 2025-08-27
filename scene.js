@@ -29,6 +29,7 @@ const createScene = function() {
         const hdrTexture = new BABYLON.HDRCubeTexture("Textures/HDR/default.hdr", scene, 512, false, false, false, true);
         scene.environmentTexture = hdrTexture;
         scene.environmentIntensity = 1.0;
+        
         console.log("HDR loaded successfully with HDRCubeTexture");
     } catch (error) {
         console.error("HDR loading failed:", error);
@@ -38,6 +39,7 @@ const createScene = function() {
             const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.hdr", scene);
             scene.environmentTexture = hdrTexture;
             scene.environmentIntensity = 1.0;
+            
             console.log("HDR loaded successfully with CreateFromPrefilteredData");
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
@@ -62,6 +64,17 @@ const createScene = function() {
     const hdrExposure = { exposure: 1.0 };
     environmentFolder.add(hdrExposure, 'exposure', 0, 2).name('HDR Exposure').onChange(function(value) {
         scene.environmentIntensity = value;
+    });
+    
+    // HDR Orientation control using setReflectionTextureMatrix
+    const hdrOrientation = { orientation: 0 };
+    environmentFolder.add(hdrOrientation, 'orientation', -180, 180).name('Orientation').onChange(function(value) {
+        // Get the current environment texture and rotate it
+        if (scene.environmentTexture) {
+            scene.environmentTexture.setReflectionTextureMatrix(
+                BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(value))
+            );
+        }
     });
     
     environmentFolder.open();
