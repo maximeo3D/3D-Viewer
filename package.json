@@ -1,26 +1,25 @@
 {
-  "name": "3d-viewer",
+  "name": "3d-model-viewer",
   "version": "1.0.0",
-  "description": "A 3D model viewer built with Three.js",
-  "main": "main.js",
+  "description": "A 3D model viewer built with Babylon.js",
+  "main": "index.html",
   "scripts": {
-    "dev": "npx http-server . -p 8000 -o",
-    "start": "npx http-server . -p 8000 -o",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "serve": "python -m http.server 8000"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/maximeo3D/3D-Viewer.git"
-  },
-  "keywords": ["threejs", "3d", "viewer", "webgl"],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/maximeo3D/3D-Viewer/issues"
-  },
-  "homepage": "https://github.com/maximeo3D/3D-Viewer#readme",
-  "dependencies": {
-    "three": "^0.162.0"
+  "keywords": [
+    "3d",
+    "babylonjs",
+    "webgl",
+    "viewer",
+    "3d-model"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

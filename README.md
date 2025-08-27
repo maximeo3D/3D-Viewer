@@ -1,92 +1,112 @@
 # 3D Model Viewer
 
-A 3D model viewer built with Three.js that displays a static grey cube with full camera controls.
+A simple 3D model viewer built with Babylon.js that displays a rotating grey cube on a white background.
 
 ## Features
 
-- 3D scene with a static grey cube (no rotation)
-- Interactive camera controls (orbit, zoom, pan)
-- Clean dark background
-- Latest Three.js v0.179.0 via CDN
-- Responsive design
+- **3D Scene**: Renders a grey cube in 3D space
+- **Interactive Camera**: Mouse controls for rotation, zoom, and pan
+- **Smooth Animation**: The cube rotates continuously for visual interest
+- **Responsive Design**: Adapts to different screen sizes
+- **Modern UI**: Clean, minimal interface with helpful controls information
 
-## Quick Start
+## Setup
 
-### Development Server (WSL Recommended)
+### Prerequisites
 
-**Option 1: Native WSL Terminal**
+- A modern web browser with WebGL support
+- Python 3.x (for local development server)
+
+### Quick Start
+
+1. **Clone or download** this repository
+2. **Navigate** to the project directory
+3. **Start the development server**:
+   ```bash
+   python -m http.server 8000
+   ```
+4. **Open your browser** and go to `http://localhost:8000`
+
+### Alternative Setup
+
+If you prefer using Node.js:
 ```bash
-wsl
-cd /home/maximeo/repos/3DViewer/3D-Viewer
-python3 -m http.server 8001
+npm install -g http-server
+http-server -p 8000
 ```
-
-**Option 2: From PowerShell**
-```bash
-wsl -d Ubuntu-24.04 -e bash -c "cd /home/maximeo/repos/3DViewer/3D-Viewer && python3 -m http.server 8001"
-```
-
-Then open your browser to `http://localhost:8001`
-
-### Alternative: Node.js Server
-```bash
-npm run dev
-```
-*Note: May have path issues in WSL environment*
 
 ## Controls
 
-- **Mouse Left Click + Drag**: Orbit the camera around the scene
-- **Mouse Right Click + Drag**: Pan the camera
+- **Left Mouse Button + Drag**: Rotate the camera around the scene
 - **Mouse Wheel**: Zoom in/out
+- **Right Mouse Button + Drag**: Pan the camera
 
 ## Project Structure
 
 ```
 3D-Viewer/
-├── index.html          # Main HTML with Three.js CDN imports
-├── main.js            # 3D scene logic
-├── style.css          # External styles
-├── package.json       # Project dependencies
-├── .gitignore         # Git exclusions
-├── README.md          # This file
-└── PROJECT_NOTES.md   # Detailed development notes
+├── index.html          # Main HTML file with Babylon.js CDN
+├── scene.js            # Babylon.js scene setup and cube creation
+├── package.json        # Project configuration
+├── README.md           # This file
+└── Textures/           # Texture assets directory
 ```
 
 ## Technologies Used
 
-- **Three.js v0.179.0**: 3D graphics library (CDN)
-- **ES6 Modules**: Modern JavaScript module system
-- **WebGL**: Hardware-accelerated 3D graphics
-- **Python 3**: Development server
+- **Babylon.js**: 3D graphics engine
+- **HTML5 Canvas**: Rendering surface
+- **CSS3**: Styling and layout
+- **Vanilla JavaScript**: Scene logic and controls
 
-## Troubleshooting
+## Customization
 
-### Server Shows Windows Root Folder
-**Problem**: PowerShell-to-WSL path interpretation issues
-**Solution**: Use native WSL terminal or WSL command execution
+### Changing the Cube Color
 
-### Port Conflicts
-```bash
-taskkill /F /IM node.exe
-taskkill /F /IM python.exe
+Edit `scene.js` and modify the material's diffuse color:
+```javascript
+greyMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red cube
 ```
 
-### Three.js Not Loading
-**Solution**: CDN imports are already implemented and should work reliably
+### Adding More Objects
 
-## Development Notes
+Add new meshes in the `createScene` function:
+```javascript
+const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 1}, scene);
+sphere.position = new BABYLON.Vector3(3, 0, 0);
+```
 
-For detailed development history, technical decisions, and troubleshooting steps, see `PROJECT_NOTES.md`.
+### Modifying the Background
+
+Change the scene clear color in `scene.js`:
+```javascript
+scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Black background
+```
 
 ## Browser Compatibility
 
-This project requires a modern browser with WebGL support:
-- Chrome 51+
-- Firefox 51+
-- Safari 10+
+- Chrome 60+
+- Firefox 55+
+- Safari 12+
 - Edge 79+
+
+## Development
+
+This project uses CDN links for Babylon.js, making it easy to get started without build tools. For production use, consider:
+
+- Installing Babylon.js via npm
+- Using a bundler like Webpack or Vite
+- Implementing proper asset loading and error handling
 
 ## License
 
-ISC
+MIT License - feel free to use this project for learning and development.
+
+## Next Steps
+
+Potential enhancements for future versions:
+- Model file loading (.obj, .fbx, .gltf)
+- Texture mapping support
+- Multiple lighting setups
+- Animation controls
+- Export functionality
