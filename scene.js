@@ -29,6 +29,9 @@ let config = {
 let scene;
 let camera;
 let targetVisual;
+let loadedModels = new Map(); // Store loaded models
+let assetConfig = null; // Asset configuration
+let materialsConfig = null; // Materials configuration
 
 // Function to create target visual indicator
 function createTargetVisual(scene, target) {
@@ -121,10 +124,189 @@ async function loadConfig() {
     }
 }
 
+// Function to load asset configuration
+async function loadAssetConfig() {
+    try {
+        const response = await fetch('Assets/asset.json');
+        if (response.ok) {
+            assetConfig = await response.json();
+            console.log("Asset configuration loaded from Assets/asset.json");
+        } else {
+            console.warn("Could not load Assets/asset.json, using default values");
+            assetConfig = {
+                models: []
+            };
+        }
+    } catch (error) {
+        console.warn("Error loading Assets/asset.json, using default values:", error);
+        assetConfig = {
+            models: []
+        };
+    }
+}
+
+// Function to load materials configuration
+async function loadMaterialsConfig() {
+    try {
+        const response = await fetch('Textures/materials.json');
+        if (response.ok) {
+            materialsConfig = await response.json();
+            console.log("Materials configuration loaded from Textures/materials.json");
+        } else {
+            console.warn("Could not load Textures/materials.json, using default values");
+            materialsConfig = {
+                materials: {}
+            };
+        }
+    } catch (error) {
+        console.warn("Error loading Textures/materials.json, using default values:", error);
+        materialsConfig = {
+            materials: {}
+        };
+    }
+}
+
+// Function to load 3D models
+async function loadModels() {
+    if (!assetConfig || !assetConfig.models) return;
+    
+    for (const modelConfig of assetConfig.models) {
+        try {
+            console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
+            
+            // Load the GLB file
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
+            
+            if (result.meshes.length > 0) {
+                // Group all meshes under a transform node
+                const modelGroup = new BABYLON.TransformNode(modelConfig.name, scene);
+                
+                // Apply transform from config
+                if (modelConfig.position) {
+                    modelGroup.position = new BABYLON.Vector3(
+                        modelConfig.position[0],
+                        modelConfig.position[1],
+                        modelConfig.position[2]
+                    );
+                }
+                
+                if (modelConfig.rotation) {
+                    modelGroup.rotation = new BABYLON.Vector3(
+                        modelConfig.rotation[0],
+                        modelConfig.rotation[1],
+                        modelConfig.rotation[2]
+                    );
+                }
+                
+                if (modelConfig.scale) {
+                    modelGroup.scaling = new BABYLON.Vector3(
+                        modelConfig.scale[0],
+                        modelConfig.scale[1],
+                        modelConfig.scale[2]
+                    );
+                }
+                
+                // Set visibility
+                if (modelConfig.visible !== undefined) {
+                    modelGroup.setEnabled(modelConfig.visible);
+                }
+                
+                // Parent all meshes to the group
+                result.meshes.forEach(mesh => {
+                    mesh.parent = modelGroup;
+                });
+                
+                // Apply materials based on mesh names and material slots
+                if (modelConfig.meshes && materialsConfig && materialsConfig.materials) {
+                    result.meshes.forEach(mesh => {
+                        // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
+                        const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                        if (primitiveMatch) {
+                            const baseMeshName = primitiveMatch[1];
+                            const primitiveIndex = parseInt(primitiveMatch[2]);
+                            
+                            // Find the mesh config for the base mesh
+                            const meshConfig = modelConfig.meshes.find(m => m.name === baseMeshName);
+                            if (meshConfig) {
+                                // Apply material based on primitive index
+                                const materialSlotKey = `materialSlot${primitiveIndex + 1}`;
+                                const materialName = meshConfig[materialSlotKey];
+                                
+                                if (materialName && materialsConfig.materials[materialName]) {
+                                    applyMaterial(mesh, materialsConfig.materials[materialName]);
+                                    console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
+                                }
+                            }
+                        } else {
+                            // Handle non-primitive meshes (fallback)
+                            const meshConfig = modelConfig.meshes.find(m => m.name === mesh.name);
+                            if (meshConfig && meshConfig.materialSlot1 && materialsConfig.materials[meshConfig.materialSlot1]) {
+                                applyMaterial(mesh, materialsConfig.materials[meshConfig.materialSlot1]);
+                            }
+                        }
+                    });
+                }
+                
+                // Store the loaded model
+                loadedModels.set(modelConfig.name, {
+                    group: modelGroup,
+                    meshes: result.meshes,
+                    config: modelConfig
+                });
+                
+                console.log(`✅ Model ${modelConfig.name} loaded successfully`);
+            }
+        } catch (error) {
+            console.error(`❌ Failed to load model ${modelConfig.name}:`, error);
+        }
+    }
+}
+
+// Function to apply material to mesh
+function applyMaterial(mesh, materialConfig) {
+    if (materialConfig.type === 'pbr') {
+        const pbr = new BABYLON.PBRMaterial(`${mesh.name}_material`, scene);
+        
+        // Base properties - using proper PBR property names
+        if (materialConfig.baseColor) {
+            pbr.albedoColor = BABYLON.Color3.FromHexString(materialConfig.baseColor);
+            // Also set baseColor for compatibility
+            pbr.baseColor = BABYLON.Color3.FromHexString(materialConfig.baseColor);
+        }
+        
+        if (materialConfig.metallic !== undefined) {
+            pbr.metallic = materialConfig.metallic;
+        }
+        
+        if (materialConfig.roughness !== undefined) {
+            pbr.roughness = materialConfig.roughness;
+        }
+        
+        if (materialConfig.alpha !== undefined) {
+            pbr.alpha = materialConfig.alpha;
+        }
+        
+        // Additional PBR properties for better rendering
+        pbr.usePhysicalLightFalloff = true;
+        pbr.useEnergyConservation = true;
+        
+        // Apply material to mesh
+        mesh.material = pbr;
+        
+        console.log(`Material applied to ${mesh.name}:`, materialConfig);
+    }
+}
+
 // Generate the BABYLON 3D scene
 const createScene = async function() {
     // Load configuration first
     await loadConfig();
+    
+    // Load asset configuration
+    await loadAssetConfig();
+    
+    // Load materials configuration
+    await loadMaterialsConfig();
     
     // Create the scene
     scene = new BABYLON.Scene(engine);
@@ -152,7 +334,10 @@ const createScene = async function() {
         targetVisual.setEnabled(config.camera.showTarget);
     }
     
-    // Create a metallic sphere
+    // Load 3D models from asset configuration
+    await loadModels();
+    
+    // Create a metallic sphere (fallback if no models loaded)
     const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
     
     // Create PBR material for proper environment reflections
@@ -427,8 +612,174 @@ createScene().then(createdScene => {
     }};
     cameraFolder.add(exportCamera, 'export').name('Export Camera');
     
-    environmentFolder.open();
-    cameraFolder.open();
+    // Materials folder
+    const materialsFolder = gui.addFolder('Materials');
+    
+    // Material selection dropdown
+    const materialList = { selected: 'Select a material' };
+    const materialNames = materialsConfig && materialsConfig.materials ? Object.keys(materialsConfig.materials) : [];
+    
+    if (materialNames.length > 0) {
+        materialList.selected = materialNames[0];
+    }
+    
+    const materialDropdown = materialsFolder.add(materialList, 'selected', materialNames).name('Material List');
+    
+    // Material properties controls - Initialize with first material values
+    let materialProperties = {
+        baseColor: '#ffffff',
+        metallic: 0.0,
+        roughness: 0.5,
+        alpha: 1.0
+    };
+    
+    // Function to update material properties display
+    function updateMaterialPropertiesDisplay() {
+        const selectedMaterial = materialList.selected;
+        if (selectedMaterial && materialsConfig.materials[selectedMaterial]) {
+            const material = materialsConfig.materials[selectedMaterial];
+            
+            // Remove old controls
+            materialsFolder.remove(baseColorControl);
+            materialsFolder.remove(metallicControl);
+            materialsFolder.remove(roughnessControl);
+            materialsFolder.remove(alphaControl);
+            
+            // Update the materialProperties object with actual values from materials.json
+            materialProperties.baseColor = material.baseColor || '#ffffff';
+            materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
+            materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
+            materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
+            
+            // Recreate controls with new values
+            baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
+                materialProperties.baseColor = value;
+                applyMaterialChanges();
+            });
+            
+            metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).name('Metallic').onChange(function(value) {
+                materialProperties.metallic = value;
+                applyMaterialChanges();
+            });
+            
+            roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).name('Roughness').onChange(function(value) {
+                materialProperties.roughness = value;
+                applyMaterialChanges();
+            });
+            
+            alphaControl = materialsFolder.add(materialProperties, 'alpha', 0, 1).name('Alpha').onChange(function(value) {
+                materialProperties.alpha = value;
+                applyMaterialChanges();
+            });
+            
+            console.log(`Updated display for material ${selectedMaterial}:`, materialProperties);
+        }
+    }
+    
+    // Function to apply material changes to the scene
+    function applyMaterialChanges() {
+        const selectedMaterial = materialList.selected;
+        if (selectedMaterial && materialsConfig.materials[selectedMaterial]) {
+            // Update the material config
+            materialsConfig.materials[selectedMaterial].baseColor = materialProperties.baseColor;
+            materialsConfig.materials[selectedMaterial].metallic = materialProperties.metallic;
+            materialsConfig.materials[selectedMaterial].roughness = materialProperties.roughness;
+            materialsConfig.materials[selectedMaterial].alpha = materialProperties.alpha;
+            
+            // Find all meshes that currently use this material and update their material properties
+            loadedModels.forEach((modelData, modelName) => {
+                modelData.meshes.forEach(mesh => {
+                    // Check if this mesh uses the selected material
+                    const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name.split('_')[0]);
+                    if (meshConfig) {
+                        // Check material slots
+                        for (let i = 1; i <= 4; i++) { // Support up to 4 material slots
+                            const slotKey = `materialSlot${i}`;
+                            if (meshConfig[slotKey] === selectedMaterial) {
+                                // Update existing material properties directly
+                                if (mesh.material) {
+                                    mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
+                                    mesh.material.metallic = materialProperties.metallic;
+                                    mesh.material.roughness = materialProperties.roughness;
+                                    mesh.material.alpha = materialProperties.alpha;
+                                    console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // Force scene update to ensure changes are visible
+            if (scene) {
+                scene.markAllMaterialsAsDirty(BABYLON.Material.TextureDirtyFlag);
+            }
+        }
+    }
+    
+    // Create initial controls (will be recreated when material changes)
+    let baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
+        materialProperties.baseColor = value;
+        applyMaterialChanges();
+    });
+    
+    let metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).name('Metallic').onChange(function(value) {
+        materialProperties.metallic = value;
+        applyMaterialChanges();
+    });
+    
+    let roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).name('Roughness').onChange(function(value) {
+        materialProperties.roughness = value;
+        applyMaterialChanges();
+    });
+    
+    let alphaControl = materialsFolder.add(materialProperties, 'alpha', 0, 1).name('Alpha').onChange(function(value) {
+        materialProperties.alpha = value;
+        applyMaterialChanges();
+    });
+    
+    // Update display when material selection changes
+    materialDropdown.onChange(function(value) {
+        updateMaterialPropertiesDisplay();
+    });
+    
+    // Initialize material properties with first material values
+    if (materialNames.length > 0) {
+        // Force initial display update to show correct values
+        updateMaterialPropertiesDisplay();
+    }
+    
+    // Export materials configuration button
+    const exportMaterials = { export: async function() {
+        try {
+            // Create the JSON content
+            const jsonContent = JSON.stringify(materialsConfig, null, 2);
+            
+            // Send POST request to directly overwrite materials.json
+            // Use a query parameter to identify the file path since PowerShell doesn't handle slashes well
+            const res = await fetch('materials.json?path=Textures', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: jsonContent
+            });
+            
+            if (!res.ok) {
+                throw new Error('Save failed: ' + res.status);
+            }
+            
+            const result = await res.json();
+            console.log("Materials configuration exported successfully:", result.message);
+            console.log("✅ Materials configuration exported successfully! Textures/materials.json has been updated.");
+        } catch (error) {
+            console.error("❌ Materials export failed:", error);
+        }
+    }};
+    materialsFolder.add(exportMaterials, 'export').name('Export Materials');
+    
+    // Menu state management - all in one place
+    environmentFolder.close();
+    cameraFolder.close();
+    materialsFolder.open();
 });
 
 // Register a render loop to repeatedly render the scene
