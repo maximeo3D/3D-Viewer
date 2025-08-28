@@ -17,13 +17,94 @@ let config = {
         radius: 10,
         fov: 60,
         minDistance: 1,
-        maxDistance: 50
+        maxDistance: 50,
+        targetX: 0,
+        targetY: 0,
+        targetZ: 0,
+        showTarget: true
     }
 };
 
 // Global variables to store scene and camera references
 let scene;
 let camera;
+let targetVisual;
+
+// Function to create target visual indicator
+function createTargetVisual(scene, target) {
+    // Create coordinate arrows
+    const arrowLength = 1.0;
+    const arrowDiameter = 0.05;
+    
+    // Create a red material for the target
+    const targetMaterial = new BABYLON.StandardMaterial("targetMaterial", scene);
+    targetMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
+    targetMaterial.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
+    
+    // Create a small sphere at the target position
+    const targetSphere = BABYLON.MeshBuilder.CreateSphere("targetSphere", {diameter: 0.3}, scene);
+    targetSphere.material = targetMaterial;
+    
+    // X-axis arrow (red)
+    const xArrow = BABYLON.MeshBuilder.CreateCylinder("xArrow", {
+        height: arrowLength,
+        diameter: arrowDiameter
+    }, scene);
+    xArrow.rotation.z = Math.PI/2;
+    xArrow.material = targetMaterial;
+    
+    // Y-axis arrow (green)
+    const yMaterial = new BABYLON.StandardMaterial("yMaterial", scene);
+    yMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
+    yMaterial.emissiveColor = new BABYLON.Color3(0, 0.3, 0);
+    
+    const yArrow = BABYLON.MeshBuilder.CreateCylinder("yArrow", {
+        height: arrowLength,
+        diameter: arrowDiameter
+    }, scene);
+    yArrow.material = yMaterial;
+    
+    // Z-axis arrow (blue)
+    const zMaterial = new BABYLON.StandardMaterial("zMaterial", scene);
+    zMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1);
+    zMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0.3);
+    
+    const zArrow = BABYLON.MeshBuilder.CreateCylinder("zArrow", {
+        height: arrowLength,
+        diameter: arrowDiameter
+    }, scene);
+    zArrow.rotation.x = Math.PI/2;
+    zArrow.material = zMaterial;
+    
+    // Group all target elements
+    const targetGroup = new BABYLON.TransformNode("targetGroup", scene);
+    
+    // Set the target group position to the target location
+    targetGroup.position = target;
+    
+    // Position elements relative to the group (at origin 0,0,0)
+    targetSphere.position = new BABYLON.Vector3(0, 0, 0);
+    xArrow.position = new BABYLON.Vector3(arrowLength/2, 0, 0);
+    yArrow.position = new BABYLON.Vector3(0, arrowLength/2, 0);
+    zArrow.position = new BABYLON.Vector3(0, 0, arrowLength/2);
+    
+    // Parent all elements to the group
+    targetSphere.parent = targetGroup;
+    xArrow.parent = targetGroup;
+    yArrow.parent = targetGroup;
+    zArrow.parent = targetGroup;
+    
+    return targetGroup;
+}
+
+// Function to update target visual position
+function updateTargetVisual() {
+    if (targetVisual) {
+        // Simply move the entire target group to the new position
+        // The arrows will automatically follow due to parent-child relationship
+        targetVisual.position = camera.target;
+    }
+}
 
 // Function to load configuration
 async function loadConfig() {
@@ -56,7 +137,20 @@ const createScene = async function() {
     if (config.camera.minDistance) camera.lowerRadiusLimit = config.camera.minDistance;
     if (config.camera.maxDistance) camera.upperRadiusLimit = config.camera.maxDistance;
     
+    // Set camera target from config
+    if (config.camera.targetX !== undefined) camera.target.x = config.camera.targetX;
+    if (config.camera.targetY !== undefined) camera.target.y = config.camera.targetY;
+    if (config.camera.targetZ !== undefined) camera.target.z = config.camera.targetZ;
+    
     camera.attachControl(canvas, true);
+    
+    // Create target visual indicator
+    targetVisual = createTargetVisual(scene, camera.target);
+    
+    // Set initial target visibility from config
+    if (config.camera.showTarget !== undefined) {
+        targetVisual.setEnabled(config.camera.showTarget);
+    }
     
     // Create a metallic sphere
     const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
@@ -233,6 +327,44 @@ createScene().then(createdScene => {
         config.camera.maxDistance = value;
     });
     
+    // Camera Target controls
+    const targetFolder = cameraFolder.addFolder('Target Position');
+    
+    // Target X position control
+    const targetX = { x: camera.target.x };
+    targetFolder.add(targetX, 'x', -20, 20).step(0.01).name('Target X').onChange(function(value) {
+        camera.target.x = value;
+        config.camera.targetX = value;
+        updateTargetVisual();
+    });
+    
+    // Target Y position control
+    const targetY = { y: camera.target.y };
+    targetFolder.add(targetY, 'y', -20, 20).step(0.01).name('Target Y').onChange(function(value) {
+        camera.target.y = value;
+        config.camera.targetY = value;
+        updateTargetVisual();
+    });
+    
+    // Target Z position control
+    const targetZ = { z: camera.target.z };
+    targetFolder.add(targetZ, 'z', -20, 20).step(0.01).name('Target Z').onChange(function(value) {
+        camera.target.z = value;
+        config.camera.targetZ = value;
+        updateTargetVisual();
+    });
+    
+    // Target visibility toggle
+    const showTarget = { visible: config.camera.showTarget !== undefined ? config.camera.showTarget : true };
+    targetFolder.add(showTarget, 'visible').name('Show Target').onChange(function(value) {
+        if (targetVisual) {
+            targetVisual.setEnabled(value);
+        }
+        config.camera.showTarget = value;
+    });
+    
+    targetFolder.open();
+    
     // Camera export button - Direct file overwrite (Camera only)
     const exportCamera = { export: async function() {
         try {
@@ -246,6 +378,10 @@ createScene().then(createdScene => {
             config.camera.fov = camera.fov;
             config.camera.minDistance = camera.lowerRadiusLimit;
             config.camera.maxDistance = camera.upperRadiusLimit;
+            config.camera.targetX = camera.target.x;
+            config.camera.targetY = camera.target.y;
+            config.camera.targetZ = camera.target.z;
+            config.camera.showTarget = config.camera.showTarget;
             
             // Create export object with only camera settings, preserving current environment settings
             const exportConfig = {
@@ -256,7 +392,11 @@ createScene().then(createdScene => {
                     radius: config.camera.radius,
                     fov: config.camera.fov,
                     minDistance: config.camera.minDistance,
-                    maxDistance: config.camera.maxDistance
+                    maxDistance: config.camera.maxDistance,
+                    targetX: config.camera.targetX,
+                    targetY: config.camera.targetY,
+                    targetZ: config.camera.targetZ,
+                    showTarget: config.camera.showTarget
                 }
             };
             

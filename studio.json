@@ -1,12 +1,19 @@
 ﻿{
   "environment": {
     "backgroundColor": "#ffffff",
-    "hdrExposure": 1.4915519407882112,
-    "orientation": -21.98639484676039
+    "hdrExposure": 1,
+    "orientation": 0
   },
   "camera": {
-    "alpha": 0.4425468536051742,
-    "beta": 1.929783392651593,
-    "radius": 10
+    "alpha": 0.4393199467473137,
+    "beta": 1.3127477142574466,
+    "radius": 15,
+    "fov": 82.00152193323225,
+    "minDistance": 4.987839849783296,
+    "maxDistance": 15,
+    "targetX": 0.24,
+    "targetY": 0.23,
+    "targetZ": 0.51,
+    "showTarget": false
   }
 }
