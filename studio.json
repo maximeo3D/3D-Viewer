@@ -1,0 +1,12 @@
+﻿{
+  "environment": {
+    "backgroundColor": "#ffffff",
+    "hdrExposure": 1.4915519407882112,
+    "orientation": -21.98639484676039
+  },
+  "camera": {
+    "alpha": 0.4425468536051742,
+    "beta": 1.929783392651593,
+    "radius": 10
+  }
+}
