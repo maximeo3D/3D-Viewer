@@ -2,18 +2,18 @@
   "materials": {
     "red": {
       "type": "pbr",
-      "baseColor": "#ec1b14",
+      "baseColor": "#ffffff",
       "metallic": 1,
-      "roughness": 0.13,
+      "roughness": 0.36,
       "alpha": 1,
       "albedoTexture": "metal_albedo.png",
       "useAlphaFromAlbedoTexture": false,
       "metallicTexture": "metal_ORM.png",
-      "useRoughnessFromMetallicTextureGreen": true,
-      "useMetallnessFromMetallicTextureBlue": true,
+      "useRoughnessFromMetallicTextureGreen": false,
+      "useMetallnessFromMetallicTextureBlue": false,
       "useAmbientOcclusionFromMetallicTextureRed": true,
       "bumpTexture": "metal_normal.png",
-      "bumpTextureIntensity": 1.4000000000000001,
+      "bumpTextureIntensity": 3,
       "backFaceCulling": true
     },
     "green": {

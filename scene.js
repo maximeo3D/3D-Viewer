@@ -952,27 +952,33 @@ createScene().then(createdScene => {
                                 mesh.material.alpha = materialProperties.alpha;
                                 mesh.material.backFaceCulling = materialProperties.backFaceCulling;
                                 
-                                // Texture properties (basic support - textures need to be loaded)
+                                // Texture properties - load and apply real textures
                                 if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
-                                    // TODO: Load albedo texture
-                                    console.log(`Albedo texture: ${materialProperties.albedoTexture}`);
+                                    mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
+                                    mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
+                                    console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
                                 } else {
                                     mesh.material.albedoTexture = null;
+                                    mesh.material.useAlphaFromAlbedoTexture = false;
                                 }
                                 
                                 if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
-                                    // TODO: Load metallic texture and set channel options
-                                    console.log(`Metallic texture: ${materialProperties.metallicTexture}`);
+                                    mesh.material.metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
                                     mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
                                     mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
                                     mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+                                    console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
                                 } else {
                                     mesh.material.metallicTexture = null;
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
                                 }
                                 
                                 if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
-                                    // TODO: Load bump texture
-                                    console.log(`Bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                                    mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
+                                    mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
+                                    console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
                                 } else {
                                     mesh.material.bumpTexture = null;
                                 }
@@ -991,24 +997,33 @@ createScene().then(createdScene => {
                             mesh.material.alpha = materialProperties.alpha;
                             mesh.material.backFaceCulling = materialProperties.backFaceCulling;
                             
-                            // Texture properties (basic support)
+                            // Texture properties - load and apply real textures
                             if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
-                                console.log(`Albedo texture: ${materialProperties.albedoTexture}`);
+                                mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
+                                mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
+                                console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
                             } else {
                                 mesh.material.albedoTexture = null;
+                                mesh.material.useAlphaFromAlbedoTexture = false;
                             }
                             
                             if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
-                                console.log(`Metallic texture: ${materialProperties.metallicTexture}`);
+                                mesh.material.metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
                                 mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
                                 mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
                                 mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+                                console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
                             } else {
                                 mesh.material.metallicTexture = null;
+                                mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
                             }
                             
                             if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
-                                console.log(`Bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                                mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
+                                mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
+                                console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
                             } else {
                                 mesh.material.bumpTexture = null;
                             }
