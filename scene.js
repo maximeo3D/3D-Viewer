@@ -556,10 +556,10 @@ createScene().then(createdScene => {
             // First, read the current studio.json to get the latest environment settings
             const currentConfig = await fetch('studio.json?ts=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
             
-            // Update camera config with current values
-            config.camera.alpha = camera.alpha;
-            config.camera.beta = camera.beta;
-            config.camera.radius = camera.radius;
+        // Update camera config with current values
+        config.camera.alpha = camera.alpha;
+        config.camera.beta = camera.beta;
+        config.camera.radius = camera.radius;
             config.camera.fov = camera.fov;
             config.camera.minDistance = camera.lowerRadiusLimit;
             config.camera.maxDistance = camera.upperRadiusLimit;
@@ -584,8 +584,8 @@ createScene().then(createdScene => {
                     showTarget: config.camera.showTarget
                 }
             };
-            
-            // Create the JSON content
+        
+        // Create the JSON content
             const jsonContent = JSON.stringify(exportConfig, null, 2);
             
             // Send POST request to directly overwrite studio.json
@@ -633,6 +633,9 @@ createScene().then(createdScene => {
         alpha: 1.0
     };
     
+    // Declare export control variable
+    let exportMaterialsControl;
+    
     // Function to update material properties display
     function updateMaterialPropertiesDisplay() {
         const selectedMaterial = materialList.selected;
@@ -644,6 +647,9 @@ createScene().then(createdScene => {
             materialsFolder.remove(metallicControl);
             materialsFolder.remove(roughnessControl);
             materialsFolder.remove(alphaControl);
+            if (exportMaterialsControl) {
+                materialsFolder.remove(exportMaterialsControl);
+            }
             
             // Update the materialProperties object with actual values from materials.json
             materialProperties.baseColor = material.baseColor || '#ffffff';
@@ -657,12 +663,12 @@ createScene().then(createdScene => {
                 applyMaterialChanges();
             });
             
-            metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).name('Metallic').onChange(function(value) {
+            metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange(function(value) {
                 materialProperties.metallic = value;
                 applyMaterialChanges();
             });
             
-            roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).name('Roughness').onChange(function(value) {
+            roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange(function(value) {
                 materialProperties.roughness = value;
                 applyMaterialChanges();
             });
@@ -671,6 +677,9 @@ createScene().then(createdScene => {
                 materialProperties.alpha = value;
                 applyMaterialChanges();
             });
+            
+            // Recreate Export Materials button at the end
+            exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
             
             console.log(`Updated display for material ${selectedMaterial}:`, materialProperties);
         }
@@ -689,22 +698,35 @@ createScene().then(createdScene => {
             // Find all meshes that currently use this material and update their material properties
             loadedModels.forEach((modelData, modelName) => {
                 modelData.meshes.forEach(mesh => {
-                    // Check if this mesh uses the selected material
-                    const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name.split('_')[0]);
-                    if (meshConfig) {
-                        // Check material slots
-                        for (let i = 1; i <= 4; i++) { // Support up to 4 material slots
-                            const slotKey = `materialSlot${i}`;
-                            if (meshConfig[slotKey] === selectedMaterial) {
-                                // Update existing material properties directly
-                                if (mesh.material) {
-                                    mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
-                                    mesh.material.metallic = materialProperties.metallic;
-                                    mesh.material.roughness = materialProperties.roughness;
-                                    mesh.material.alpha = materialProperties.alpha;
-                                    console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
-                                }
+                    // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
+                    const primitiveMatch = mesh.name.match(/_primitive(\d+)$/);
+                    if (primitiveMatch) {
+                        const baseMeshName = mesh.name.split('_primitive')[0];
+                        const primitiveIndex = parseInt(primitiveMatch[1], 10); // 0 for primitive0, 1 for primitive1
+                        
+                        const meshConfig = modelData.config.meshes.find(m => m.name === baseMeshName);
+                        if (meshConfig) {
+                            const materialSlotKey = `materialSlot${primitiveIndex + 1}`; // materialSlot1 for primitive0
+                            const materialName = meshConfig[materialSlotKey];
+                            
+                            // Only update if this specific primitive uses the selected material
+                            if (materialName === selectedMaterial && mesh.material) {
+                                mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
+                                mesh.material.metallic = materialProperties.metallic;
+                                mesh.material.roughness = materialProperties.roughness;
+                                mesh.material.alpha = materialProperties.alpha;
+                                console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name} (slot ${primitiveIndex + 1})`);
                             }
+                        }
+                    } else {
+                        // Fallback for non-primitive meshes, if any
+                        const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name);
+                        if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
+                            mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
+                            mesh.material.metallic = materialProperties.metallic;
+                            mesh.material.roughness = materialProperties.roughness;
+                            mesh.material.alpha = materialProperties.alpha;
+                            console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
                         }
                     }
                 });
@@ -723,12 +745,12 @@ createScene().then(createdScene => {
         applyMaterialChanges();
     });
     
-    let metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).name('Metallic').onChange(function(value) {
+    let metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange(function(value) {
         materialProperties.metallic = value;
         applyMaterialChanges();
     });
     
-    let roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).name('Roughness').onChange(function(value) {
+    let roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange(function(value) {
         materialProperties.roughness = value;
         applyMaterialChanges();
     });
@@ -742,12 +764,6 @@ createScene().then(createdScene => {
     materialDropdown.onChange(function(value) {
         updateMaterialPropertiesDisplay();
     });
-    
-    // Initialize material properties with first material values
-    if (materialNames.length > 0) {
-        // Force initial display update to show correct values
-        updateMaterialPropertiesDisplay();
-    }
     
     // Export materials configuration button
     const exportMaterials = { export: async function() {
@@ -774,7 +790,15 @@ createScene().then(createdScene => {
             console.error("❌ Materials export failed:", error);
         }
     }};
-    materialsFolder.add(exportMaterials, 'export').name('Export Materials');
+    
+    // Initialize material properties with first material values
+    if (materialNames.length > 0) {
+        // Force initial display update to show correct values
+        updateMaterialPropertiesDisplay();
+    } else {
+        // If no materials, still create the export button
+        exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
+    }
     
     // Menu state management - all in one place
     environmentFolder.close();

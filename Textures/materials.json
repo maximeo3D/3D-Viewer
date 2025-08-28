@@ -2,14 +2,21 @@
   "materials": {
     "red": {
       "type": "pbr",
-      "baseColor": "#ff0000",
-      "metallic": 0.5,
-      "roughness": 0.3,
+      "baseColor": "#ff0900",
+      "metallic": 0.8200000000000001,
+      "roughness": 0.15,
+      "alpha": 1
+    },
+    "green": {
+      "type": "pbr",
+      "baseColor": "#00ff00",
+      "metallic": 0.82,
+      "roughness": 0.15,
       "alpha": 1
     },
     "blue": {
       "type": "pbr",
-      "baseColor": "#0000ff",
+      "baseColor": "#0007ff",
       "metallic": 1,
       "roughness": 0.1,
       "alpha": 1
