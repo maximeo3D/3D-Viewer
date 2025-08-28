@@ -14,7 +14,10 @@ let config = {
     camera: {
         alpha: 0,
         beta: 1.0471975511965976,
-        radius: 10
+        radius: 10,
+        fov: 60,
+        minDistance: 1,
+        maxDistance: 50
     }
 };
 
@@ -47,6 +50,12 @@ const createScene = async function() {
     
     // Create a camera with config values
     camera = new BABYLON.ArcRotateCamera("camera", config.camera.alpha, config.camera.beta, config.camera.radius, BABYLON.Vector3.Zero(), scene);
+    
+    // Set camera properties from config
+    if (config.camera.fov) camera.fov = config.camera.fov;
+    if (config.camera.minDistance) camera.lowerRadiusLimit = config.camera.minDistance;
+    if (config.camera.maxDistance) camera.upperRadiusLimit = config.camera.maxDistance;
+    
     camera.attachControl(canvas, true);
     
     // Create a metallic sphere
@@ -180,25 +189,48 @@ createScene().then(createdScene => {
     // Camera controls folder
     const cameraFolder = gui.addFolder('Camera');
     
-    // Camera alpha control
-    const cameraAlpha = { alpha: config.camera.alpha };
-    cameraFolder.add(cameraAlpha, 'alpha', -Math.PI, Math.PI).name('Alpha').onChange(function(value) {
-        camera.alpha = value;
-        config.camera.alpha = value;
+    // Camera Yaw control (horizontal rotation)
+    const cameraYaw = { yaw: config.camera.alpha };
+    cameraFolder.add(cameraYaw, 'yaw', -180, 180).name('Yaw (Horizontal)').onChange(function(value) {
+        const radians = BABYLON.Tools.ToRadians(value);
+        camera.alpha = radians;
+        config.camera.alpha = radians;
     });
     
-    // Camera beta control
-    const cameraBeta = { beta: config.camera.beta };
-    cameraFolder.add(cameraBeta, 'beta', 0, Math.PI).name('Beta').onChange(function(value) {
-        camera.beta = value;
-        config.camera.beta = value;
+    // Camera Pitch control (vertical rotation)
+    const cameraPitch = { pitch: BABYLON.Tools.ToDegrees(config.camera.beta) };
+    cameraFolder.add(cameraPitch, 'pitch', 0, 180).name('Pitch (Vertical)').onChange(function(value) {
+        const radians = BABYLON.Tools.ToRadians(value);
+        camera.beta = radians;
+        config.camera.beta = radians;
     });
     
-    // Camera radius control
-    const cameraRadius = { radius: config.camera.radius };
-    cameraFolder.add(cameraRadius, 'radius', 1, 20).name('Radius').onChange(function(value) {
+    // Camera Field of View control
+    const cameraFov = { fov: camera.fov };
+    cameraFolder.add(cameraFov, 'fov', 10, 120).name('Field of View').onChange(function(value) {
+        camera.fov = value;
+        config.camera.fov = value;
+    });
+    
+    // Camera Distance control
+    const cameraDistance = { distance: config.camera.radius };
+    cameraFolder.add(cameraDistance, 'distance', 1, 50).name('Distance').onChange(function(value) {
         camera.radius = value;
         config.camera.radius = value;
+    });
+    
+    // Camera Min Distance control
+    const cameraMinDistance = { minDistance: config.camera.minDistance || 1 };
+    cameraFolder.add(cameraMinDistance, 'minDistance', 0.1, 10).name('Min Distance').onChange(function(value) {
+        camera.lowerRadiusLimit = value;
+        config.camera.minDistance = value;
+    });
+    
+    // Camera Max Distance control
+    const cameraMaxDistance = { maxDistance: config.camera.maxDistance || 50 };
+    cameraFolder.add(cameraMaxDistance, 'maxDistance', 10, 100).name('Max Distance').onChange(function(value) {
+        camera.upperRadiusLimit = value;
+        config.camera.maxDistance = value;
     });
     
     // Camera export button - Direct file overwrite (Camera only)
@@ -211,6 +243,9 @@ createScene().then(createdScene => {
             config.camera.alpha = camera.alpha;
             config.camera.beta = camera.beta;
             config.camera.radius = camera.radius;
+            config.camera.fov = camera.fov;
+            config.camera.minDistance = camera.lowerRadiusLimit;
+            config.camera.maxDistance = camera.upperRadiusLimit;
             
             // Create export object with only camera settings, preserving current environment settings
             const exportConfig = {
@@ -218,7 +253,10 @@ createScene().then(createdScene => {
                 camera: {
                     alpha: config.camera.alpha,
                     beta: config.camera.beta,
-                    radius: config.camera.radius
+                    radius: config.camera.radius,
+                    fov: config.camera.fov,
+                    minDistance: config.camera.minDistance,
+                    maxDistance: config.camera.maxDistance
                 }
             };
             
