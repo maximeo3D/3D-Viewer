@@ -2,24 +2,51 @@
   "materials": {
     "red": {
       "type": "pbr",
-      "baseColor": "#ff0900",
-      "metallic": 0.8200000000000001,
-      "roughness": 0.15,
-      "alpha": 1
+      "baseColor": "#ec1b14",
+      "metallic": 1,
+      "roughness": 0.13,
+      "alpha": 1,
+      "albedoTexture": "metal_albedo.png",
+      "useAlphaFromAlbedoTexture": false,
+      "metallicTexture": "metal_ORM.png",
+      "useRoughnessFromMetallicTextureGreen": true,
+      "useMetallnessFromMetallicTextureBlue": true,
+      "useAmbientOcclusionFromMetallicTextureRed": true,
+      "bumpTexture": "metal_normal.png",
+      "bumpTextureIntensity": 1.4000000000000001,
+      "backFaceCulling": true
     },
     "green": {
       "type": "pbr",
       "baseColor": "#00ff00",
       "metallic": 0.82,
       "roughness": 0.15,
-      "alpha": 1
+      "alpha": 1,
+      "albedoTexture": null,
+      "useAlphaFromAlbedoTexture": false,
+      "metallicTexture": null,
+      "useRoughnessFromMetallicTextureGreen": false,
+      "useMetallnessFromMetallicTextureBlue": false,
+      "useAmbientOcclusionFromMetallicTextureRed": false,
+      "bumpTexture": null,
+      "bumpTextureIntensity": 1,
+      "backFaceCulling": true
     },
     "blue": {
       "type": "pbr",
       "baseColor": "#0007ff",
       "metallic": 1,
       "roughness": 0.1,
-      "alpha": 1
+      "alpha": 1,
+      "albedoTexture": null,
+      "useAlphaFromAlbedoTexture": false,
+      "metallicTexture": null,
+      "useRoughnessFromMetallicTextureGreen": false,
+      "useMetallnessFromMetallicTextureBlue": false,
+      "useAmbientOcclusionFromMetallicTextureRed": false,
+      "bumpTexture": null,
+      "bumpTextureIntensity": 1,
+      "backFaceCulling": true
     }
   }
 }

@@ -625,16 +625,161 @@ createScene().then(createdScene => {
     
     const materialDropdown = materialsFolder.add(materialList, 'selected', materialNames).name('Material List');
     
+    // Load available images, then create ALL material controls
+    loadAvailableImages().then(() => {
+        console.log('Initial texture list loaded with', availableImages.length, 'images');
+        
+        // Create ALL material controls now that images are loaded
+        createMaterialControls();
+        
+        // Set menu states AFTER all controls are created
+        setTimeout(() => {
+            environmentFolder.close();
+            cameraFolder.close();
+            materialsFolder.open();
+        }, 100);
+    });
+    
+    // Function to create all material controls in the correct order
+    function createMaterialControls() {
+        // Basic material properties
+        baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
+            materialProperties.baseColor = value;
+            applyMaterialChanges();
+        });
+        
+        metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange(function(value) {
+            materialProperties.metallic = value;
+            applyMaterialChanges();
+        });
+        
+        roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange(function(value) {
+            materialProperties.roughness = value;
+            applyMaterialChanges();
+        });
+        
+        alphaControl = materialsFolder.add(materialProperties, 'alpha', 0, 1).name('Alpha').onChange(function(value) {
+            materialProperties.alpha = value;
+            applyMaterialChanges();
+        });
+        
+        // Texture controls - positioned right after Alpha
+        albedoTextureControl = materialsFolder.add(materialProperties, 'albedoTexture', availableImages).name('Albedo Texture').onChange(function(value) {
+            materialProperties.albedoTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Surface Texture').onChange(function(value) {
+            materialProperties.metallicTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
+            materialProperties.bumpTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        // Other texture-related controls
+        useAlphaFromAlbedoTextureControl = materialsFolder.add(materialProperties, 'useAlphaFromAlbedoTexture').name('Use Alpha from Albedo').onChange(function(value) {
+            materialProperties.useAlphaFromAlbedoTexture = value;
+            applyMaterialChanges();
+        });
+        
+        useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
+            materialProperties.useRoughnessFromMetallicTextureGreen = value;
+            applyMaterialChanges();
+        });
+        
+        useMetallnessFromMetallicTextureBlueControl = materialsFolder.add(materialProperties, 'useMetallnessFromMetallicTextureBlue').name('Metalness from B').onChange(function(value) {
+            materialProperties.useMetallnessFromMetallicTextureBlue = value;
+            applyMaterialChanges();
+        });
+        
+        useAmbientOcclusionFromMetallicTextureRedControl = materialsFolder.add(materialProperties, 'useAmbientOcclusionFromMetallicTextureRed').name('AO from R').onChange(function(value) {
+            materialProperties.useAmbientOcclusionFromMetallicTextureRed = value;
+            applyMaterialChanges();
+        });
+        
+        bumpTextureIntensityControl = materialsFolder.add(materialProperties, 'bumpTextureIntensity', 0, 5).step(0.1).name('Intensity').onChange(function(value) {
+            materialProperties.bumpTextureIntensity = value;
+            applyMaterialChanges();
+        });
+        
+        backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
+            materialProperties.backFaceCulling = value;
+            applyMaterialChanges();
+        });
+        
+        // Add Refresh Images button
+        const refreshImages = { refresh: async function() {
+            console.log('Refreshing texture list...');
+            await loadAvailableImages();
+            console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
+            alert('✅ New textures loaded!\n\n💡 Please refresh the page (F5) to see new textures in the dropdowns.');
+        }};
+        refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
+        
+        // Material dropdown onChange
+        materialDropdown.onChange(function(value) {
+            updateMaterialPropertiesDisplay();
+        });
+        
+        // Initialize material properties with first material values
+        if (materialNames.length > 0) {
+            updateMaterialPropertiesDisplay();
+        } else {
+            exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
+        }
+    }
+    
     // Material properties controls - Initialize with first material values
     let materialProperties = {
         baseColor: '#ffffff',
         metallic: 0.0,
         roughness: 0.5,
-        alpha: 1.0
+        alpha: 1.0,
+        albedoTexture: '',
+        useAlphaFromAlbedoTexture: false,
+        metallicTexture: '',
+        useRoughnessFromMetallicTextureGreen: false,
+        useMetallnessFromMetallicTextureBlue: false,
+        useAmbientOcclusionFromMetallicTextureRed: false,
+        bumpTexture: '',
+        bumpTextureIntensity: 1.0,
+        backFaceCulling: true
     };
     
     // Declare export control variable
     let exportMaterialsControl;
+    
+    // Image list variables
+    let availableImages = ['None'];
+    let refreshImagesControl;
+    
+    // Function to load available texture images
+    async function loadAvailableImages() {
+        try {
+            const response = await fetch('api/textures', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error('Failed to load textures list: ' + response.status);
+            }
+            
+            const data = await response.json();
+            availableImages = ['None', ...data.images];
+            console.log(`Loaded ${data.count} texture files:`, data.images);
+            return availableImages;
+        } catch (error) {
+            console.error('Error loading available images:', error);
+            availableImages = ['None'];
+            return availableImages;
+        }
+    }
+    
+    // Function to refresh texture dropdowns - simplified to avoid reordering
+    function refreshTextureDropdowns() {
+        console.log('⚠️ Texture dropdowns require page refresh to update. Available images loaded:', availableImages.length);
+        console.log('💡 Tip: Refresh the page to see new textures in dropdowns.');
+    }
     
     // Function to update material properties display
     function updateMaterialPropertiesDisplay() {
@@ -647,6 +792,18 @@ createScene().then(createdScene => {
             materialsFolder.remove(metallicControl);
             materialsFolder.remove(roughnessControl);
             materialsFolder.remove(alphaControl);
+            materialsFolder.remove(albedoTextureControl);
+            materialsFolder.remove(useAlphaFromAlbedoTextureControl);
+            materialsFolder.remove(metallicTextureControl);
+            materialsFolder.remove(useRoughnessFromMetallicTextureGreenControl);
+            materialsFolder.remove(useMetallnessFromMetallicTextureBlueControl);
+            materialsFolder.remove(useAmbientOcclusionFromMetallicTextureRedControl);
+            materialsFolder.remove(bumpTextureControl);
+            materialsFolder.remove(bumpTextureIntensityControl);
+            materialsFolder.remove(backFaceCullingControl);
+            if (refreshImagesControl) {
+                materialsFolder.remove(refreshImagesControl);
+            }
             if (exportMaterialsControl) {
                 materialsFolder.remove(exportMaterialsControl);
             }
@@ -656,6 +813,15 @@ createScene().then(createdScene => {
             materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
             materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
             materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
+            materialProperties.albedoTexture = material.albedoTexture || '';
+            materialProperties.useAlphaFromAlbedoTexture = material.useAlphaFromAlbedoTexture !== undefined ? material.useAlphaFromAlbedoTexture : false;
+            materialProperties.metallicTexture = material.metallicTexture || '';
+            materialProperties.useRoughnessFromMetallicTextureGreen = material.useRoughnessFromMetallicTextureGreen !== undefined ? material.useRoughnessFromMetallicTextureGreen : false;
+            materialProperties.useMetallnessFromMetallicTextureBlue = material.useMetallnessFromMetallicTextureBlue !== undefined ? material.useMetallnessFromMetallicTextureBlue : false;
+            materialProperties.useAmbientOcclusionFromMetallicTextureRed = material.useAmbientOcclusionFromMetallicTextureRed !== undefined ? material.useAmbientOcclusionFromMetallicTextureRed : false;
+            materialProperties.bumpTexture = material.bumpTexture || '';
+            materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
+            materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
             
             // Recreate controls with new values
             baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
@@ -678,6 +844,65 @@ createScene().then(createdScene => {
                 applyMaterialChanges();
             });
             
+            // Texture controls with dropdowns - maintain same order as initial creation
+            materialProperties.albedoTexture = material.albedoTexture && material.albedoTexture !== '' ? material.albedoTexture : 'None';
+            albedoTextureControl = materialsFolder.add(materialProperties, 'albedoTexture', availableImages).name('Albedo Texture').onChange(function(value) {
+                materialProperties.albedoTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            materialProperties.metallicTexture = material.metallicTexture && material.metallicTexture !== '' ? material.metallicTexture : 'None';
+            metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Surface Texture').onChange(function(value) {
+                materialProperties.metallicTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            materialProperties.bumpTexture = material.bumpTexture && material.bumpTexture !== '' ? material.bumpTexture : 'None';
+            bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
+                materialProperties.bumpTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            // Other texture-related controls
+            useAlphaFromAlbedoTextureControl = materialsFolder.add(materialProperties, 'useAlphaFromAlbedoTexture').name('Use Alpha from Albedo').onChange(function(value) {
+                materialProperties.useAlphaFromAlbedoTexture = value;
+                applyMaterialChanges();
+            });
+            
+            useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
+                materialProperties.useRoughnessFromMetallicTextureGreen = value;
+                applyMaterialChanges();
+            });
+            
+            useMetallnessFromMetallicTextureBlueControl = materialsFolder.add(materialProperties, 'useMetallnessFromMetallicTextureBlue').name('Metalness from B').onChange(function(value) {
+                materialProperties.useMetallnessFromMetallicTextureBlue = value;
+                applyMaterialChanges();
+            });
+            
+            useAmbientOcclusionFromMetallicTextureRedControl = materialsFolder.add(materialProperties, 'useAmbientOcclusionFromMetallicTextureRed').name('AO from R').onChange(function(value) {
+                materialProperties.useAmbientOcclusionFromMetallicTextureRed = value;
+                applyMaterialChanges();
+            });
+            
+            bumpTextureIntensityControl = materialsFolder.add(materialProperties, 'bumpTextureIntensity', 0, 5).step(0.1).name('Intensity').onChange(function(value) {
+                materialProperties.bumpTextureIntensity = value;
+                applyMaterialChanges();
+            });
+            
+            backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
+                materialProperties.backFaceCulling = value;
+                applyMaterialChanges();
+            });
+            
+            // Add Refresh Images button
+            const refreshImages = { refresh: async function() {
+                console.log('Refreshing texture list...');
+                await loadAvailableImages();
+                console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
+                alert('✅ New textures loaded!\n\n💡 Please refresh the page (F5) to see new textures in the dropdowns.');
+            }};
+            refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
+            
             // Recreate Export Materials button at the end
             exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
             
@@ -694,6 +919,15 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].metallic = materialProperties.metallic;
             materialsConfig.materials[selectedMaterial].roughness = materialProperties.roughness;
             materialsConfig.materials[selectedMaterial].alpha = materialProperties.alpha;
+            materialsConfig.materials[selectedMaterial].albedoTexture = materialProperties.albedoTexture;
+            materialsConfig.materials[selectedMaterial].useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
+            materialsConfig.materials[selectedMaterial].metallicTexture = materialProperties.metallicTexture;
+            materialsConfig.materials[selectedMaterial].useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
+            materialsConfig.materials[selectedMaterial].useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
+            materialsConfig.materials[selectedMaterial].useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+            materialsConfig.materials[selectedMaterial].bumpTexture = materialProperties.bumpTexture;
+            materialsConfig.materials[selectedMaterial].bumpTextureIntensity = materialProperties.bumpTextureIntensity;
+            materialsConfig.materials[selectedMaterial].backFaceCulling = materialProperties.backFaceCulling;
             
             // Find all meshes that currently use this material and update their material properties
             loadedModels.forEach((modelData, modelName) => {
@@ -711,10 +945,38 @@ createScene().then(createdScene => {
                             
                             // Only update if this specific primitive uses the selected material
                             if (materialName === selectedMaterial && mesh.material) {
+                                // Basic properties
                                 mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
                                 mesh.material.metallic = materialProperties.metallic;
                                 mesh.material.roughness = materialProperties.roughness;
                                 mesh.material.alpha = materialProperties.alpha;
+                                mesh.material.backFaceCulling = materialProperties.backFaceCulling;
+                                
+                                // Texture properties (basic support - textures need to be loaded)
+                                if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
+                                    // TODO: Load albedo texture
+                                    console.log(`Albedo texture: ${materialProperties.albedoTexture}`);
+                                } else {
+                                    mesh.material.albedoTexture = null;
+                                }
+                                
+                                if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
+                                    // TODO: Load metallic texture and set channel options
+                                    console.log(`Metallic texture: ${materialProperties.metallicTexture}`);
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
+                                    mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
+                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+                                } else {
+                                    mesh.material.metallicTexture = null;
+                                }
+                                
+                                if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
+                                    // TODO: Load bump texture
+                                    console.log(`Bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                                } else {
+                                    mesh.material.bumpTexture = null;
+                                }
+                                
                                 console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name} (slot ${primitiveIndex + 1})`);
                             }
                         }
@@ -722,10 +984,35 @@ createScene().then(createdScene => {
                         // Fallback for non-primitive meshes, if any
                         const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name);
                         if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
+                            // Basic properties
                             mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
                             mesh.material.metallic = materialProperties.metallic;
                             mesh.material.roughness = materialProperties.roughness;
                             mesh.material.alpha = materialProperties.alpha;
+                            mesh.material.backFaceCulling = materialProperties.backFaceCulling;
+                            
+                            // Texture properties (basic support)
+                            if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
+                                console.log(`Albedo texture: ${materialProperties.albedoTexture}`);
+                            } else {
+                                mesh.material.albedoTexture = null;
+                            }
+                            
+                            if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
+                                console.log(`Metallic texture: ${materialProperties.metallicTexture}`);
+                                mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
+                                mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
+                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+                            } else {
+                                mesh.material.metallicTexture = null;
+                            }
+                            
+                            if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
+                                console.log(`Bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                            } else {
+                                mesh.material.bumpTexture = null;
+                            }
+                            
                             console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
                         }
                     }
@@ -739,31 +1026,12 @@ createScene().then(createdScene => {
         }
     }
     
-    // Create initial controls (will be recreated when material changes)
-    let baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
-        materialProperties.baseColor = value;
-        applyMaterialChanges();
-    });
-    
-    let metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange(function(value) {
-        materialProperties.metallic = value;
-        applyMaterialChanges();
-    });
-    
-    let roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange(function(value) {
-        materialProperties.roughness = value;
-        applyMaterialChanges();
-    });
-    
-    let alphaControl = materialsFolder.add(materialProperties, 'alpha', 0, 1).name('Alpha').onChange(function(value) {
-        materialProperties.alpha = value;
-        applyMaterialChanges();
-    });
-    
-    // Update display when material selection changes
-    materialDropdown.onChange(function(value) {
-        updateMaterialPropertiesDisplay();
-    });
+    // Declare control variables (will be created in createMaterialControls)
+    let baseColorControl, metallicControl, roughnessControl, alphaControl;
+    let albedoTextureControl, metallicTextureControl, bumpTextureControl;
+    let useAlphaFromAlbedoTextureControl, useRoughnessFromMetallicTextureGreenControl;
+    let useMetallnessFromMetallicTextureBlueControl, useAmbientOcclusionFromMetallicTextureRedControl;
+    let bumpTextureIntensityControl, backFaceCullingControl;
     
     // Export materials configuration button
     const exportMaterials = { export: async function() {
@@ -790,20 +1058,6 @@ createScene().then(createdScene => {
             console.error("❌ Materials export failed:", error);
         }
     }};
-    
-    // Initialize material properties with first material values
-    if (materialNames.length > 0) {
-        // Force initial display update to show correct values
-        updateMaterialPropertiesDisplay();
-    } else {
-        // If no materials, still create the export button
-        exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
-    }
-    
-    // Menu state management - all in one place
-    environmentFolder.close();
-    cameraFolder.close();
-    materialsFolder.open();
 });
 
 // Register a render loop to repeatedly render the scene

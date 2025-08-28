@@ -88,6 +88,47 @@ try {
             }
         }
         
+        # Handle GET requests for listing textures
+        elseif ($request.HttpMethod -eq 'GET' -and $path -eq 'api/textures') {
+            try {
+                # Get all image files from Textures directory
+                $texturesPath = Join-Path $PSScriptRoot "Textures"
+                $imageExtensions = @("*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tga", "*.dds", "*.hdr", "*.exr")
+                $imageFiles = @()
+                
+                foreach ($ext in $imageExtensions) {
+                    $files = Get-ChildItem -Path $texturesPath -Filter $ext -Recurse | ForEach-Object {
+                        $relativePath = $_.FullName.Replace($texturesPath, "").TrimStart('\', '/')
+                        $relativePath -replace '\\', '/'
+                    }
+                    $imageFiles += $files
+                }
+                
+                # Return JSON list of image files
+                $jsonResponse = @{
+                    images = $imageFiles
+                    count = $imageFiles.Count
+                } | ConvertTo-Json
+                
+                $response.StatusCode = 200
+                $response.ContentType = "application/json"
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResponse)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "Listed $($imageFiles.Count) texture files"
+            } catch {
+                $response.StatusCode = 500
+                $response.ContentType = "application/json"
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "Error listing textures: $($_.Exception.Message)"
+            }
+        }
+        
         # Handle POST requests for materials.json
         elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'materials.json') {
             try {
