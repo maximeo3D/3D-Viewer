@@ -307,12 +307,15 @@ function createPBRMaterial(materialConfig, scene) {
     }
     
     // === TRANSPARENCY ===
-    pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
-    pbr.backFaceCulling = materialConfig.backFaceCulling !== undefined ? materialConfig.backFaceCulling : true;
+    pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    pbr.backFaceCulling = false; // Désactivé pour la transparence
     
     // === PBR RENDERING OPTIMIZATIONS ===
     pbr.usePhysicalLightFalloff = true;
     pbr.useEnergyConservation = true;
+    
+    // Enable depth pre-pass to avoid transparency artifacts
+    pbr.needDepthPrePass = true;
     
     return pbr;
 }

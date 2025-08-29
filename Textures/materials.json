@@ -5,7 +5,7 @@
       "baseColor": "#ffffff",
       "metallic": 1,
       "roughness": 0.56,
-      "alpha": 1,
+      "alpha": 0.18565388002546085,
       "albedoTexture": "metal_albedo.png",
       "metallicTexture": "metal_metalness.png",
       "microSurfaceTexture": "metal_roughness.png",
@@ -33,14 +33,14 @@
       "baseColor": "#7e7e7e",
       "metallic": 1,
       "roughness": 1,
-      "alpha": 1,
+      "alpha": 0.4705853630517107,
       "albedoTexture": "None",
       "metallicTexture": "RGB.png",
       "microSurfaceTexture": "RGB.png",
       "ambientTexture": "RGB.png",
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
-      "backFaceCulling": true
+      "backFaceCulling": false
     }
   }
 }
