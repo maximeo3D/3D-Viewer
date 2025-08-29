@@ -115,7 +115,7 @@ async function loadConfig() {
         const response = await fetch('studio.json');
         if (response.ok) {
             config = await response.json();
-            console.log("Configuration loaded from studio.json");
+            // console.log("Configuration loaded from studio.json");
         } else {
             console.warn("Could not load studio.json, using default values");
         }
@@ -130,7 +130,7 @@ async function loadAssetConfig() {
         const response = await fetch('Assets/asset.json');
         if (response.ok) {
             assetConfig = await response.json();
-            console.log("Asset configuration loaded from Assets/asset.json");
+            // console.log("Asset configuration loaded from Assets/asset.json");
         } else {
             console.warn("Could not load Assets/asset.json, using default values");
             assetConfig = {
@@ -151,7 +151,7 @@ async function loadMaterialsConfig() {
         const response = await fetch('Textures/materials.json');
         if (response.ok) {
             materialsConfig = await response.json();
-            console.log("Materials configuration loaded from Textures/materials.json");
+            // console.log("Materials configuration loaded from Textures/materials.json");
         } else {
             console.warn("Could not load Textures/materials.json, using default values");
             materialsConfig = {
@@ -172,7 +172,7 @@ async function loadModels() {
     
     for (const modelConfig of assetConfig.models) {
         try {
-            console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
+            // console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
             
             // Load the GLB file
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
@@ -234,7 +234,7 @@ async function loadModels() {
                                 
                                 if (materialName && materialsConfig.materials[materialName]) {
                                     applyMaterial(mesh, materialsConfig.materials[materialName]);
-                                    console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
+                                    // console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
                                 }
                             }
                         } else {
@@ -254,7 +254,7 @@ async function loadModels() {
                     config: modelConfig
                 });
                 
-                console.log(`✅ Model ${modelConfig.name} loaded successfully`);
+                // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
             }
         } catch (error) {
             console.error(`❌ Failed to load model ${modelConfig.name}:`, error);
@@ -287,31 +287,74 @@ function applyMaterial(mesh, materialConfig) {
         }
         
         // Load and apply textures at initialization
-        if (materialConfig.albedoTexture && materialConfig.albedoTexture.trim() !== '') {
+        if (materialConfig.albedoTexture && materialConfig.albedoTexture.trim() !== '' && materialConfig.albedoTexture !== 'None') {
             pbr.albedoTexture = new BABYLON.Texture(`Textures/${materialConfig.albedoTexture}`, scene);
             pbr.useAlphaFromAlbedoTexture = materialConfig.useAlphaFromAlbedoTexture || false;
-            console.log(`✅ Loaded albedo texture at init: ${materialConfig.albedoTexture}`);
+            // console.log(`✅ Loaded albedo texture at init: ${materialConfig.albedoTexture}`);
         }
         
-        if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '') {
+        if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '' && materialConfig.metallicTexture !== 'None') {
             const metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
+            
+            // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
+            // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
             pbr.metallicTexture = metallicTexture;
             
-            // Si on utilise la roughness depuis le canal vert de la texture métallique
+            // FORCER explicitement chaque canal à sa valeur configurée
+            // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
+            pbr.useRoughnessFromMetallicTextureAlpha = false;
+            pbr.useRoughnessFromMetallicTextureGreen = false;
+            pbr.useMetallnessFromMetallicTextureBlue = false;
+            pbr.useAmbientOcclusionFromMetallicTextureRed = false;
+            
+            // FORCER aussi les propriétés de base pour éviter les comportements par défaut
+            pbr.metallic = materialConfig.metallic || 0;
+            pbr.roughness = materialConfig.roughness || 0;
+            
+            // Maintenant activer SEULEMENT les canaux configurés à true
+            if (materialConfig.useRoughnessFromMetallicTextureAlpha) {
+                pbr.useRoughnessFromMetallicTextureAlpha = true;
+            }
             if (materialConfig.useRoughnessFromMetallicTextureGreen) {
-                pbr.roughnessTexture = metallicTexture;
                 pbr.useRoughnessFromMetallicTextureGreen = true;
             }
+            if (materialConfig.useMetallnessFromMetallicTextureBlue) {
+                pbr.useMetallnessFromMetallicTextureBlue = true;
+            }
+            if (materialConfig.useAmbientOcclusionFromMetallicTextureRed) {
+                pbr.useAmbientOcclusionFromMetallicTextureRed = true;
+            }
             
-            pbr.useMetallnessFromMetallicTextureBlue = materialConfig.useMetallnessFromMetallicTextureBlue || false;
-            pbr.useAmbientOcclusionFromMetallicTextureRed = materialConfig.useAmbientOcclusionFromMetallicTextureRed || false;
-            console.log(`✅ Loaded metallic texture at init: ${materialConfig.metallicTexture}`);
+            // FORCER la désactivation des canaux non utilisés pour éviter les interférences
+            if (!materialConfig.useRoughnessFromMetallicTextureGreen) {
+                pbr.useRoughnessFromMetallicTextureGreen = false;
+            }
+            if (!materialConfig.useMetallnessFromMetallicTextureBlue) {
+                pbr.useMetallnessFromMetallicTextureBlue = false;
+            }
+            if (!materialConfig.useAmbientOcclusionFromMetallicTextureRed) {
+                pbr.useAmbientOcclusionFromMetallicTextureRed = false;
+            }
+            
+            // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
+            // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
+            
+            // console.log(`✅ Loaded metallic texture at init: ${materialConfig.metallicTexture}`);
+            console.log(`🔍 DEBUG - Channels configured:`);
+            console.log(`   - R(AO): ${pbr.useAmbientOcclusionFromMetallicTextureRed}`);
+            console.log(`   - G(Rough): ${pbr.useRoughnessFromMetallicTextureGreen}`);
+            console.log(`   - A(Rough): ${pbr.useRoughnessFromMetallicTextureAlpha}`);
+            console.log(`   - B(Metal): ${pbr.useMetallnessFromMetallicTextureBlue}`);
+            console.log(`🔍 DEBUG - Texture assignments:`);
+            console.log(`   - metallicTexture: ${pbr.metallicTexture ? 'ASSIGNED' : 'NULL'}`);
+            console.log(`   - roughnessTexture: ${pbr.roughnessTexture ? 'ASSIGNED' : 'NULL'}`);
+            console.log(`   - ambientTexture: ${pbr.ambientTexture ? 'ASSIGNED' : 'NULL'}`);
         }
         
-        if (materialConfig.bumpTexture && materialConfig.bumpTexture.trim() !== '') {
+        if (materialConfig.bumpTexture && materialConfig.bumpTexture.trim() !== '' && materialConfig.bumpTexture !== 'None') {
             pbr.bumpTexture = new BABYLON.Texture(`Textures/${materialConfig.bumpTexture}`, scene);
             pbr.bumpTexture.level = materialConfig.bumpTextureIntensity || 1.0;
-            console.log(`✅ Loaded bump texture at init: ${materialConfig.bumpTexture}`);
+            // console.log(`✅ Loaded bump texture at init: ${materialConfig.bumpTexture}`);
         }
         
         // Additional PBR properties for better rendering
@@ -321,7 +364,7 @@ function applyMaterial(mesh, materialConfig) {
         // Apply material to mesh
         mesh.material = pbr;
         
-        console.log(`✅ Material with textures applied to ${mesh.name}:`, materialConfig);
+        // console.log(`✅ Material with textures applied to ${mesh.name}:`, materialConfig);
     }
 }
 
@@ -390,7 +433,7 @@ const createScene = async function() {
             BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
         );
         
-        console.log("HDR loaded successfully with HDRCubeTexture");
+        // console.log("HDR loaded successfully with HDRCubeTexture");
     } catch (error) {
         console.error("HDR loading failed:", error);
         
@@ -405,7 +448,7 @@ const createScene = async function() {
                 BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
             );
             
-            console.log("HDR loaded successfully with CreateFromPrefilteredData");
+            // console.log("HDR loaded successfully with CreateFromPrefilteredData");
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
         }
@@ -481,12 +524,12 @@ createScene().then(createdScene => {
             }
             
             const result = await res.json();
-            console.log("Environment parameters exported successfully:", result.message);
+            // console.log("Environment parameters exported successfully:", result.message);
             
             // Update local config with the new file content
             config = exportConfig;
             
-            console.log("✅ Environment parameters exported successfully! studio.json has been updated.");
+            // console.log("✅ Environment parameters exported successfully! studio.json has been updated.");
         } catch (error) {
             console.error("❌ Environment export failed:", error);
         }
@@ -628,12 +671,12 @@ createScene().then(createdScene => {
             }
             
             const result = await res.json();
-            console.log("Camera settings exported successfully:", result.message);
+            // console.log("Camera settings exported successfully:", result.message);
             
             // Update local config with the new file content
             config = exportConfig;
             
-            console.log("📷 Camera settings exported successfully! studio.json has been updated.");
+            // console.log("📷 Camera settings exported successfully! studio.json has been updated.");
         } catch (error) {
             console.error("❌ Camera export failed:", error);
         }
@@ -655,7 +698,7 @@ createScene().then(createdScene => {
     
     // Load available images, then create ALL material controls
     loadAvailableImages().then(() => {
-        console.log('Initial texture list loaded with', availableImages.length, 'images');
+        // console.log('Initial texture list loaded with', availableImages.length, 'images');
         
         // Create ALL material controls now that images are loaded
         createMaterialControls();
@@ -740,9 +783,9 @@ createScene().then(createdScene => {
         
         // Add Refresh Images button
         const refreshImages = { refresh: async function() {
-            console.log('Refreshing texture list...');
+            // console.log('Refreshing texture list...');
             await loadAvailableImages();
-            console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
+            // console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
             alert('✅ New textures loaded!\n\n💡 Please refresh the page (F5) to see new textures in the dropdowns.');
         }};
         refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
@@ -794,7 +837,7 @@ createScene().then(createdScene => {
             
             const data = await response.json();
             availableImages = ['None', ...data.images];
-            console.log(`Loaded ${data.count} texture files:`, data.images);
+            // console.log(`Loaded ${data.count} texture files:`, data.images);
             return availableImages;
         } catch (error) {
             console.error('Error loading available images:', error);
@@ -805,8 +848,8 @@ createScene().then(createdScene => {
     
     // Function to refresh texture dropdowns - simplified to avoid reordering
     function refreshTextureDropdowns() {
-        console.log('⚠️ Texture dropdowns require page refresh to update. Available images loaded:', availableImages.length);
-        console.log('💡 Tip: Refresh the page to see new textures in dropdowns.');
+        // console.log('⚠️ Texture dropdowns require page refresh to update. Available images loaded:', availableImages.length);
+        // console.log('💡 Tip: Refresh the page to see new textures in dropdowns.');
     }
     
     // Function to update material properties display
@@ -924,9 +967,9 @@ createScene().then(createdScene => {
             
             // Add Refresh Images button
             const refreshImages = { refresh: async function() {
-                console.log('Refreshing texture list...');
+                // console.log('Refreshing texture list...');
                 await loadAvailableImages();
-                console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
+                // console.log('✅ New textures loaded! Refresh the page to see them in dropdowns.');
                 alert('✅ New textures loaded!\n\n💡 Please refresh the page (F5) to see new textures in the dropdowns.');
             }};
             refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
@@ -934,7 +977,7 @@ createScene().then(createdScene => {
             // Recreate Export Materials button at the end
             exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
             
-            console.log(`Updated display for material ${selectedMaterial}:`, materialProperties);
+            // console.log(`Updated display for material ${selectedMaterial}:`, materialProperties);
         }
     }
     
@@ -981,48 +1024,80 @@ createScene().then(createdScene => {
                                 mesh.material.backFaceCulling = materialProperties.backFaceCulling;
                                 
                                 // Texture properties - load and apply real textures
-                                if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
+                                if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '' && materialProperties.albedoTexture !== 'None') {
                                     mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
                                     mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
-                                    console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
+                                    // console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
                                 } else {
                                     mesh.material.albedoTexture = null;
                                     mesh.material.useAlphaFromAlbedoTexture = false;
                                 }
                                 
-                                if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
+                                if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '' && materialProperties.metallicTexture !== 'None') {
                                     const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
+                                    
+                                    // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
+                                    // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
                                     mesh.material.metallicTexture = metallicTexture;
                                     
-                                    // Si on utilise la roughness depuis le canal vert de la texture métallique
+                                    // FORCER explicitement chaque canal à sa valeur configurée
+                                    // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
+                                    mesh.material.useRoughnessFromMetallicTextureAlpha = false;
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
+                                    
+                                    // FORCER aussi les propriétés de base pour éviter les comportements par défaut
+                                    mesh.material.metallic = materialProperties.metallic || 0;
+                                    mesh.material.roughness = materialProperties.roughness || 0;
+                                    
+                                    // Maintenant activer SEULEMENT les canaux configurés à true
+                                    if (materialProperties.useRoughnessFromMetallicTextureAlpha) {
+                                        mesh.material.useRoughnessFromMetallicTextureAlpha = true;
+                                    }
                                     if (materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                        mesh.material.roughnessTexture = metallicTexture;
                                         mesh.material.useRoughnessFromMetallicTextureGreen = true;
-                                    } else {
-                                        mesh.material.roughnessTexture = null;
-                                        mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                    }
+                                    if (materialProperties.useMetallnessFromMetallicTextureBlue) {
+                                        mesh.material.useMetallnessFromMetallicTextureBlue = true;
+                                    }
+                                    if (materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
+                                        mesh.material.useAmbientOcclusionFromMetallicTextureRed = true;
                                     }
                                     
-                                    mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
-                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
-                                    console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
+                                    // FORCER la désactivation des canaux non utilisés pour éviter les interférences
+                                    if (!materialProperties.useRoughnessFromMetallicTextureGreen) {
+                                        mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                    }
+                                    if (!materialProperties.useMetallnessFromMetallicTextureBlue) {
+                                        mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                    }
+                                    if (!materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
+                                        mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
+                                    }
+                                    
+                                    // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
+                                    // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
+                                    
+                                    // console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
+                                    console.log(`Channels - R(AO): ${mesh.material.useAmbientOcclusionFromMetallicTextureRed}, G(Rough): ${mesh.material.useRoughnessFromMetallicTextureGreen}, B(Metal): ${mesh.material.useMetallnessFromMetallicTextureBlue}`);
                                 } else {
                                     mesh.material.metallicTexture = null;
-                                    mesh.material.roughnessTexture = null;
+                                    mesh.material.useRoughnessFromMetallicTextureAlpha = false;
                                     mesh.material.useRoughnessFromMetallicTextureGreen = false;
                                     mesh.material.useMetallnessFromMetallicTextureBlue = false;
                                     mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
                                 }
                                 
-                                if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
+                                if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '' && materialProperties.bumpTexture !== 'None') {
                                     mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
                                     mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
-                                    console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                                    // console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
                                 } else {
                                     mesh.material.bumpTexture = null;
                                 }
                                 
-                                console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name} (slot ${primitiveIndex + 1})`);
+                                // console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name} (slot ${primitiveIndex + 1})`);
                             }
                         }
                     } else {
@@ -1037,48 +1112,80 @@ createScene().then(createdScene => {
                             mesh.material.backFaceCulling = materialProperties.backFaceCulling;
                             
                             // Texture properties - load and apply real textures
-                            if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '') {
+                            if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '' && materialProperties.albedoTexture !== 'None') {
                                 mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
                                 mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
-                                console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
+                                // console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
                             } else {
                                 mesh.material.albedoTexture = null;
                                 mesh.material.useAlphaFromAlbedoTexture = false;
                             }
                             
-                            if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
+                            if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '' && materialProperties.metallicTexture !== 'None') {
                                 const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
+                                
+                                // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
+                                // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
                                 mesh.material.metallicTexture = metallicTexture;
                                 
-                                // Si on utilise la roughness depuis le canal vert de la texture métallique
+                                // FORCER explicitement chaque canal à sa valeur configurée
+                                // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
+                                mesh.material.useRoughnessFromMetallicTextureAlpha = false;
+                                mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
+                                
+                                // FORCER aussi les propriétés de base pour éviter les comportements par défaut
+                                mesh.material.metallic = materialProperties.metallic || 0;
+                                mesh.material.roughness = materialProperties.roughness || 0;
+                                
+                                // Maintenant activer SEULEMENT les canaux configurés à true
+                                if (materialProperties.useRoughnessFromMetallicTextureAlpha) {
+                                    mesh.material.useRoughnessFromMetallicTextureAlpha = true;
+                                }
                                 if (materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                    mesh.material.roughnessTexture = metallicTexture;
                                     mesh.material.useRoughnessFromMetallicTextureGreen = true;
-                                } else {
-                                    mesh.material.roughnessTexture = null;
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                }
+                                if (materialProperties.useMetallnessFromMetallicTextureBlue) {
+                                    mesh.material.useMetallnessFromMetallicTextureBlue = true;
+                                }
+                                if (materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
+                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = true;
                                 }
                                 
-                                mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
-                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
-                                console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
+                                // FORCER la désactivation des canaux non utilisés pour éviter les interférences
+                                if (!materialProperties.useRoughnessFromMetallicTextureGreen) {
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                }
+                                if (!materialProperties.useMetallnessFromMetallicTextureBlue) {
+                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
+                                }
+                                if (!materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
+                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
+                                }
+                                
+                                // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
+                                // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
+                                
+                                // console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
+                                console.log(`Channels - R(AO): ${mesh.material.useAmbientOcclusionFromMetallicTextureRed}, G(Rough): ${mesh.material.useRoughnessFromMetallicTextureGreen}, B(Metal): ${mesh.material.useMetallnessFromMetallicTextureBlue}`);
                             } else {
                                 mesh.material.metallicTexture = null;
-                                mesh.material.roughnessTexture = null;
+                                mesh.material.useRoughnessFromMetallicTextureAlpha = false;
                                 mesh.material.useRoughnessFromMetallicTextureGreen = false;
                                 mesh.material.useMetallnessFromMetallicTextureBlue = false;
                                 mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
                             }
                             
-                            if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '') {
+                            if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '' && materialProperties.bumpTexture !== 'None') {
                                 mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
                                 mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
-                                console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
+                                // console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
                             } else {
                                 mesh.material.bumpTexture = null;
                             }
                             
-                            console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
+                            // console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
                         }
                     }
                 });
@@ -1117,8 +1224,8 @@ createScene().then(createdScene => {
             }
             
             const result = await res.json();
-            console.log("Materials configuration exported successfully:", result.message);
-            console.log("✅ Materials configuration exported successfully! Textures/materials.json has been updated.");
+            // console.log("Materials configuration exported successfully:", result.message);
+            // console.log("✅ Materials configuration exported successfully! Textures/materials.json has been updated.");
         } catch (error) {
             console.error("❌ Materials export failed:", error);
         }
