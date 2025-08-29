@@ -262,109 +262,61 @@ async function loadModels() {
     }
 }
 
+// Function to create PBR material according to Babylon.js documentation
+function createPBRMaterial(materialConfig, scene) {
+    const pbr = new BABYLON.PBRMaterial(`${materialConfig.name || "pbr"}_material`, scene);
+    
+    // === BASE PBR PROPERTIES ===
+    if (materialConfig.baseColor) {
+        const color = BABYLON.Color3.FromHexString(materialConfig.baseColor);
+        pbr.albedoColor = color;
+        console.log(`🎨 Applied albedoColor: ${materialConfig.baseColor} -> RGB(${color.r}, ${color.g}, ${color.b})`);
+    }
+    
+    pbr.metallic = materialConfig.metallic !== undefined ? materialConfig.metallic : 0;
+    pbr.roughness = materialConfig.roughness !== undefined ? materialConfig.roughness : 0.5;
+    pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
+    
+    // === TEXTURES ===
+    // Albedo texture (base color)
+    if (materialConfig.albedoTexture && materialConfig.albedoTexture.trim() !== '' && materialConfig.albedoTexture !== 'None') {
+        pbr.albedoTexture = new BABYLON.Texture(`Textures/${materialConfig.albedoTexture}`, scene);
+    } else {
+        pbr.albedoTexture = null;
+    }
+    
+    // Normal/Bump texture
+    if (materialConfig.bumpTexture && materialConfig.bumpTexture.trim() !== '' && materialConfig.bumpTexture !== 'None') {
+        pbr.bumpTexture = new BABYLON.Texture(`Textures/${materialConfig.bumpTexture}`, scene);
+        pbr.bumpTexture.level = materialConfig.bumpTextureIntensity !== undefined ? materialConfig.bumpTextureIntensity : 1.0;
+    }
+    
+    // === ORM TEXTURE (Occlusion, Roughness, Metallic) ===
+    if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '' && materialConfig.metallicTexture !== 'None') {
+        pbr.metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
+        
+        // Configure ORM channels EXACTLY as per Babylon.js documentation
+        pbr.useRoughnessFromMetallicTextureGreen = Boolean(materialConfig.useRoughnessFromMetallicTextureGreen);
+        pbr.useMetallnessFromMetallicTextureBlue = Boolean(materialConfig.useMetallnessFromMetallicTextureBlue);
+        pbr.useAmbientOcclusionFromMetallicTextureRed = Boolean(materialConfig.useAmbientOcclusionFromMetallicTextureRed);
+    }
+    
+    // === TRANSPARENCY ===
+    pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
+    pbr.backFaceCulling = materialConfig.backFaceCulling !== undefined ? materialConfig.backFaceCulling : true;
+    
+    // === PBR RENDERING OPTIMIZATIONS ===
+    pbr.usePhysicalLightFalloff = true;
+    pbr.useEnergyConservation = true;
+    
+    return pbr;
+}
+
 // Function to apply material to mesh
 function applyMaterial(mesh, materialConfig) {
     if (materialConfig.type === 'pbr') {
-        const pbr = new BABYLON.PBRMaterial(`${mesh.name}_material`, scene);
-        
-        // Base properties - using proper PBR property names
-        if (materialConfig.baseColor) {
-            pbr.albedoColor = BABYLON.Color3.FromHexString(materialConfig.baseColor);
-            // Also set baseColor for compatibility
-            pbr.baseColor = BABYLON.Color3.FromHexString(materialConfig.baseColor);
-        }
-        
-        if (materialConfig.metallic !== undefined) {
-            pbr.metallic = materialConfig.metallic;
-        }
-        
-        if (materialConfig.roughness !== undefined) {
-            pbr.roughness = materialConfig.roughness;
-        }
-        
-        if (materialConfig.alpha !== undefined) {
-            pbr.alpha = materialConfig.alpha;
-        }
-        
-        // Load and apply textures at initialization
-        if (materialConfig.albedoTexture && materialConfig.albedoTexture.trim() !== '' && materialConfig.albedoTexture !== 'None') {
-            pbr.albedoTexture = new BABYLON.Texture(`Textures/${materialConfig.albedoTexture}`, scene);
-            pbr.useAlphaFromAlbedoTexture = materialConfig.useAlphaFromAlbedoTexture || false;
-            // console.log(`✅ Loaded albedo texture at init: ${materialConfig.albedoTexture}`);
-        }
-        
-        if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '' && materialConfig.metallicTexture !== 'None') {
-            const metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
-            
-            // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
-            // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
-            pbr.metallicTexture = metallicTexture;
-            
-            // FORCER explicitement chaque canal à sa valeur configurée
-            // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
-            pbr.useRoughnessFromMetallicTextureAlpha = false;
-            pbr.useRoughnessFromMetallicTextureGreen = false;
-            pbr.useMetallnessFromMetallicTextureBlue = false;
-            pbr.useAmbientOcclusionFromMetallicTextureRed = false;
-            
-            // FORCER aussi les propriétés de base pour éviter les comportements par défaut
-            pbr.metallic = materialConfig.metallic || 0;
-            pbr.roughness = materialConfig.roughness || 0;
-            
-            // Maintenant activer SEULEMENT les canaux configurés à true
-            if (materialConfig.useRoughnessFromMetallicTextureAlpha) {
-                pbr.useRoughnessFromMetallicTextureAlpha = true;
-            }
-            if (materialConfig.useRoughnessFromMetallicTextureGreen) {
-                pbr.useRoughnessFromMetallicTextureGreen = true;
-            }
-            if (materialConfig.useMetallnessFromMetallicTextureBlue) {
-                pbr.useMetallnessFromMetallicTextureBlue = true;
-            }
-            if (materialConfig.useAmbientOcclusionFromMetallicTextureRed) {
-                pbr.useAmbientOcclusionFromMetallicTextureRed = true;
-            }
-            
-            // FORCER la désactivation des canaux non utilisés pour éviter les interférences
-            if (!materialConfig.useRoughnessFromMetallicTextureGreen) {
-                pbr.useRoughnessFromMetallicTextureGreen = false;
-            }
-            if (!materialConfig.useMetallnessFromMetallicTextureBlue) {
-                pbr.useMetallnessFromMetallicTextureBlue = false;
-            }
-            if (!materialConfig.useAmbientOcclusionFromMetallicTextureRed) {
-                pbr.useAmbientOcclusionFromMetallicTextureRed = false;
-            }
-            
-            // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
-            // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
-            
-            // console.log(`✅ Loaded metallic texture at init: ${materialConfig.metallicTexture}`);
-            console.log(`🔍 DEBUG - Channels configured:`);
-            console.log(`   - R(AO): ${pbr.useAmbientOcclusionFromMetallicTextureRed}`);
-            console.log(`   - G(Rough): ${pbr.useRoughnessFromMetallicTextureGreen}`);
-            console.log(`   - A(Rough): ${pbr.useRoughnessFromMetallicTextureAlpha}`);
-            console.log(`   - B(Metal): ${pbr.useMetallnessFromMetallicTextureBlue}`);
-            console.log(`🔍 DEBUG - Texture assignments:`);
-            console.log(`   - metallicTexture: ${pbr.metallicTexture ? 'ASSIGNED' : 'NULL'}`);
-            console.log(`   - roughnessTexture: ${pbr.roughnessTexture ? 'ASSIGNED' : 'NULL'}`);
-            console.log(`   - ambientTexture: ${pbr.ambientTexture ? 'ASSIGNED' : 'NULL'}`);
-        }
-        
-        if (materialConfig.bumpTexture && materialConfig.bumpTexture.trim() !== '' && materialConfig.bumpTexture !== 'None') {
-            pbr.bumpTexture = new BABYLON.Texture(`Textures/${materialConfig.bumpTexture}`, scene);
-            pbr.bumpTexture.level = materialConfig.bumpTextureIntensity || 1.0;
-            // console.log(`✅ Loaded bump texture at init: ${materialConfig.bumpTexture}`);
-        }
-        
-        // Additional PBR properties for better rendering
-        pbr.usePhysicalLightFalloff = true;
-        pbr.useEnergyConservation = true;
-        
-        // Apply material to mesh
+        const pbr = createPBRMaterial(materialConfig, scene);
         mesh.material = pbr;
-        
-        // console.log(`✅ Material with textures applied to ${mesh.name}:`, materialConfig);
     }
 }
 
@@ -408,16 +360,7 @@ const createScene = async function() {
     // Load 3D models from asset configuration
     await loadModels();
     
-    // Create a metallic sphere (fallback if no models loaded)
-    const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
-    
-    // Create PBR material for proper environment reflections
-    const pbr = new BABYLON.PBRMaterial("pbr", scene);
-    pbr.metallic = 1.0;
-    pbr.roughness = 0.1;
-    pbr.baseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
-    
-    sphere.material = pbr;
+
     
     // Set background color from config
     scene.clearColor = BABYLON.Color4.FromHexString(config.environment.backgroundColor);
@@ -751,10 +694,6 @@ createScene().then(createdScene => {
         });
         
         // Other texture-related controls
-        useAlphaFromAlbedoTextureControl = materialsFolder.add(materialProperties, 'useAlphaFromAlbedoTexture').name('Use Alpha from Albedo').onChange(function(value) {
-            materialProperties.useAlphaFromAlbedoTexture = value;
-            applyMaterialChanges();
-        });
         
         useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
             materialProperties.useRoughnessFromMetallicTextureGreen = value;
@@ -810,7 +749,6 @@ createScene().then(createdScene => {
         roughness: 0.5,
         alpha: 1.0,
         albedoTexture: '',
-        useAlphaFromAlbedoTexture: false,
         metallicTexture: '',
         useRoughnessFromMetallicTextureGreen: false,
         useMetallnessFromMetallicTextureBlue: false,
@@ -864,7 +802,7 @@ createScene().then(createdScene => {
             materialsFolder.remove(roughnessControl);
             materialsFolder.remove(alphaControl);
             materialsFolder.remove(albedoTextureControl);
-            materialsFolder.remove(useAlphaFromAlbedoTextureControl);
+
             materialsFolder.remove(metallicTextureControl);
             materialsFolder.remove(useRoughnessFromMetallicTextureGreenControl);
             materialsFolder.remove(useMetallnessFromMetallicTextureBlueControl);
@@ -885,7 +823,7 @@ createScene().then(createdScene => {
             materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
             materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
             materialProperties.albedoTexture = material.albedoTexture || '';
-            materialProperties.useAlphaFromAlbedoTexture = material.useAlphaFromAlbedoTexture !== undefined ? material.useAlphaFromAlbedoTexture : false;
+    
             materialProperties.metallicTexture = material.metallicTexture || '';
             materialProperties.useRoughnessFromMetallicTextureGreen = material.useRoughnessFromMetallicTextureGreen !== undefined ? material.useRoughnessFromMetallicTextureGreen : false;
             materialProperties.useMetallnessFromMetallicTextureBlue = material.useMetallnessFromMetallicTextureBlue !== undefined ? material.useMetallnessFromMetallicTextureBlue : false;
@@ -935,10 +873,6 @@ createScene().then(createdScene => {
             });
             
             // Other texture-related controls
-            useAlphaFromAlbedoTextureControl = materialsFolder.add(materialProperties, 'useAlphaFromAlbedoTexture').name('Use Alpha from Albedo').onChange(function(value) {
-                materialProperties.useAlphaFromAlbedoTexture = value;
-                applyMaterialChanges();
-            });
             
             useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
                 materialProperties.useRoughnessFromMetallicTextureGreen = value;
@@ -991,7 +925,7 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].roughness = materialProperties.roughness;
             materialsConfig.materials[selectedMaterial].alpha = materialProperties.alpha;
             materialsConfig.materials[selectedMaterial].albedoTexture = materialProperties.albedoTexture;
-            materialsConfig.materials[selectedMaterial].useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
+
             materialsConfig.materials[selectedMaterial].metallicTexture = materialProperties.metallicTexture;
             materialsConfig.materials[selectedMaterial].useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
             materialsConfig.materials[selectedMaterial].useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
@@ -1014,178 +948,20 @@ createScene().then(createdScene => {
                             const materialSlotKey = `materialSlot${primitiveIndex + 1}`; // materialSlot1 for primitive0
                             const materialName = meshConfig[materialSlotKey];
                             
-                            // Only update if this specific primitive uses the selected material
-                            if (materialName === selectedMaterial && mesh.material) {
-                                // Basic properties
-                                mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
-                                mesh.material.metallic = materialProperties.metallic;
-                                mesh.material.roughness = materialProperties.roughness;
-                                mesh.material.alpha = materialProperties.alpha;
-                                mesh.material.backFaceCulling = materialProperties.backFaceCulling;
-                                
-                                // Texture properties - load and apply real textures
-                                if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '' && materialProperties.albedoTexture !== 'None') {
-                                    mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
-                                    mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
-                                    // console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
-                                } else {
-                                    mesh.material.albedoTexture = null;
-                                    mesh.material.useAlphaFromAlbedoTexture = false;
+                                                            // Only update if this specific primitive uses the selected material
+                                if (materialName === selectedMaterial && mesh.material) {
+                                    // Create completely new PBR material with updated properties
+                                    const updatedMaterial = createPBRMaterial(materialProperties, scene);
+                                    mesh.material = updatedMaterial;
                                 }
-                                
-                                if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '' && materialProperties.metallicTexture !== 'None') {
-                                    const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
-                                    
-                                    // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
-                                    // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
-                                    mesh.material.metallicTexture = metallicTexture;
-                                    
-                                    // FORCER explicitement chaque canal à sa valeur configurée
-                                    // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
-                                    mesh.material.useRoughnessFromMetallicTextureAlpha = false;
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                                    
-                                    // FORCER aussi les propriétés de base pour éviter les comportements par défaut
-                                    mesh.material.metallic = materialProperties.metallic || 0;
-                                    mesh.material.roughness = materialProperties.roughness || 0;
-                                    
-                                    // Maintenant activer SEULEMENT les canaux configurés à true
-                                    if (materialProperties.useRoughnessFromMetallicTextureAlpha) {
-                                        mesh.material.useRoughnessFromMetallicTextureAlpha = true;
-                                    }
-                                    if (materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                        mesh.material.useRoughnessFromMetallicTextureGreen = true;
-                                    }
-                                    if (materialProperties.useMetallnessFromMetallicTextureBlue) {
-                                        mesh.material.useMetallnessFromMetallicTextureBlue = true;
-                                    }
-                                    if (materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
-                                        mesh.material.useAmbientOcclusionFromMetallicTextureRed = true;
-                                    }
-                                    
-                                    // FORCER la désactivation des canaux non utilisés pour éviter les interférences
-                                    if (!materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                        mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                    }
-                                    if (!materialProperties.useMetallnessFromMetallicTextureBlue) {
-                                        mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                    }
-                                    if (!materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
-                                        mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                                    }
-                                    
-                                    // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
-                                    // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
-                                    
-                                    // console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
-                                    console.log(`Channels - R(AO): ${mesh.material.useAmbientOcclusionFromMetallicTextureRed}, G(Rough): ${mesh.material.useRoughnessFromMetallicTextureGreen}, B(Metal): ${mesh.material.useMetallnessFromMetallicTextureBlue}`);
-                                } else {
-                                    mesh.material.metallicTexture = null;
-                                    mesh.material.useRoughnessFromMetallicTextureAlpha = false;
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                                }
-                                
-                                if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '' && materialProperties.bumpTexture !== 'None') {
-                                    mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
-                                    mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
-                                    // console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
-                                } else {
-                                    mesh.material.bumpTexture = null;
-                                }
-                                
-                                // console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name} (slot ${primitiveIndex + 1})`);
-                            }
                         }
                     } else {
                         // Fallback for non-primitive meshes, if any
                         const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name);
                         if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
-                            // Basic properties
-                            mesh.material.albedoColor = BABYLON.Color3.FromHexString(materialProperties.baseColor);
-                            mesh.material.metallic = materialProperties.metallic;
-                            mesh.material.roughness = materialProperties.roughness;
-                            mesh.material.alpha = materialProperties.alpha;
-                            mesh.material.backFaceCulling = materialProperties.backFaceCulling;
-                            
-                            // Texture properties - load and apply real textures
-                            if (materialProperties.albedoTexture && materialProperties.albedoTexture.trim() !== '' && materialProperties.albedoTexture !== 'None') {
-                                mesh.material.albedoTexture = new BABYLON.Texture(`Textures/${materialProperties.albedoTexture}`, scene);
-                                mesh.material.useAlphaFromAlbedoTexture = materialProperties.useAlphaFromAlbedoTexture;
-                                // console.log(`✅ Loaded albedo texture: ${materialProperties.albedoTexture}`);
-                            } else {
-                                mesh.material.albedoTexture = null;
-                                mesh.material.useAlphaFromAlbedoTexture = false;
-                            }
-                            
-                            if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '' && materialProperties.metallicTexture !== 'None') {
-                                const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
-                                
-                                // Selon la documentation Babylon.js, on assigne UNE SEULE texture metallicTexture
-                                // Les canaux sont gérés par les propriétés boolean, pas par des textures séparées
-                                mesh.material.metallicTexture = metallicTexture;
-                                
-                                // FORCER explicitement chaque canal à sa valeur configurée
-                                // Ordre important : d'abord désactiver TOUT, puis activer seulement ce qui est configuré
-                                mesh.material.useRoughnessFromMetallicTextureAlpha = false;
-                                mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                                
-                                // FORCER aussi les propriétés de base pour éviter les comportements par défaut
-                                mesh.material.metallic = materialProperties.metallic || 0;
-                                mesh.material.roughness = materialProperties.roughness || 0;
-                                
-                                // Maintenant activer SEULEMENT les canaux configurés à true
-                                if (materialProperties.useRoughnessFromMetallicTextureAlpha) {
-                                    mesh.material.useRoughnessFromMetallicTextureAlpha = true;
-                                }
-                                if (materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = true;
-                                }
-                                if (materialProperties.useMetallnessFromMetallicTextureBlue) {
-                                    mesh.material.useMetallnessFromMetallicTextureBlue = true;
-                                }
-                                if (materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
-                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = true;
-                                }
-                                
-                                // FORCER la désactivation des canaux non utilisés pour éviter les interférences
-                                if (!materialProperties.useRoughnessFromMetallicTextureGreen) {
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                }
-                                if (!materialProperties.useMetallnessFromMetallicTextureBlue) {
-                                    mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                }
-                                if (!materialProperties.useAmbientOcclusionFromMetallicTextureRed) {
-                                    mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                                }
-                                
-                                // Important: Ne PAS assigner roughnessTexture ou ambientTexture séparément
-                                // Babylon.js les gère automatiquement via metallicTexture + les propriétés boolean
-                                
-                                // console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
-                                console.log(`Channels - R(AO): ${mesh.material.useAmbientOcclusionFromMetallicTextureRed}, G(Rough): ${mesh.material.useRoughnessFromMetallicTextureGreen}, B(Metal): ${mesh.material.useMetallnessFromMetallicTextureBlue}`);
-                            } else {
-                                mesh.material.metallicTexture = null;
-                                mesh.material.useRoughnessFromMetallicTextureAlpha = false;
-                                mesh.material.useRoughnessFromMetallicTextureGreen = false;
-                                mesh.material.useMetallnessFromMetallicTextureBlue = false;
-                                mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
-                            }
-                            
-                            if (materialProperties.bumpTexture && materialProperties.bumpTexture.trim() !== '' && materialProperties.bumpTexture !== 'None') {
-                                mesh.material.bumpTexture = new BABYLON.Texture(`Textures/${materialProperties.bumpTexture}`, scene);
-                                mesh.material.bumpTexture.level = materialProperties.bumpTextureIntensity;
-                                // console.log(`✅ Loaded bump texture: ${materialProperties.bumpTexture}, intensity: ${materialProperties.bumpTextureIntensity}`);
-                            } else {
-                                mesh.material.bumpTexture = null;
-                            }
-                            
-                            // console.log(`Updated existing material ${selectedMaterial} properties on ${mesh.name}`);
+                            // Create completely new PBR material with updated properties
+                            const updatedMaterial = createPBRMaterial(materialProperties, scene);
+                            mesh.material = updatedMaterial;
                         }
                     }
                 });
@@ -1201,7 +977,7 @@ createScene().then(createdScene => {
     // Declare control variables (will be created in createMaterialControls)
     let baseColorControl, metallicControl, roughnessControl, alphaControl;
     let albedoTextureControl, metallicTextureControl, bumpTextureControl;
-    let useAlphaFromAlbedoTextureControl, useRoughnessFromMetallicTextureGreenControl;
+    let useRoughnessFromMetallicTextureGreenControl;
     let useMetallnessFromMetallicTextureBlueControl, useAmbientOcclusionFromMetallicTextureRedControl;
     let bumpTextureIntensityControl, backFaceCullingControl;
     
