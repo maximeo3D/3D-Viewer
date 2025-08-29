@@ -1,0 +1,25 @@
+{
+  "name": "3d-model-viewer",
+  "version": "1.0.0",
+  "description": "A 3D model viewer built with Babylon.js",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "serve": "python -m http.server 8000"
+  },
+  "keywords": [
+    "3d",
+    "babylonjs",
+    "webgl",
+    "viewer",
+    "3d-model"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
