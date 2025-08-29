@@ -270,7 +270,6 @@ function createPBRMaterial(materialConfig, scene) {
     if (materialConfig.baseColor) {
         const color = BABYLON.Color3.FromHexString(materialConfig.baseColor);
         pbr.albedoColor = color;
-        console.log(`🎨 Applied albedoColor: ${materialConfig.baseColor} -> RGB(${color.r}, ${color.g}, ${color.b})`);
     }
     
     pbr.metallic = materialConfig.metallic !== undefined ? materialConfig.metallic : 0;
@@ -291,14 +290,20 @@ function createPBRMaterial(materialConfig, scene) {
         pbr.bumpTexture.level = materialConfig.bumpTextureIntensity !== undefined ? materialConfig.bumpTextureIntensity : 1.0;
     }
     
-    // === ORM TEXTURE (Occlusion, Roughness, Metallic) ===
+    // === SEPARATE TEXTURES ===
+    // Metallic texture
     if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '' && materialConfig.metallicTexture !== 'None') {
         pbr.metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
-        
-        // Configure ORM channels EXACTLY as per Babylon.js documentation
-        pbr.useRoughnessFromMetallicTextureGreen = Boolean(materialConfig.useRoughnessFromMetallicTextureGreen);
-        pbr.useMetallnessFromMetallicTextureBlue = Boolean(materialConfig.useMetallnessFromMetallicTextureBlue);
-        pbr.useAmbientOcclusionFromMetallicTextureRed = Boolean(materialConfig.useAmbientOcclusionFromMetallicTextureRed);
+    }
+    
+    // Microsurface (roughness) texture
+    if (materialConfig.microSurfaceTexture && materialConfig.microSurfaceTexture.trim() !== '' && materialConfig.microSurfaceTexture !== 'None') {
+        pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${materialConfig.microSurfaceTexture}`, scene);
+    }
+    
+    // Ambient occlusion texture
+    if (materialConfig.ambientTexture && materialConfig.ambientTexture.trim() !== '' && materialConfig.ambientTexture !== 'None') {
+        pbr.ambientTexture = new BABYLON.Texture(`Textures/${materialConfig.ambientTexture}`, scene);
     }
     
     // === TRANSPARENCY ===
@@ -683,30 +688,25 @@ createScene().then(createdScene => {
             applyMaterialChanges();
         });
         
-        metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Surface Texture').onChange(function(value) {
+        metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Metallic Texture').onChange(function(value) {
             materialProperties.metallicTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        // Microsurface (roughness) texture
+        microSurfaceTextureControl = materialsFolder.add(materialProperties, 'microSurfaceTexture', availableImages).name('Microsurface Texture').onChange(function(value) {
+            materialProperties.microSurfaceTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        // Ambient occlusion texture
+        ambientTextureControl = materialsFolder.add(materialProperties, 'ambientTexture', availableImages).name('Ambient Texture').onChange(function(value) {
+            materialProperties.ambientTexture = value === 'None' ? '' : value;
             applyMaterialChanges();
         });
         
         bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
             materialProperties.bumpTexture = value === 'None' ? '' : value;
-            applyMaterialChanges();
-        });
-        
-        // Other texture-related controls
-        
-        useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
-            materialProperties.useRoughnessFromMetallicTextureGreen = value;
-            applyMaterialChanges();
-        });
-        
-        useMetallnessFromMetallicTextureBlueControl = materialsFolder.add(materialProperties, 'useMetallnessFromMetallicTextureBlue').name('Metalness from B').onChange(function(value) {
-            materialProperties.useMetallnessFromMetallicTextureBlue = value;
-            applyMaterialChanges();
-        });
-        
-        useAmbientOcclusionFromMetallicTextureRedControl = materialsFolder.add(materialProperties, 'useAmbientOcclusionFromMetallicTextureRed').name('AO from R').onChange(function(value) {
-            materialProperties.useAmbientOcclusionFromMetallicTextureRed = value;
             applyMaterialChanges();
         });
         
@@ -750,9 +750,8 @@ createScene().then(createdScene => {
         alpha: 1.0,
         albedoTexture: '',
         metallicTexture: '',
-        useRoughnessFromMetallicTextureGreen: false,
-        useMetallnessFromMetallicTextureBlue: false,
-        useAmbientOcclusionFromMetallicTextureRed: false,
+        microSurfaceTexture: '',
+        ambientTexture: '',
         bumpTexture: '',
         bumpTextureIntensity: 1.0,
         backFaceCulling: true
@@ -804,9 +803,8 @@ createScene().then(createdScene => {
             materialsFolder.remove(albedoTextureControl);
 
             materialsFolder.remove(metallicTextureControl);
-            materialsFolder.remove(useRoughnessFromMetallicTextureGreenControl);
-            materialsFolder.remove(useMetallnessFromMetallicTextureBlueControl);
-            materialsFolder.remove(useAmbientOcclusionFromMetallicTextureRedControl);
+            materialsFolder.remove(microSurfaceTextureControl);
+            materialsFolder.remove(ambientTextureControl);
             materialsFolder.remove(bumpTextureControl);
             materialsFolder.remove(bumpTextureIntensityControl);
             materialsFolder.remove(backFaceCullingControl);
@@ -825,9 +823,8 @@ createScene().then(createdScene => {
             materialProperties.albedoTexture = material.albedoTexture || '';
     
             materialProperties.metallicTexture = material.metallicTexture || '';
-            materialProperties.useRoughnessFromMetallicTextureGreen = material.useRoughnessFromMetallicTextureGreen !== undefined ? material.useRoughnessFromMetallicTextureGreen : false;
-            materialProperties.useMetallnessFromMetallicTextureBlue = material.useMetallnessFromMetallicTextureBlue !== undefined ? material.useMetallnessFromMetallicTextureBlue : false;
-            materialProperties.useAmbientOcclusionFromMetallicTextureRed = material.useAmbientOcclusionFromMetallicTextureRed !== undefined ? material.useAmbientOcclusionFromMetallicTextureRed : false;
+            materialProperties.microSurfaceTexture = material.microSurfaceTexture || '';
+            materialProperties.ambientTexture = material.ambientTexture || '';
             materialProperties.bumpTexture = material.bumpTexture || '';
             materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
             materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
@@ -861,31 +858,28 @@ createScene().then(createdScene => {
             });
             
             materialProperties.metallicTexture = material.metallicTexture && material.metallicTexture !== '' ? material.metallicTexture : 'None';
-            metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Surface Texture').onChange(function(value) {
+            metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Metallic Texture').onChange(function(value) {
                 materialProperties.metallicTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            // Microsurface (roughness) texture
+            materialProperties.microSurfaceTexture = material.microSurfaceTexture && material.microSurfaceTexture !== '' ? material.microSurfaceTexture : 'None';
+            microSurfaceTextureControl = materialsFolder.add(materialProperties, 'microSurfaceTexture', availableImages).name('Microsurface Texture').onChange(function(value) {
+                materialProperties.microSurfaceTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            // Ambient occlusion texture
+            materialProperties.ambientTexture = material.ambientTexture && material.ambientTexture !== '' ? material.ambientTexture : 'None';
+            ambientTextureControl = materialsFolder.add(materialProperties, 'ambientTexture', availableImages).name('Ambient Texture').onChange(function(value) {
+                materialProperties.ambientTexture = value === 'None' ? '' : value;
                 applyMaterialChanges();
             });
             
             materialProperties.bumpTexture = material.bumpTexture && material.bumpTexture !== '' ? material.bumpTexture : 'None';
             bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
                 materialProperties.bumpTexture = value === 'None' ? '' : value;
-                applyMaterialChanges();
-            });
-            
-            // Other texture-related controls
-            
-            useRoughnessFromMetallicTextureGreenControl = materialsFolder.add(materialProperties, 'useRoughnessFromMetallicTextureGreen').name('Roughness from G').onChange(function(value) {
-                materialProperties.useRoughnessFromMetallicTextureGreen = value;
-                applyMaterialChanges();
-            });
-            
-            useMetallnessFromMetallicTextureBlueControl = materialsFolder.add(materialProperties, 'useMetallnessFromMetallicTextureBlue').name('Metalness from B').onChange(function(value) {
-                materialProperties.useMetallnessFromMetallicTextureBlue = value;
-                applyMaterialChanges();
-            });
-            
-            useAmbientOcclusionFromMetallicTextureRedControl = materialsFolder.add(materialProperties, 'useAmbientOcclusionFromMetallicTextureRed').name('AO from R').onChange(function(value) {
-                materialProperties.useAmbientOcclusionFromMetallicTextureRed = value;
                 applyMaterialChanges();
             });
             
@@ -927,9 +921,8 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].albedoTexture = materialProperties.albedoTexture;
 
             materialsConfig.materials[selectedMaterial].metallicTexture = materialProperties.metallicTexture;
-            materialsConfig.materials[selectedMaterial].useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
-            materialsConfig.materials[selectedMaterial].useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
-            materialsConfig.materials[selectedMaterial].useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
+            materialsConfig.materials[selectedMaterial].microSurfaceTexture = materialProperties.microSurfaceTexture;
+            materialsConfig.materials[selectedMaterial].ambientTexture = materialProperties.ambientTexture;
             materialsConfig.materials[selectedMaterial].bumpTexture = materialProperties.bumpTexture;
             materialsConfig.materials[selectedMaterial].bumpTextureIntensity = materialProperties.bumpTextureIntensity;
             materialsConfig.materials[selectedMaterial].backFaceCulling = materialProperties.backFaceCulling;
@@ -977,8 +970,8 @@ createScene().then(createdScene => {
     // Declare control variables (will be created in createMaterialControls)
     let baseColorControl, metallicControl, roughnessControl, alphaControl;
     let albedoTextureControl, metallicTextureControl, bumpTextureControl;
-    let useRoughnessFromMetallicTextureGreenControl;
-    let useMetallnessFromMetallicTextureBlueControl, useAmbientOcclusionFromMetallicTextureRedControl;
+    let microSurfaceTextureControl;
+    let ambientTextureControl;
     let bumpTextureIntensityControl, backFaceCullingControl;
     
     // Export materials configuration button
