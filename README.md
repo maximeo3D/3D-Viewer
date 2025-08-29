@@ -6,10 +6,11 @@ Un visualiseur 3D professionnel avec éditeur de matériaux PBR avancé, systèm
 
 ### **🎨 Éditeur de Matériaux PBR Complet**
 - **Matériaux PBR avancés** : Albedo, Metallic, Roughness, Alpha
-- **Système de textures** : Albedo, Surface (ORM), Normal Map
-- **Contrôles de canaux** : Roughness from G, Metalness from B, AO from R
-- **Paramètres avancés** : Back Face Culling, Texture Intensity, Use Alpha from Albedo
-- **Interface datGUI** : Contrôles en temps réel avec synchronisation automatique
+- **Système de textures séparées** : Albedo, Metallic, MicroSurface (Roughness), Ambient (AO), Opacity, Normal Map
+- **Contrôles de transparence** : Alpha global + OpacityTexture pour contrôle local
+- **Paramètres avancés** : Back Face Culling, Texture Intensity, Depth Pre-Pass
+- **Interface dat.GUI** : Contrôles en temps réel avec synchronisation automatique
+- **Mode Inspector** : Débogage Babylon.js intégré
 
 ### **📁 Système d'Assets et Modèles 3D**
 - **Chargement GLB/glTF** : Support natif des formats 3D modernes
@@ -108,19 +109,20 @@ Un visualiseur 3D professionnel avec éditeur de matériaux PBR avancé, systèm
 - **Albedo Color** : Couleur de base du matériau (sélecteur de couleur)
 - **Metallic** : Facteur métallique (0.00 - 1.00, pas 0.01)
 - **Roughness** : Facteur de rugosité (0.00 - 1.00, pas 0.01)
-- **Alpha** : Transparence (0.00 - 1.00)
+- **Alpha** : Transparence globale (0.00 - 1.00)
 
-#### **Système de Textures**
+#### **Système de Textures Séparées**
 - **Albedo Texture** : Texture de couleur de base
-- **Surface Texture** : Texture ORM (Occlusion, Roughness, Metallic)
+- **Metallic Texture** : Texture dédiée au facteur métallique
+- **MicroSurface Texture** : Texture de rugosité (remplace l'ancien système ORM)
+- **Ambient Texture** : Texture d'ambient occlusion
+- **Opacity Texture** : Texture de transparence locale (noir=opaque, blanc=transparent)
 - **Normal Map** : Texture de relief avec intensité réglable (0-5, pas 0.1)
 
 #### **Options Avancées**
-- **Use Alpha from Albedo** : Utilise le canal alpha de la texture albedo
-- **Roughness from G** : Extrait la rugosité du canal vert
-- **Metalness from B** : Extrait le métallique du canal bleu
-- **AO from R** : Extrait l'ambient occlusion du canal rouge
 - **Back Face Culling** : Masque les faces arrière
+- **Show Inspector** : Active le mode débogage Babylon.js
+- **Refresh Images** : Met à jour la liste des textures disponibles
 
 ### **Contrôles de Caméra**
 
@@ -165,7 +167,7 @@ Un visualiseur 3D professionnel avec éditeur de matériaux PBR avancé, systèm
 }
 ```
 
-### **Format materials.json**
+### **Format materials.json (Nouveau)**
 ```json
 {
   "materials": {
@@ -176,13 +178,12 @@ Un visualiseur 3D professionnel avec éditeur de matériaux PBR avancé, systèm
       "roughness": 0.2,
       "alpha": 1.0,
       "albedoTexture": "texture_albedo.png",
-      "metallicTexture": "texture_orm.png",
+      "metallicTexture": "texture_metallic.png",
+      "microSurfaceTexture": "texture_roughness.png",
+      "ambientTexture": "texture_ao.png",
+      "opacityTexture": "texture_alpha.png",
       "bumpTexture": "texture_normal.png",
       "bumpTextureIntensity": 1.0,
-      "useAlphaFromAlbedoTexture": false,
-      "useRoughnessFromMetallicTextureGreen": true,
-      "useMetallnessFromMetallicTextureBlue": true,
-      "useAmbientOcclusionFromMetallicTextureRed": true,
       "backFaceCulling": true
     }
   }
@@ -225,10 +226,16 @@ Un visualiseur 3D professionnel avec éditeur de matériaux PBR avancé, systèm
 - Contrôler la structure des meshes (primitive0, primitive1)
 - Vérifier la configuration dans `materials.json`
 
+#### **Problèmes de transparence**
+- Vérifier que `alpha` est inférieur à 1.0 pour la transparence
+- Pour l'OpacityTexture, utiliser des images noir/blanc (noir=opaque, blanc=transparent)
+- Contrôler que `backFaceCulling` est désactivé pour la transparence
+
 ### **Logs et Debug**
 - **Console navigateur** : Messages de chargement et erreurs
 - **Terminal PowerShell** : Logs du serveur et requêtes
 - **Fichiers de configuration** : Validation JSON et structure
+- **Mode Inspector** : Utiliser le bouton "Show Inspector" pour déboguer
 
 ## 🚀 **Fonctionnalités Futures**
 
@@ -276,6 +283,13 @@ MIT License - Libre d'utilisation pour projets personnels et commerciaux.
 
 ---
 
-**Version actuelle** : 2.0.0 - Éditeur PBR Complet  
+**Version actuelle** : 2.1.0 - Éditeur PBR Complet avec Transparence  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅
+
+### **🆕 Nouvelles Fonctionnalités (v2.1.0)**
+- **Système de transparence avancé** : Alpha global + OpacityTexture
+- **Textures PBR séparées** : Remplacement du système ORM par des textures dédiées
+- **Mode Inspector Babylon.js** : Débogage intégré
+- **Corrections PBR** : `useRadianceOverAlpha = false`, `needDepthPrePass = true`
+- **Interface dat.GUI complète** : Tous les contrôles PBR en temps réel

@@ -10,7 +10,7 @@
       "metallicTexture": "metal_metalness.png",
       "microSurfaceTexture": "metal_roughness.png",
       "ambientTexture": "metal_ao.png",
-      "opacityTexture": "alpha.png",
+      "opacityTexture": "",
       "bumpTexture": "metal_normal.png",
       "bumpTextureIntensity": 3.9000000000000004,
       "backFaceCulling": true
@@ -35,12 +35,12 @@
       "baseColor": "#7e7e7e",
       "metallic": 1,
       "roughness": 1,
-      "alpha": 0.4705853630517107,
+      "alpha": 1,
       "albedoTexture": "None",
       "metallicTexture": "RGB.png",
       "microSurfaceTexture": "RGB.png",
       "ambientTexture": "RGB.png",
-      "opacityTexture": null,
+      "opacityTexture": "alpha.png",
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
       "backFaceCulling": false
