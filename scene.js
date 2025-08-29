@@ -275,6 +275,7 @@ function createPBRMaterial(materialConfig, scene) {
     pbr.metallic = materialConfig.metallic !== undefined ? materialConfig.metallic : 0;
     pbr.roughness = materialConfig.roughness !== undefined ? materialConfig.roughness : 0.5;
     pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
+    console.log(`🎨 Applied alpha: ${materialConfig.alpha}`);
     
     // === TEXTURES ===
     // Albedo texture (base color)
@@ -304,6 +305,18 @@ function createPBRMaterial(materialConfig, scene) {
     // Ambient occlusion texture
     if (materialConfig.ambientTexture && materialConfig.ambientTexture.trim() !== '' && materialConfig.ambientTexture !== 'None') {
         pbr.ambientTexture = new BABYLON.Texture(`Textures/${materialConfig.ambientTexture}`, scene);
+    }
+    
+    // Opacity texture for local transparency control
+    if (materialConfig.opacityTexture && materialConfig.opacityTexture.trim() !== '' && materialConfig.opacityTexture !== 'None') {
+        pbr.opacityTexture = new BABYLON.Texture(`Textures/${materialConfig.opacityTexture}`, scene);
+        pbr.opacityTexture.getAlphaFromRGB = true; // CRUCIAL pour que l'opacityTexture fonctionne
+        
+        // When opacity texture is present, DON'T set pbr.opacity - let the texture handle it
+        // The alpha slider will control the overall transparency of the visible parts
+    } else {
+        // When no opacity texture, use alpha for global transparency
+        pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
     }
     
     // === TRANSPARENCY ===
@@ -708,6 +721,12 @@ createScene().then(createdScene => {
             applyMaterialChanges();
         });
         
+        // Opacity texture for local transparency control
+        opacityTextureControl = materialsFolder.add(materialProperties, 'opacityTexture', availableImages).name('Opacity Texture').onChange(function(value) {
+            materialProperties.opacityTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
         bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
             materialProperties.bumpTexture = value === 'None' ? '' : value;
             applyMaterialChanges();
@@ -755,6 +774,7 @@ createScene().then(createdScene => {
         metallicTexture: '',
         microSurfaceTexture: '',
         ambientTexture: '',
+        opacityTexture: '',
         bumpTexture: '',
         bumpTextureIntensity: 1.0,
         backFaceCulling: true
@@ -808,6 +828,7 @@ createScene().then(createdScene => {
             materialsFolder.remove(metallicTextureControl);
             materialsFolder.remove(microSurfaceTextureControl);
             materialsFolder.remove(ambientTextureControl);
+            materialsFolder.remove(opacityTextureControl);
             materialsFolder.remove(bumpTextureControl);
             materialsFolder.remove(bumpTextureIntensityControl);
             materialsFolder.remove(backFaceCullingControl);
@@ -828,6 +849,7 @@ createScene().then(createdScene => {
             materialProperties.metallicTexture = material.metallicTexture || '';
             materialProperties.microSurfaceTexture = material.microSurfaceTexture || '';
             materialProperties.ambientTexture = material.ambientTexture || '';
+            materialProperties.opacityTexture = material.opacityTexture || '';
             materialProperties.bumpTexture = material.bumpTexture || '';
             materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
             materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
@@ -880,6 +902,13 @@ createScene().then(createdScene => {
                 applyMaterialChanges();
             });
             
+            // Opacity texture for local transparency control
+            materialProperties.opacityTexture = material.opacityTexture && material.opacityTexture !== '' ? material.opacityTexture : 'None';
+            opacityTextureControl = materialsFolder.add(materialProperties, 'opacityTexture', availableImages).name('Opacity Texture').onChange(function(value) {
+                materialProperties.opacityTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
             materialProperties.bumpTexture = material.bumpTexture && material.bumpTexture !== '' ? material.bumpTexture : 'None';
             bumpTextureControl = materialsFolder.add(materialProperties, 'bumpTexture', availableImages).name('Normal Map').onChange(function(value) {
                 materialProperties.bumpTexture = value === 'None' ? '' : value;
@@ -926,6 +955,7 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].metallicTexture = materialProperties.metallicTexture;
             materialsConfig.materials[selectedMaterial].microSurfaceTexture = materialProperties.microSurfaceTexture;
             materialsConfig.materials[selectedMaterial].ambientTexture = materialProperties.ambientTexture;
+            materialsConfig.materials[selectedMaterial].opacityTexture = materialProperties.opacityTexture;
             materialsConfig.materials[selectedMaterial].bumpTexture = materialProperties.bumpTexture;
             materialsConfig.materials[selectedMaterial].bumpTextureIntensity = materialProperties.bumpTextureIntensity;
             materialsConfig.materials[selectedMaterial].backFaceCulling = materialProperties.backFaceCulling;
@@ -975,6 +1005,7 @@ createScene().then(createdScene => {
     let albedoTextureControl, metallicTextureControl, bumpTextureControl;
     let microSurfaceTextureControl;
     let ambientTextureControl;
+    let opacityTextureControl;
     let bumpTextureIntensityControl, backFaceCullingControl;
     
     // Export materials configuration button

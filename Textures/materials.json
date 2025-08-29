@@ -5,11 +5,12 @@
       "baseColor": "#ffffff",
       "metallic": 1,
       "roughness": 0.56,
-      "alpha": 0.18565388002546085,
+      "alpha": 1,
       "albedoTexture": "metal_albedo.png",
       "metallicTexture": "metal_metalness.png",
       "microSurfaceTexture": "metal_roughness.png",
       "ambientTexture": "metal_ao.png",
+      "opacityTexture": "alpha.png",
       "bumpTexture": "metal_normal.png",
       "bumpTextureIntensity": 3.9000000000000004,
       "backFaceCulling": true
@@ -24,6 +25,7 @@
       "metallicTexture": null,
       "microSurfaceTexture": null,
       "ambientTexture": null,
+      "opacityTexture": null,
       "bumpTexture": null,
       "bumpTextureIntensity": 1,
       "backFaceCulling": true
@@ -38,6 +40,7 @@
       "metallicTexture": "RGB.png",
       "microSurfaceTexture": "RGB.png",
       "ambientTexture": "RGB.png",
+      "opacityTexture": null,
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
       "backFaceCulling": false
