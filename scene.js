@@ -323,12 +323,15 @@ function createPBRMaterial(materialConfig, scene) {
     pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
     pbr.backFaceCulling = false; // Désactivé pour la transparence
     
-    // === PBR RENDERING OPTIMIZATIONS ===
-    pbr.usePhysicalLightFalloff = true;
-    pbr.useEnergyConservation = true;
-    
-    // Enable depth pre-pass to avoid transparency artifacts
-    pbr.needDepthPrePass = true;
+                    // === PBR RENDERING OPTIMIZATIONS ===
+                pbr.usePhysicalLightFalloff = true;
+                pbr.useEnergyConservation = true;
+                
+                // Disable radiance over alpha to prevent transparency artifacts
+                pbr.useRadianceOverAlpha = false;
+
+                // Enable depth pre-pass to avoid transparency artifacts
+                pbr.needDepthPrePass = true;
     
     return pbr;
 }
@@ -751,6 +754,28 @@ createScene().then(createdScene => {
         }};
         refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
         
+        // Add Babylon.js Inspector toggle
+        const inspectorToggle = { showInspector: false };
+        const inspectorControl = materialsFolder.add(inspectorToggle, 'showInspector').name('Show Inspector').onChange(function(value) {
+            if (value) {
+                // Show Inspector
+                if (typeof BABYLON.Inspector !== 'undefined') {
+                    scene.debugLayer.show();
+                } else {
+                    // Load Inspector if not already loaded
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
+                    script.onload = function() {
+                        scene.debugLayer.show();
+                    };
+                    document.head.appendChild(script);
+                }
+            } else {
+                // Hide Inspector
+                scene.debugLayer.hide();
+            }
+        });
+        
         // Material dropdown onChange
         materialDropdown.onChange(function(value) {
             updateMaterialPropertiesDisplay();
@@ -933,6 +958,28 @@ createScene().then(createdScene => {
                 alert('✅ New textures loaded!\n\n💡 Please refresh the page (F5) to see new textures in the dropdowns.');
             }};
             refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
+            
+            // Recreate Inspector toggle
+            const inspectorToggle = { showInspector: false };
+            const inspectorControl = materialsFolder.add(inspectorToggle, 'showInspector').name('Show Inspector').onChange(function(value) {
+                if (value) {
+                    // Show Inspector
+                    if (typeof BABYLON.Inspector !== 'undefined') {
+                        scene.debugLayer.show();
+                    } else {
+                        // Load Inspector if not already loaded
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
+                        script.onload = function() {
+                            scene.debugLayer.show();
+                        };
+                        document.head.appendChild(script);
+                    }
+                } else {
+                    // Hide Inspector
+                    scene.debugLayer.hide();
+                }
+            });
             
             // Recreate Export Materials button at the end
             exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');
