@@ -9,7 +9,7 @@
       "albedoTexture": "metal_albedo.png",
       "useAlphaFromAlbedoTexture": false,
       "metallicTexture": "metal_ORM.png",
-      "useRoughnessFromMetallicTextureGreen": false,
+      "useRoughnessFromMetallicTextureGreen": true,
       "useMetallnessFromMetallicTextureBlue": true,
       "useAmbientOcclusionFromMetallicTextureRed": true,
       "bumpTexture": "metal_normal.png",

@@ -294,8 +294,15 @@ function applyMaterial(mesh, materialConfig) {
         }
         
         if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '') {
-            pbr.metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
-            pbr.useRoughnessFromMetallicTextureGreen = materialConfig.useRoughnessFromMetallicTextureGreen || false;
+            const metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
+            pbr.metallicTexture = metallicTexture;
+            
+            // Si on utilise la roughness depuis le canal vert de la texture métallique
+            if (materialConfig.useRoughnessFromMetallicTextureGreen) {
+                pbr.roughnessTexture = metallicTexture;
+                pbr.useRoughnessFromMetallicTextureGreen = true;
+            }
+            
             pbr.useMetallnessFromMetallicTextureBlue = materialConfig.useMetallnessFromMetallicTextureBlue || false;
             pbr.useAmbientOcclusionFromMetallicTextureRed = materialConfig.useAmbientOcclusionFromMetallicTextureRed || false;
             console.log(`✅ Loaded metallic texture at init: ${materialConfig.metallicTexture}`);
@@ -984,13 +991,24 @@ createScene().then(createdScene => {
                                 }
                                 
                                 if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
-                                    mesh.material.metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
-                                    mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
+                                    const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
+                                    mesh.material.metallicTexture = metallicTexture;
+                                    
+                                    // Si on utilise la roughness depuis le canal vert de la texture métallique
+                                    if (materialProperties.useRoughnessFromMetallicTextureGreen) {
+                                        mesh.material.roughnessTexture = metallicTexture;
+                                        mesh.material.useRoughnessFromMetallicTextureGreen = true;
+                                    } else {
+                                        mesh.material.roughnessTexture = null;
+                                        mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                    }
+                                    
                                     mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
                                     mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
                                     console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
                                 } else {
                                     mesh.material.metallicTexture = null;
+                                    mesh.material.roughnessTexture = null;
                                     mesh.material.useRoughnessFromMetallicTextureGreen = false;
                                     mesh.material.useMetallnessFromMetallicTextureBlue = false;
                                     mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
@@ -1029,13 +1047,24 @@ createScene().then(createdScene => {
                             }
                             
                             if (materialProperties.metallicTexture && materialProperties.metallicTexture.trim() !== '') {
-                                mesh.material.metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
-                                mesh.material.useRoughnessFromMetallicTextureGreen = materialProperties.useRoughnessFromMetallicTextureGreen;
+                                const metallicTexture = new BABYLON.Texture(`Textures/${materialProperties.metallicTexture}`, scene);
+                                mesh.material.metallicTexture = metallicTexture;
+                                
+                                // Si on utilise la roughness depuis le canal vert de la texture métallique
+                                if (materialProperties.useRoughnessFromMetallicTextureGreen) {
+                                    mesh.material.roughnessTexture = metallicTexture;
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = true;
+                                } else {
+                                    mesh.material.roughnessTexture = null;
+                                    mesh.material.useRoughnessFromMetallicTextureGreen = false;
+                                }
+                                
                                 mesh.material.useMetallnessFromMetallicTextureBlue = materialProperties.useMetallnessFromMetallicTextureBlue;
                                 mesh.material.useAmbientOcclusionFromMetallicTextureRed = materialProperties.useAmbientOcclusionFromMetallicTextureRed;
                                 console.log(`✅ Loaded metallic texture: ${materialProperties.metallicTexture}`);
                             } else {
                                 mesh.material.metallicTexture = null;
+                                mesh.material.roughnessTexture = null;
                                 mesh.material.useRoughnessFromMetallicTextureGreen = false;
                                 mesh.material.useMetallnessFromMetallicTextureBlue = false;
                                 mesh.material.useAmbientOcclusionFromMetallicTextureRed = false;
