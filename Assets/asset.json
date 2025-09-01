@@ -12,7 +12,8 @@
         {
           "name": "Sphere",
           "materialSlot1": "red",
-          "materialSlot2": "blue"
+          "materialSlot2": "blue",
+          "materialSlot3": "green"
         }
       ],
       "position": [0, 0, 0],
