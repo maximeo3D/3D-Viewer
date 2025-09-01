@@ -323,6 +323,17 @@ function createPBRMaterial(materialConfig, scene) {
         pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
     }
     
+    // === LIGHTMAP ===
+    // Lightmap texture for baked lighting
+    if (materialConfig.lightmapTexture && materialConfig.lightmapTexture.trim() !== '' && materialConfig.lightmapTexture !== 'None') {
+        pbr.lightmapTexture = new BABYLON.Texture(`Textures/${materialConfig.lightmapTexture}`, scene);
+        
+        // Enable lightmap as shadowmap by default for better performance
+        pbr.useLightmapAsShadowmap = materialConfig.useLightmapAsShadowmap !== undefined ? materialConfig.useLightmapAsShadowmap : true;
+        
+        console.log(`🌞 Applied lightmap texture: ${materialConfig.lightmapTexture}, useLightmapAsShadowmap: ${pbr.useLightmapAsShadowmap}`);
+    }
+    
     // === TRANSPARENCY ===
     pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
     pbr.backFaceCulling = false; // Désactivé pour la transparence
@@ -839,6 +850,18 @@ createScene().then(createdScene => {
             applyMaterialChanges();
         });
         
+        // Lightmap texture control
+        lightmapTextureControl = materialsFolder.add(materialProperties, 'lightmapTexture', availableImages).name('Lightmap Texture').onChange(function(value) {
+            materialProperties.lightmapTexture = value === 'None' ? '' : value;
+            applyMaterialChanges();
+        });
+        
+        // Lightmap as shadowmap toggle
+        lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
+            materialProperties.useLightmapAsShadowmap = value;
+            applyMaterialChanges();
+        });
+        
         backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
             materialProperties.backFaceCulling = value;
             applyMaterialChanges();
@@ -901,6 +924,8 @@ createScene().then(createdScene => {
         opacityTexture: '',
         bumpTexture: '',
         bumpTextureIntensity: 1.0,
+        lightmapTexture: '',
+        useLightmapAsShadowmap: true,
         backFaceCulling: true
     };
     
@@ -955,6 +980,8 @@ createScene().then(createdScene => {
             materialsFolder.remove(opacityTextureControl);
             materialsFolder.remove(bumpTextureControl);
             materialsFolder.remove(bumpTextureIntensityControl);
+            materialsFolder.remove(lightmapTextureControl);
+            materialsFolder.remove(lightmapAsShadowmapControl);
             materialsFolder.remove(backFaceCullingControl);
             if (refreshImagesControl) {
                 materialsFolder.remove(refreshImagesControl);
@@ -1044,6 +1071,20 @@ createScene().then(createdScene => {
                 applyMaterialChanges();
             });
             
+            // Lightmap texture control
+            materialProperties.lightmapTexture = material.lightmapTexture && material.lightmapTexture !== '' ? material.lightmapTexture : 'None';
+            lightmapTextureControl = materialsFolder.add(materialProperties, 'lightmapTexture', availableImages).name('Lightmap Texture').onChange(function(value) {
+                materialProperties.lightmapTexture = value === 'None' ? '' : value;
+                applyMaterialChanges();
+            });
+            
+            // Lightmap as shadowmap toggle
+            materialProperties.useLightmapAsShadowmap = material.useLightmapAsShadowmap !== undefined ? material.useLightmapAsShadowmap : true;
+            lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
+                materialProperties.useLightmapAsShadowmap = value;
+                applyMaterialChanges();
+            });
+            
             backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
                 materialProperties.backFaceCulling = value;
                 applyMaterialChanges();
@@ -1104,6 +1145,8 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].opacityTexture = materialProperties.opacityTexture;
             materialsConfig.materials[selectedMaterial].bumpTexture = materialProperties.bumpTexture;
             materialsConfig.materials[selectedMaterial].bumpTextureIntensity = materialProperties.bumpTextureIntensity;
+            materialsConfig.materials[selectedMaterial].lightmapTexture = materialProperties.lightmapTexture;
+            materialsConfig.materials[selectedMaterial].useLightmapAsShadowmap = materialProperties.useLightmapAsShadowmap;
             materialsConfig.materials[selectedMaterial].backFaceCulling = materialProperties.backFaceCulling;
             
             // Find all meshes that currently use this material and update their material properties
@@ -1152,7 +1195,7 @@ createScene().then(createdScene => {
     let microSurfaceTextureControl;
     let ambientTextureControl;
     let opacityTextureControl;
-    let bumpTextureIntensityControl, backFaceCullingControl;
+    let bumpTextureIntensityControl, lightmapTextureControl, lightmapAsShadowmapControl, backFaceCullingControl;
     
     // Export materials configuration button
     const exportMaterials = { export: async function() {
