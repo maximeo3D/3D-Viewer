@@ -18,6 +18,10 @@ let config = {
         fov: 60,
         minDistance: 1,
         maxDistance: 50,
+        zoomSpeed: 1,
+        zoomSensitivity: 0.5,
+        inertia: 0.9,
+        zoomSmoothness: 0.1,
         targetX: 0,
         targetY: 0,
         targetZ: 0,
@@ -320,7 +324,7 @@ function createPBRMaterial(materialConfig, scene) {
     }
     
     // === TRANSPARENCY ===
-    pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
     pbr.backFaceCulling = false; // Désactivé pour la transparence
     
                     // === PBR RENDERING OPTIMIZATIONS ===
@@ -370,6 +374,62 @@ const createScene = async function() {
     if (config.camera.targetX !== undefined) camera.target.x = config.camera.targetX;
     if (config.camera.targetY !== undefined) camera.target.y = config.camera.targetY;
     if (config.camera.targetZ !== undefined) camera.target.z = config.camera.targetZ;
+    
+    // Configure zoom controls with smoothing
+    if (config.camera.zoomSpeed !== undefined) {
+        camera.wheelPrecision = config.camera.zoomSpeed;
+    } else {
+        camera.wheelPrecision = 1; // Default zoom speed (lower = faster zoom)
+    }
+    
+    // Enable zoom smoothing for smoother transitions
+    camera.zoomSensitivity = config.camera.zoomSensitivity !== undefined ? config.camera.zoomSensitivity : 0.5;
+    
+    // Enable inertia for smoother camera movements
+    camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
+    
+    // Add smooth zoom interpolation for better zoom experience
+    let targetRadius = camera.radius;
+    let currentRadius = camera.radius;
+    let zoomLerpFactor = config.camera.zoomSmoothness !== undefined ? config.camera.zoomSmoothness : 0.1; // Controls zoom smoothness (0.1 = smooth, 0.9 = instant)
+    
+    // Make zoomLerpFactor accessible globally for dat.GUI control
+    window.zoomLerpFactor = zoomLerpFactor;
+    
+    // Override the default zoom behavior with smooth interpolation
+    // Use scene's pointer observable to detect mouse wheel events
+    scene.onPointerObservable.add((evt) => {
+        // Only handle mouse wheel events
+        if (evt.type === BABYLON.PointerEventTypes.POINTERWHEEL) {
+            // Calculate the target radius based on wheel delta
+            const delta = evt.event.deltaY;
+            const zoomFactor = 1 + (delta * camera.wheelPrecision / 1000);
+            targetRadius = Math.max(camera.lowerRadiusLimit, Math.min(camera.upperRadiusLimit, targetRadius * zoomFactor));
+            
+            // Store the target for smooth interpolation
+            // Note: We don't prevent default here as we want the camera to still respond
+        }
+    });
+    
+    // Add smooth zoom interpolation in the render loop with easing
+    scene.onBeforeRenderObservable.add(() => {
+        if (Math.abs(currentRadius - targetRadius) > 0.01) {
+            // Use smooth easing function for more natural zoom feel
+            const delta = targetRadius - currentRadius;
+            const easing = 0.1; // Base easing factor
+            
+            // Apply exponential smoothing for more natural movement
+            currentRadius += delta * easing;
+            
+            // Ensure we don't overshoot
+            if ((delta > 0 && currentRadius > targetRadius) || 
+                (delta < 0 && currentRadius < targetRadius)) {
+                currentRadius = targetRadius;
+            }
+            
+            camera.radius = currentRadius;
+        }
+    });
     
     camera.attachControl(canvas, true);
     
@@ -550,6 +610,37 @@ createScene().then(createdScene => {
         config.camera.maxDistance = value;
     });
     
+    // Camera Zoom Speed control (wheel precision)
+    const cameraZoomSpeed = { zoomSpeed: config.camera.zoomSpeed || 1 };
+    cameraFolder.add(cameraZoomSpeed, 'zoomSpeed', 0, 10).step(0.1).name('Zoom Speed (Wheel)').onChange(function(value) {
+        camera.wheelPrecision = value;
+        config.camera.zoomSpeed = value;
+    });
+    
+    // Camera Zoom Sensitivity control
+    const cameraZoomSensitivity = { zoomSensitivity: config.camera.zoomSensitivity || 0.5 };
+    cameraFolder.add(cameraZoomSensitivity, 'zoomSensitivity', 0.1, 2.0).step(0.1).name('Zoom Sensitivity').onChange(function(value) {
+        camera.zoomSensitivity = value;
+        config.camera.zoomSensitivity = value;
+    });
+    
+    // Camera Inertia control for smooth movements
+    const cameraInertia = { inertia: config.camera.inertia || 0.9 };
+    cameraFolder.add(cameraInertia, 'inertia', 0.0, 0.99).step(0.01).name('Movement Inertia').onChange(function(value) {
+        camera.inertia = value;
+        config.camera.inertia = value;
+    });
+    
+    // Camera Zoom Smoothness control
+    const cameraZoomSmoothness = { zoomSmoothness: config.camera.zoomSmoothness || 0.1 };
+    cameraFolder.add(cameraZoomSmoothness, 'zoomSmoothness', 0.05, 0.5).step(0.01).name('Zoom Smoothness').onChange(function(value) {
+        // Update the zoom lerp factor for smooth zoom interpolation
+        if (window.zoomLerpFactor !== undefined) {
+            window.zoomLerpFactor = value;
+        }
+        config.camera.zoomSmoothness = value;
+    });
+    
     // Camera Target controls
     const targetFolder = cameraFolder.addFolder('Target Position');
     
@@ -598,13 +689,17 @@ createScene().then(createdScene => {
         config.camera.alpha = camera.alpha;
         config.camera.beta = camera.beta;
         config.camera.radius = camera.radius;
-            config.camera.fov = camera.fov;
-            config.camera.minDistance = camera.lowerRadiusLimit;
-            config.camera.maxDistance = camera.upperRadiusLimit;
-            config.camera.targetX = camera.target.x;
-            config.camera.targetY = camera.target.y;
-            config.camera.targetZ = camera.target.z;
-            config.camera.showTarget = config.camera.showTarget;
+        config.camera.fov = camera.fov;
+        config.camera.minDistance = camera.lowerRadiusLimit;
+        config.camera.maxDistance = camera.upperRadiusLimit;
+        config.camera.zoomSpeed = camera.wheelPrecision;
+        config.camera.zoomSensitivity = camera.zoomSensitivity;
+        config.camera.inertia = camera.inertia;
+        config.camera.zoomSmoothness = window.zoomLerpFactor || 0.1;
+        config.camera.targetX = camera.target.x;
+        config.camera.targetY = camera.target.y;
+        config.camera.targetZ = camera.target.z;
+        config.camera.showTarget = config.camera.showTarget;
             
             // Create export object with only camera settings, preserving current environment settings
             const exportConfig = {
@@ -616,6 +711,10 @@ createScene().then(createdScene => {
                     fov: config.camera.fov,
                     minDistance: config.camera.minDistance,
                     maxDistance: config.camera.maxDistance,
+                    zoomSpeed: config.camera.zoomSpeed,
+                    zoomSensitivity: config.camera.zoomSensitivity,
+                    inertia: config.camera.inertia,
+                    zoomSmoothness: config.camera.zoomSmoothness,
                     targetX: config.camera.targetX,
                     targetY: config.camera.targetY,
                     targetZ: config.camera.targetZ,

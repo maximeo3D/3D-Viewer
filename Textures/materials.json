@@ -32,18 +32,18 @@
     },
     "blue": {
       "type": "pbr",
-      "baseColor": "#7e7e7e",
+      "baseColor": "#ffffff",
       "metallic": 1,
-      "roughness": 1,
+      "roughness": 0.15,
       "alpha": 1,
       "albedoTexture": "None",
-      "metallicTexture": "RGB.png",
-      "microSurfaceTexture": "RGB.png",
-      "ambientTexture": "RGB.png",
-      "opacityTexture": "alpha.png",
+      "metallicTexture": "",
+      "microSurfaceTexture": "",
+      "ambientTexture": "",
+      "opacityTexture": "",
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
-      "backFaceCulling": false
+      "backFaceCulling": true
     }
   }
 }
