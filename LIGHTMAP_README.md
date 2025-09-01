@@ -36,7 +36,7 @@ Ce document explique comment utiliser le système de lightmap intégré dans le 
       "bumpTexture": "texture_normal.png",
       "bumpTextureIntensity": 1.0,
       "lightmapTexture": "texture_lightmap.png",
-      "useLightmapAsShadowmap": true,
+      "useLightmapAsShadowmap": true, // Automatically managed - always true
       "backFaceCulling": true
     }
   }
@@ -47,15 +47,15 @@ Ce document explique comment utiliser le système de lightmap intégré dans le 
 - **`lightmapTexture`** : Nom du fichier de texture lightmap
   - `""` ou `null` : Pas de lightmap
   - `"texture.png"` : Utilise la texture spécifiée
-- **`useLightmapAsShadowmap`** : Booléen pour activer/désactiver l'utilisation comme shadowmap
-  - `true` : Utilise le lightmap pour les ombres (recommandé)
-  - `false` : Lightmap uniquement pour l'éclairage
+- **`useLightmapAsShadowmap`** : *Automatiquement activé* pour des performances optimales
+  - **Toujours `true`** : Utilise le lightmap pour les ombres (optimisé)
+  - **Non configurable** : Simplifie l'interface tout en maximisant les performances
 
 ## 🎨 **Interface dat.GUI**
 
 ### **Contrôles Disponibles**
 1. **Lightmap Texture** : Dropdown pour sélectionner la texture lightmap
-2. **Use Lightmap as Shadowmap** : Toggle pour activer/désactiver la fonction shadowmap
+2. **Use Lightmap as Shadowmap** : *Caché - Toujours activé pour des performances optimales*
 
 ### **Ordre des Contrôles**
 1. Albedo Color
@@ -69,7 +69,7 @@ Ce document explique comment utiliser le système de lightmap intégré dans le 
 9. Opacity Texture
 10. Normal Map
 11. **🌞 Lightmap Texture** ← **NOUVEAU**
-12. **🌞 Use Lightmap as Shadowmap** ← **NOUVEAU**
+12. **🌞 Use Lightmap as Shadowmap** ← **CACHÉ (toujours activé)**
 13. Back Face Culling
 14. Show Inspector
 15. Refresh Images
@@ -86,7 +86,7 @@ Ce document explique comment utiliser le système de lightmap intégré dans le 
 ### **2. Configurer le Matériau**
 - Sélectionnez le matériau dans dat.GUI
 - Choisissez la texture lightmap dans le dropdown
-- Activez "Use Lightmap as Shadowmap" (recommandé)
+- **Note** : "Use Lightmap as Shadowmap" est automatiquement activé pour des performances optimales
 - Ajustez les autres propriétés PBR selon vos besoins
 
 ### **3. Tester et Ajuster**
@@ -150,6 +150,6 @@ Ce document explique comment utiliser le système de lightmap intégré dans le 
 
 ### **🆕 Nouvelles Fonctionnalités**
 - **Système de lightmap complet** : Support des textures de lumière pré-calculées
-- **Lightmap as Shadowmap** : Optimisation automatique des performances
-- **Interface dat.GUI intégrée** : Contrôles en temps réel
+- **Lightmap as Shadowmap** : *Automatiquement activé* pour des performances optimales
+- **Interface dat.GUI simplifiée** : Contrôle lightmap uniquement (shadowmap caché)
 - **Export automatique** : Sauvegarde dans `materials.json`

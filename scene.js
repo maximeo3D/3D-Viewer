@@ -856,11 +856,14 @@ createScene().then(createdScene => {
             applyMaterialChanges();
         });
         
-        // Lightmap as shadowmap toggle
-        lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
-            materialProperties.useLightmapAsShadowmap = value;
-            applyMaterialChanges();
-        });
+        // Lightmap as shadowmap toggle - Hidden but always true for better performance
+        // lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
+        //     materialProperties.useLightmapAsShadowmap = value;
+        //     applyMaterialChanges();
+        // });
+        
+        // Always set useLightmapAsShadowmap to true for optimal performance
+        materialProperties.useLightmapAsShadowmap = true;
         
         backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
             materialProperties.backFaceCulling = value;
@@ -925,7 +928,7 @@ createScene().then(createdScene => {
         bumpTexture: '',
         bumpTextureIntensity: 1.0,
         lightmapTexture: '',
-        useLightmapAsShadowmap: true,
+        useLightmapAsShadowmap: true, // Always true for optimal performance
         backFaceCulling: true
     };
     
@@ -981,7 +984,7 @@ createScene().then(createdScene => {
             materialsFolder.remove(bumpTextureControl);
             materialsFolder.remove(bumpTextureIntensityControl);
             materialsFolder.remove(lightmapTextureControl);
-            materialsFolder.remove(lightmapAsShadowmapControl);
+            // materialsFolder.remove(lightmapAsShadowmapControl); // No longer needed as control is hidden
             materialsFolder.remove(backFaceCullingControl);
             if (refreshImagesControl) {
                 materialsFolder.remove(refreshImagesControl);
@@ -1078,12 +1081,15 @@ createScene().then(createdScene => {
                 applyMaterialChanges();
             });
             
-            // Lightmap as shadowmap toggle
-            materialProperties.useLightmapAsShadowmap = material.useLightmapAsShadowmap !== undefined ? material.useLightmapAsShadowmap : true;
-            lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
-                materialProperties.useLightmapAsShadowmap = value;
-                applyMaterialChanges();
-            });
+            // Lightmap as shadowmap toggle - Hidden but always true for better performance
+            // materialProperties.useLightmapAsShadowmap = material.useLightmapAsShadowmap !== undefined ? material.useLightmapAsShadowmap : true;
+            // lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
+            //     materialProperties.useLightmapAsShadowmap = value;
+            //     applyMaterialChanges();
+            // });
+            
+            // Always set useLightmapAsShadowmap to true for optimal performance
+            materialProperties.useLightmapAsShadowmap = true;
             
             backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
                 materialProperties.backFaceCulling = value;
