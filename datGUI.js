@@ -12,7 +12,7 @@ class DatGUIManager {
         // Variables pour l'effet d'élasticité du pitch
         this.initialPitch = this.config.camera.beta; // Valeur initiale du pitch
         this.isMouseDown = false;
-        this.pitchElasticityEnabled = this.config.camera.pitchElasticity !== undefined ? this.config.camera.pitchElasticity : true;
+        this.pitchElasticityEnabled = this.config.camera.pitchElasticity !== undefined ? this.config.camera.pitchElasticity : false;
         
         // Variables pour les contrôles
         this.environmentFolder = null;

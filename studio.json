@@ -5,20 +5,22 @@
     "orientation": 0
   },
   "camera": {
-    "alpha": -17.770058223482835,
-    "beta": 1.0471975511965976,
+    "alpha": -1.259033298642173,
+    "beta": 1.2,
     "radius": 10.151602452001644,
     "fov": 82,
     "minDistance": 4.487839849783297,
     "maxDistance": 15,
     "zoomSpeed": 2,
     "zoomSensitivity": 0.7000000000000001,
-    "inertia": 0.9,
+    "inertia": 0.5,
     "zoomSmoothness": 0.1,
     "targetX": 0,
     "targetY": 0,
     "targetZ": 0,
     "showTarget": false,
-    "pitchElasticity": true
+    "pitchElasticity": false,
+    "lowerBetaLimit": 1.2,
+    "upperBetaLimit": 1.2
   }
 }

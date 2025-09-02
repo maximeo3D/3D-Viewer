@@ -33,6 +33,7 @@ let config = {
 let scene;
 let camera;
 let loadedModels = new Map(); // Store loaded models
+window.loadedModels = loadedModels; // Rendre accessible globalement pour datGUI.js
 let assetConfig = null; // Asset configuration
 let materialsConfig = null; // Materials configuration
 
@@ -141,6 +142,9 @@ async function loadModels() {
                         modelConfig.rotation[2]
                     );
                 }
+                
+                // Les objets commencent à 0° de rotation X
+                modelGroup.rotation.x = 0;
                 
                 if (modelConfig.scale) {
                     modelGroup.scaling = new BABYLON.Vector3(
@@ -377,6 +381,14 @@ const createScene = async function() {
     if (config.camera.minDistance) camera.lowerRadiusLimit = config.camera.minDistance;
     if (config.camera.maxDistance) camera.upperRadiusLimit = config.camera.maxDistance;
     
+    // Bloquer complètement le beta de la caméra avec les limites
+    if (config.camera.lowerBetaLimit !== undefined) {
+        camera.lowerBetaLimit = config.camera.lowerBetaLimit;
+    }
+    if (config.camera.upperBetaLimit !== undefined) {
+        camera.upperBetaLimit = config.camera.upperBetaLimit;
+    }
+    
     // Set camera target from config
     if (config.camera.targetX !== undefined) camera.target.x = config.camera.targetX;
     if (config.camera.targetY !== undefined) camera.target.y = config.camera.targetY;
@@ -418,8 +430,9 @@ const createScene = async function() {
         }
     });
     
-    // Add smooth zoom interpolation in the render loop with easing
+    // Add smooth zoom interpolation and object rotation elasticity in the render loop
     scene.onBeforeRenderObservable.add(() => {
+        // Zoom interpolation
         if (Math.abs(currentRadius - targetRadius) > 0.01) {
             // Use smooth easing function for more natural zoom feel
             const delta = targetRadius - currentRadius;
@@ -436,9 +449,117 @@ const createScene = async function() {
             
             camera.radius = currentRadius;
         }
+        
+        // Object rotation elasticity - retour à 0° quand la souris est relâchée
+        if (objectRotationElasticityEnabled && !isMouseDown && Math.abs(currentObjectRotationX - targetObjectRotationX) > 0.001) {
+            const rotationDelta = targetObjectRotationX - currentObjectRotationX;
+            const elasticityFactor = 0.1; // Vitesse de retour (ajustable)
+            
+            // Interpolation douce vers la rotation cible (0°)
+            currentObjectRotationX += rotationDelta * elasticityFactor;
+            
+            // Appliquer la rotation aux objets
+            if (window.loadedModels) {
+                window.loadedModels.forEach((modelData, modelName) => {
+                    if (modelData.group) {
+                        modelData.group.rotation.x = currentObjectRotationX;
+                    }
+                });
+            }
+        }
     });
     
-    camera.attachControl(canvas, true);
+    // Désactiver les contrôles par défaut de la caméra
+    camera.attachControl(canvas, false);
+    
+    // Variables pour les contrôles personnalisés
+    let isMouseDown = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let isRightClick = false;
+    
+    // Variables pour la rotation des objets avec limites
+    let currentObjectRotationX = 0; // Rotation actuelle en radians
+    const minObjectRotationX = -Math.PI/2; // -90 degrés
+    const maxObjectRotationX = Math.PI/2;  // +90 degrés
+    
+    // Variables pour l'élasticité de rotation des objets
+    let targetObjectRotationX = 0; // Rotation cible (toujours 0°)
+    let objectRotationElasticityEnabled = true; // Activer l'élasticité par défaut
+    
+    // Contrôles personnalisés de la caméra
+    scene.onPointerObservable.add((evt) => {
+        if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+            isMouseDown = true;
+            lastMouseX = evt.event.clientX;
+            lastMouseY = evt.event.clientY;
+            isRightClick = evt.event.button === 2; // Clic droit
+        }
+        
+        if (evt.type === BABYLON.PointerEventTypes.POINTERUP) {
+            isMouseDown = false;
+            isRightClick = false;
+            
+            // Réactiver l'élasticité quand l'utilisateur relâche la souris
+            objectRotationElasticityEnabled = true;
+        }
+        
+        if (evt.type === BABYLON.PointerEventTypes.POINTERMOVE && isMouseDown) {
+            const deltaX = evt.event.clientX - lastMouseX;
+            const deltaY = evt.event.clientY - lastMouseY;
+            
+            // Ignorer le clic droit (pan)
+            if (isRightClick) {
+                // Ne rien faire - pan désactivé
+                return;
+            }
+            
+            // Mouvement horizontal : contrôler alpha (rotation horizontale de la caméra)
+            if (Math.abs(deltaX) > 0) {
+                const alphaSensitivity = 0.006;
+                camera.alpha += deltaX * alphaSensitivity;
+                
+                // Mettre à jour la config
+                config.camera.alpha = camera.alpha;
+            }
+            
+            // Mouvement vertical : contrôler la rotation X des objets avec limites
+            if (Math.abs(deltaY) > 0) {
+                const objectRotationSensitivity = 0.006;
+                const rotationDelta = deltaY * objectRotationSensitivity;
+                
+                // Calculer la nouvelle rotation avec limites
+                const newRotationX = currentObjectRotationX + rotationDelta;
+                const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
+                
+                // Appliquer la rotation limitée à tous les objets chargés
+                if (window.loadedModels) {
+                    window.loadedModels.forEach((modelData, modelName) => {
+                        if (modelData.group) {
+                            modelData.group.rotation.x = clampedRotationX;
+                        }
+                    });
+                }
+                
+                            // Mettre à jour la rotation actuelle
+            currentObjectRotationX = clampedRotationX;
+            
+            // Désactiver l'élasticité pendant le mouvement
+            objectRotationElasticityEnabled = false;
+            
+            // Beta reste fixe - ne pas modifier config.camera.beta
+            // La rotation des objets est indépendante de la caméra
+            }
+            
+            lastMouseX = evt.event.clientX;
+            lastMouseY = evt.event.clientY;
+        }
+    });
+    
+    // Désactiver le menu contextuel du clic droit
+    canvas.addEventListener('contextmenu', (evt) => {
+        evt.preventDefault();
+    });
     
     // Load 3D models from asset configuration
     await loadModels();
