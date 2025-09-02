@@ -514,19 +514,19 @@ const createScene = async function() {
                 return;
             }
             
-            // Mouvement horizontal : contrôler alpha (rotation horizontale de la caméra)
+            // Mouvement horizontal : contrôler alpha (rotation horizontale de la caméra) - inversé pour plus naturel
             if (Math.abs(deltaX) > 0) {
                 const alphaSensitivity = 0.006;
-                camera.alpha += deltaX * alphaSensitivity;
+                camera.alpha -= deltaX * alphaSensitivity; // Inversé avec le signe négatif
                 
                 // Mettre à jour la config
                 config.camera.alpha = camera.alpha;
             }
             
-            // Mouvement vertical : contrôler la rotation X des objets avec limites
+            // Mouvement vertical : contrôler la rotation X des objets avec limites (inversé pour plus naturel)
             if (Math.abs(deltaY) > 0) {
                 const objectRotationSensitivity = 0.006;
-                const rotationDelta = deltaY * objectRotationSensitivity;
+                const rotationDelta = -deltaY * objectRotationSensitivity; // Inversé avec le signe négatif
                 
                 // Calculer la nouvelle rotation avec limites
                 const newRotationX = currentObjectRotationX + rotationDelta;
