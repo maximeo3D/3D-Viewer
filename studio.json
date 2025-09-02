@@ -1,15 +1,15 @@
 ﻿{
   "environment": {
-    "backgroundColor": "#cacaca",
+    "backgroundColor": "#ebebeb",
     "hdrExposure": 1,
     "orientation": 0
   },
   "camera": {
     "alpha": -17.770058223482835,
     "beta": 1.3443929165481285,
-    "radius": 10.588140753468778,
+    "radius": 10.151602452001644,
     "fov": 82,
-    "minDistance": 4.987839849783296,
+    "minDistance": 4.487839849783297,
     "maxDistance": 15,
     "zoomSpeed": 2,
     "zoomSensitivity": 0.7000000000000001,
