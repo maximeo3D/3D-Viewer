@@ -6,7 +6,7 @@
   },
   "camera": {
     "alpha": -17.770058223482835,
-    "beta": 1.3443929165481285,
+    "beta": 0.7209625046525381,
     "radius": 10.151602452001644,
     "fov": 82,
     "minDistance": 4.487839849783297,
@@ -18,6 +18,7 @@
     "targetX": 0,
     "targetY": 0,
     "targetZ": 0,
-    "showTarget": false
+    "showTarget": false,
+    "pitchElasticity": true
   }
 }

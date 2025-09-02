@@ -204,7 +204,6 @@ function createPBRMaterial(materialConfig, scene) {
     pbr.metallic = materialConfig.metallic !== undefined ? materialConfig.metallic : 0;
     pbr.roughness = materialConfig.roughness !== undefined ? materialConfig.roughness : 0.5;
     pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
-    console.log(`🎨 Applied alpha: ${materialConfig.alpha}`);
     
     // === TEXTURES ===
     // Albedo texture (base color)
@@ -255,8 +254,6 @@ function createPBRMaterial(materialConfig, scene) {
         
         // Enable lightmap as shadowmap by default for better performance
         pbr.useLightmapAsShadowmap = materialConfig.useLightmapAsShadowmap !== undefined ? materialConfig.useLightmapAsShadowmap : true;
-        
-        console.log(`🌞 Applied lightmap texture: ${materialConfig.lightmapTexture}, useLightmapAsShadowmap: ${pbr.useLightmapAsShadowmap}`);
     }
     
     // === TEXTURE TRANSFORMATIONS ===

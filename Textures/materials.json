@@ -62,8 +62,8 @@
       "useLightmapAsShadowmap": true,
       "uOffset": 0.35000000000000003,
       "vOffset": 0.4,
-      "uScale": 0.5,
-      "vScale": 0.5,
+      "uScale": 1,
+      "vScale": 1,
       "wRotation": 96
     },
     "blue": {
