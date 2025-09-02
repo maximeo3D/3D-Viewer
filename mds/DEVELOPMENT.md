@@ -8,12 +8,13 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ```
 3D-Viewer/
 ├── index.html                 # Interface HTML principale
-├── scene.js                   # Logique 3D et contrôles datGUI (principal)
+├── scene.js                   # Logique 3D et contrôles personnalisés
+├── datGUI.js                  # Interface utilisateur dat.GUI complète
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
 ├── studio.json                # Configuration environnement/caméra
 ├── Assets/
-│   ├── asset.json            # Configuration des modèles 3D
+│   ├── asset.js              # Configuration des modèles 3D (JavaScript)
 │   └── cube-sphere.glb       # Modèle de test
 └── Textures/
     ├── materials.json         # Configuration des matériaux PBR
@@ -28,7 +29,326 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 - **Formats** : GLB/glTF, HDR, PNG/JPG
 - **Architecture** : Client-Serveur avec API REST
 
+### **Architecture Modulaire**
+
+#### **Séparation des Responsabilités**
+- **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles
+- **`datGUI.js`** : Interface utilisateur complète, gestion des matériaux, contrôles d'environnement
+- **`studio.json`** : Configuration persistante de la caméra et de l'environnement
+- **`Assets/asset.js`** : Configuration des modèles 3D avec visibilité par mesh
+
+#### **Classe DatGUIManager**
+```javascript
+class DatGUIManager {
+    constructor(scene, config) {
+        this.scene = scene;
+        this.config = config;
+        this.gui = null;
+        this.materialsFolder = null;
+        this.cameraFolder = null;
+        this.environmentFolder = null;
+    }
+    
+    async init() {
+        // Initialisation complète de l'interface
+    }
+    
+    createMaterialControls() {
+        // Contrôles des matériaux PBR
+    }
+    
+    createCameraControls() {
+        // Contrôles de caméra avec "Initial Pitch"
+    }
+    
+    createEnvironmentControls() {
+        // Contrôles d'environnement
+    }
+}
+```
+
 ## 🔧 **Implémentation Technique**
+
+### **1. Contrôles de Caméra Personnalisés**
+
+#### **Désactivation des Contrôles Par Défaut**
+```javascript
+// Désactiver les contrôles par défaut de la caméra
+camera.attachControl(canvas, false);
+
+// Variables pour les contrôles personnalisés
+let isMouseDown = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let isRightClick = false;
+
+// Variables pour la rotation des objets avec limites
+let currentObjectRotationX = 0;
+const minObjectRotationX = -Math.PI/2; // -90 degrés
+const maxObjectRotationX = Math.PI/2;   // +90 degrés
+
+// Variables pour l'élasticité de rotation des objets
+let targetObjectRotationX = 0;
+let objectRotationElasticityEnabled = true;
+```
+
+#### **Gestion des Événements de Souris**
+```javascript
+scene.onPointerObservable.add((evt) => {
+    if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+        isMouseDown = true;
+        lastMouseX = evt.event.clientX;
+        lastMouseY = evt.event.clientY;
+        isRightClick = evt.event.button === 2;
+    }
+    
+    if (evt.type === BABYLON.PointerEventTypes.POINTERUP) {
+        isMouseDown = false;
+        isRightClick = false;
+        objectRotationElasticityEnabled = true;
+    }
+    
+    if (evt.type === BABYLON.PointerEventTypes.POINTERMOVE && isMouseDown) {
+        const deltaX = evt.event.clientX - lastMouseX;
+        const deltaY = evt.event.clientY - lastMouseY;
+        
+        // Ignorer le clic droit (pan désactivé)
+        if (isRightClick) return;
+        
+        // Mouvement horizontal : contrôler alpha (yaw) de la caméra
+        if (Math.abs(deltaX) > 0) {
+            const alphaSensitivity = 0.006;
+            camera.alpha -= deltaX * alphaSensitivity; // Inversé
+            config.camera.alpha = camera.alpha;
+        }
+        
+        // Mouvement vertical : rotation des objets sur l'axe X
+        if (Math.abs(deltaY) > 0) {
+            const objectRotationSensitivity = 0.006;
+            const rotationDelta = -deltaY * objectRotationSensitivity; // Inversé
+            
+            const newRotationX = currentObjectRotationX + rotationDelta;
+            const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
+            
+            // Appliquer aux objets
+            if (window.loadedModels) {
+                window.loadedModels.forEach((modelData, modelName) => {
+                    if (modelData.group) {
+                        modelData.group.rotation.x = clampedRotationX;
+                    }
+                });
+            }
+            
+            currentObjectRotationX = clampedRotationX;
+            objectRotationElasticityEnabled = false;
+        }
+        
+        lastMouseX = evt.event.clientX;
+        lastMouseY = evt.event.clientY;
+    }
+});
+```
+
+#### **Élasticité de Rotation des Objets**
+```javascript
+scene.onBeforeRenderObservable.add(() => {
+    // Zoom interpolation
+    if (Math.abs(currentRadius - targetRadius) > 0.01) {
+        const delta = targetRadius - currentRadius;
+        const easing = 0.1;
+        currentRadius += delta * easing;
+        
+        if ((delta > 0 && currentRadius > targetRadius) || 
+            (delta < 0 && currentRadius < targetRadius)) {
+            currentRadius = targetRadius;
+        }
+        
+        camera.radius = currentRadius;
+    }
+    
+    // Object rotation elasticity - retour à 0° quand la souris est relâchée
+    if (objectRotationElasticityEnabled && !isMouseDown && Math.abs(currentObjectRotationX - targetObjectRotationX) > 0.001) {
+        const rotationDelta = targetObjectRotationX - currentObjectRotationX;
+        const elasticityFactor = 0.1;
+        
+        currentObjectRotationX += rotationDelta * elasticityFactor;
+        
+        if (window.loadedModels) {
+            window.loadedModels.forEach((modelData, modelName) => {
+                if (modelData.group) {
+                    modelData.group.rotation.x = currentObjectRotationX;
+                }
+            });
+        }
+    }
+});
+```
+
+### **2. Contrôle "Initial Pitch"**
+
+#### **Configuration dans studio.json**
+```json
+{
+  "camera": {
+    "alpha": -0.8726646259971648,
+    "beta": 1.20,
+    "radius": 10.151602452001644,
+    "lowerBetaLimit": 1.20,
+    "upperBetaLimit": 1.20,
+    "initialPitch": 68.75
+  }
+}
+```
+
+#### **Application dans scene.js**
+```javascript
+// Appliquer les limites beta selon initialPitch
+if (config.camera.initialPitch !== undefined) {
+    const pitchRadians = BABYLON.Tools.ToRadians(config.camera.initialPitch);
+    camera.beta = pitchRadians;
+    camera.lowerBetaLimit = pitchRadians;
+    camera.upperBetaLimit = pitchRadians;
+} else if (config.camera.lowerBetaLimit !== undefined && config.camera.upperBetaLimit !== undefined) {
+    camera.lowerBetaLimit = config.camera.lowerBetaLimit;
+    camera.upperBetaLimit = config.camera.upperBetaLimit;
+}
+```
+
+#### **Contrôle dat.GUI**
+```javascript
+// Initial Pitch control - Contrôle l'angle initial de la caméra
+const initialPitch = { pitch: this.config.camera.initialPitch !== undefined ? this.config.camera.initialPitch : 0 };
+this.cameraFolder.add(initialPitch, 'pitch', -90, 90).name('Initial Pitch').onChange((value) => {
+    const pitchRadians = BABYLON.Tools.ToRadians(value);
+    
+    // Mettre à jour la caméra
+    this.scene.activeCamera.beta = pitchRadians;
+    this.scene.activeCamera.lowerBetaLimit = pitchRadians;
+    this.scene.activeCamera.upperBetaLimit = pitchRadians;
+    
+    // Mettre à jour la config
+    this.config.camera.initialPitch = value;
+    this.config.camera.beta = pitchRadians;
+    this.config.camera.lowerBetaLimit = pitchRadians;
+    this.config.camera.upperBetaLimit = pitchRadians;
+    
+    if (this.onCameraChange) {
+        this.onCameraChange('initialPitch', value);
+    }
+});
+```
+
+### **3. Système de Visibilité par Mesh**
+
+#### **Configuration dans Assets/asset.js**
+```javascript
+const assetConfiguration = {
+    models: [
+        {
+            name: "CubeSphere",
+            file: "cube-sphere.glb",
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            meshes: [
+                {
+                    name: "Cube",
+                    visible: true,  // Contrôle individuel de visibilité
+                    materialSlot1: "red",
+                    materialSlot2: "blue"
+                },
+                {
+                    name: "Sphere",
+                    visible: false, // Mesh caché
+                    materialSlot1: "green"
+                }
+            ]
+        }
+    ]
+};
+```
+
+#### **Application dans scene.js**
+```javascript
+async function loadModels() {
+    if (!assetConfig || !assetConfig.models) return;
+    
+    for (const modelConfig of assetConfig.models) {
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
+            
+            // Créer un groupe pour le modèle
+            const modelGroup = new BABYLON.TransformNode(`${modelConfig.name}_group`, scene);
+            modelGroup.position = new BABYLON.Vector3(...modelConfig.position);
+            modelGroup.rotation = new BABYLON.Vector3(...modelConfig.rotation);
+            modelGroup.scaling = new BABYLON.Vector3(...modelConfig.scale);
+            
+            // Appliquer la visibilité par mesh
+            result.meshes.forEach(mesh => {
+                const primitiveMatch = mesh.name.match(/_primitive(\d+)$/);
+                if (primitiveMatch) {
+                    const baseMeshName = mesh.name.split('_primitive')[0];
+                    const meshConfig = modelConfig.meshes.find(m => m.name === baseMeshName);
+                    
+                    if (meshConfig && meshConfig.visible !== undefined) {
+                        mesh.isVisible = meshConfig.visible;
+                    }
+                }
+            });
+            
+            // ... reste du code de chargement
+        } catch (error) {
+            console.error(`Error loading model ${modelConfig.file}:`, error);
+        }
+    }
+}
+```
+
+### **4. Contrôle de Visibilité de dat.GUI**
+
+#### **Variable de Contrôle dans scene.js**
+```javascript
+// Contrôle de visibilité de dat.GUI - Changez true/false ici
+let datGUIVisible = true;
+```
+
+#### **Application lors de l'Initialisation**
+```javascript
+// Initialiser l'interface
+await datGUIManager.init();
+
+// Appliquer la visibilité selon la variable datGUIVisible
+if (!datGUIVisible) {
+    datGUIManager.setDatGUIVisibility(false);
+}
+
+// Rendre le gestionnaire accessible globalement
+window.datGUIManager = datGUIManager;
+```
+
+#### **Méthodes Publiques dans datGUI.js**
+```javascript
+// Méthode publique pour activer/désactiver dat.GUI depuis l'extérieur
+setDatGUIVisibility(show) {
+    this.toggleDatGUIVisibility(show);
+}
+
+// Méthode publique pour obtenir l'état de visibilité de dat.GUI
+isDatGUIVisible() {
+    return this.gui && this.gui.domElement && this.gui.domElement.style.display !== 'none';
+}
+
+// Fonction pour activer/désactiver la visibilité de dat.GUI
+toggleDatGUIVisibility(show) {
+    if (this.gui && this.gui.domElement) {
+        if (show) {
+            this.gui.domElement.style.display = 'block';
+        } else {
+            this.gui.domElement.style.display = 'none';
+        }
+    }
+}
+```
 
 ### **1. Système de Matériaux PBR**
 

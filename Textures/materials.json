@@ -16,11 +16,11 @@
       "lightmapTexture": "metal_ao.png",
       "useLightmapAsShadowmap": true,
       "backFaceCulling": true,
-      "uOffset": 0.75,
-      "vOffset": 0.25,
-      "uScale": 3,
-      "vScale": 3,
-      "wRotation": 47
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
     },
     "green": {
       "type": "pbr",

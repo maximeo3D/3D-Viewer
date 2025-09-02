@@ -5,6 +5,82 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [2.2.0] - 2024-12-XX - Refactoring et Contrôles Avancés
+
+### 🎉 Ajouté
+- **Refactoring de l'Architecture**
+  - Séparation complète de dat.GUI dans `datGUI.js`
+  - Classe `DatGUIManager` pour gérer toute l'interface
+  - Architecture modulaire et maintenable
+  - Contrôle de visibilité de dat.GUI via variable `datGUIVisible`
+
+- **Contrôles de Caméra Personnalisés**
+  - Désactivation des contrôles par défaut de la caméra
+  - Mouvement horizontal : contrôle uniquement l'alpha (yaw) de la caméra
+  - Mouvement vertical : rotation des objets 3D sur l'axe X
+  - Limites de rotation des objets (-90° à +90°)
+  - Élasticité de rotation des objets (retour à 0° au relâchement)
+  - Désactivation complète du pan avec clic droit
+
+- **Contrôle "Initial Pitch"**
+  - Nouveau contrôle dat.GUI pour l'angle initial de la caméra
+  - Plage de -90° à +90° pour un contrôle naturel
+  - Synchronisation automatique avec `studio.json`
+  - Mise à jour des limites beta (lowerBetaLimit/upperBetaLimit)
+
+- **Système de Visibilité par Mesh**
+  - Contrôle individuel de la visibilité des meshes
+  - Configuration via `Assets/asset.js` avec propriété `visible`
+  - Support des primitives Babylon.js
+  - Application automatique lors du chargement
+
+- **Conversion asset.json vers asset.js**
+  - Support des commentaires dans la configuration
+  - Structure JavaScript plus flexible
+  - Compatibilité maintenue avec l'ancien système
+
+### 🔧 Modifié
+- **Architecture du Code**
+  - `scene.js` : Logique 3D et contrôles personnalisés uniquement
+  - `datGUI.js` : Toute l'interface utilisateur et ses contrôles
+  - Séparation claire des responsabilités
+
+- **Contrôles de Caméra**
+  - Beta (pitch) maintenant fixe via `studio.json`
+  - Alpha (yaw) contrôlé uniquement par mouvement horizontal
+  - Zoom avec inertie et lissage
+  - Suppression de l'élasticité de pitch (obsolète)
+
+- **Interface dat.GUI**
+  - Suppression du contrôle "Pitch Elasticity"
+  - Remplacement par "Initial Pitch" (-90° à +90°)
+  - Interface plus claire et logique
+
+### 🐛 Corrigé
+- **Gestion des Erreurs**
+  - Correction des erreurs de déclaration de variables dans `asset.js`
+  - Gestion sécurisée des dossiers dat.GUI
+  - Vérifications de sécurité pour les contrôles
+
+- **Contrôles de Rotation**
+  - Inversion des contrôles pour un comportement naturel
+  - Correction de la rotation initiale des objets (démarrage à 0°)
+  - Limites correctes de rotation (-90° à +90°)
+
+- **Interface Utilisateur**
+  - Suppression des console.log de debug
+  - Interface plus propre et responsive
+
+### 🗑️ Supprimé
+- **Fonctionnalités Obsolètes**
+  - Contrôle "Pitch Elasticity" de dat.GUI
+  - Variables et fonctions liées à l'élasticité de pitch
+  - Console.log de debug
+
+- **Contrôles Redondants**
+  - Ancien contrôle "Camera Pitch" (remplacé par "Initial Pitch")
+  - Contrôles de mode pitch (obsolète)
+
 ## [2.0.0] - 2024-12-XX - Éditeur PBR Complet
 
 ### 🎉 Ajouté

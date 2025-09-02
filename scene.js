@@ -38,7 +38,7 @@ let assetConfig = null; // Asset configuration
 let materialsConfig = null; // Materials configuration
 
 // Contrôle de visibilité de dat.GUI - Changez true/false ici
-let datGUIVisible = false;
+let datGUIVisible = true;
 
 
 
