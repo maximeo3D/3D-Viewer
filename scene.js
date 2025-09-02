@@ -37,6 +37,9 @@ window.loadedModels = loadedModels; // Rendre accessible globalement pour datGUI
 let assetConfig = null; // Asset configuration
 let materialsConfig = null; // Materials configuration
 
+// Contrôle de visibilité de dat.GUI - Changez true/false ici
+let datGUIVisible = false;
+
 
 
 // Function to load configuration
@@ -661,6 +664,11 @@ createScene().then(async createdScene => {
     
     // Initialiser l'interface
     await datGUIManager.init();
+    
+    // Appliquer la visibilité selon la variable datGUIVisible
+    if (!datGUIVisible) {
+        datGUIManager.setDatGUIVisibility(false);
+    }
     
     // Rendre le gestionnaire accessible globalement pour la sélection par clic
     window.datGUIManager = datGUIManager;

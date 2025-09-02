@@ -85,6 +85,8 @@ class DatGUIManager {
         this.gui.domElement.style.top = '10px';
         this.gui.domElement.style.right = '10px';
         
+
+        
         // Charger les images disponibles
         await this.loadAvailableImages();
         
@@ -587,6 +589,17 @@ class DatGUIManager {
         }, 100);
     }
     
+    // Fonction pour activer/désactiver la visibilité de dat.GUI
+    toggleDatGUIVisibility(show) {
+        if (this.gui && this.gui.domElement) {
+            if (show) {
+                this.gui.domElement.style.display = 'block';
+            } else {
+                this.gui.domElement.style.display = 'none';
+            }
+        }
+    }
+    
     // Créer le contrôle Show Inspector
     createInspectorControl() {
         const inspectorToggle = { showInspector: false };
@@ -841,6 +854,16 @@ class DatGUIManager {
             // Rendre accessible globalement pour compatibilité
             window.targetVisual = this.targetVisual;
         }
+    }
+    
+    // Méthode publique pour activer/désactiver dat.GUI depuis l'extérieur
+    setDatGUIVisibility(show) {
+        this.toggleDatGUIVisibility(show);
+    }
+    
+    // Méthode publique pour obtenir l'état de visibilité de dat.GUI
+    isDatGUIVisible() {
+        return this.gui && this.gui.domElement && this.gui.domElement.style.display !== 'none';
     }
     
     // Les contrôles personnalisés sont maintenant gérés dans scene.js
