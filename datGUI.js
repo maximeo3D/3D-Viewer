@@ -565,6 +565,11 @@ class DatGUIManager {
         };
         
         this.exportMaterialsControl = this.materialsFolder.add(exportMaterials, 'export').name('Export Materials');
+        
+        // Force update of GUI controls to reflect initial values
+        setTimeout(() => {
+            this.updateGUIControls();
+        }, 100);
     }
     
     // Créer le contrôle Show Inspector
@@ -635,6 +640,51 @@ class DatGUIManager {
             
             // Always set useLightmapAsShadowmap to true for optimal performance
             this.materialProperties.useLightmapAsShadowmap = true;
+            
+            // Force update of GUI controls to reflect the new values
+            this.updateGUIControls();
+        }
+    }
+    
+    // Forcer la mise à jour des contrôles GUI
+    updateGUIControls() {
+        // Force update of color control
+        if (this.baseColorControl) {
+            this.baseColorControl.updateDisplay();
+        }
+        
+        // Force update of other controls
+        if (this.metallicControl) {
+            this.metallicControl.updateDisplay();
+        }
+        if (this.roughnessControl) {
+            this.roughnessControl.updateDisplay();
+        }
+        if (this.alphaControl) {
+            this.alphaControl.updateDisplay();
+        }
+        if (this.bumpTextureIntensityControl) {
+            this.bumpTextureIntensityControl.updateDisplay();
+        }
+        if (this.backFaceCullingControl) {
+            this.backFaceCullingControl.updateDisplay();
+        }
+        
+        // Force update of texture parameter controls
+        if (this.uOffsetControl) {
+            this.uOffsetControl.updateDisplay();
+        }
+        if (this.vOffsetControl) {
+            this.vOffsetControl.updateDisplay();
+        }
+        if (this.uScaleControl) {
+            this.uScaleControl.updateDisplay();
+        }
+        if (this.vScaleControl) {
+            this.vScaleControl.updateDisplay();
+        }
+        if (this.wRotationControl) {
+            this.wRotationControl.updateDisplay();
         }
     }
     

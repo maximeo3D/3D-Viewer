@@ -13,7 +13,7 @@
       "opacityTexture": "None",
       "bumpTexture": "metal_normal.png",
       "bumpTextureIntensity": 3.9000000000000004,
-      "lightmapTexture": "",
+      "lightmapTexture": "metal_ao.png",
       "useLightmapAsShadowmap": true,
       "backFaceCulling": true,
       "uOffset": 0.75,
