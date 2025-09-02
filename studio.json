@@ -5,8 +5,8 @@
     "orientation": 0
   },
   "camera": {
-    "alpha": -1.259033298642173,
-    "beta": 1.2,
+    "alpha": -0.7853981633974483,
+    "beta": 1.2158707636692831,
     "radius": 10.151602452001644,
     "fov": 82,
     "minDistance": 4.487839849783297,
@@ -20,7 +20,8 @@
     "targetZ": 0,
     "showTarget": false,
     "pitchElasticity": false,
-    "lowerBetaLimit": 1.2,
-    "upperBetaLimit": 1.2
+    "lowerBetaLimit": 1.2158707636692831,
+    "upperBetaLimit": 1.2158707636692831,
+    "initialPitch": 69.66426319159828
   }
 }

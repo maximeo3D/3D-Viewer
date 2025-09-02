@@ -9,10 +9,7 @@ class DatGUIManager {
         this.gui = null;
         this.loadedModels = new Map(); // Référence aux modèles chargés
         
-        // Variables pour l'effet d'élasticité du pitch
-        this.initialPitch = this.config.camera.beta; // Valeur initiale du pitch
-        this.isMouseDown = false;
-        this.pitchElasticityEnabled = this.config.camera.pitchElasticity !== undefined ? this.config.camera.pitchElasticity : false;
+        // Les contrôles personnalisés sont maintenant gérés dans scene.js
         
         // Variables pour les contrôles
         this.environmentFolder = null;
@@ -110,9 +107,6 @@ class DatGUIManager {
         
         // Initialiser le target visual
         this.initTargetVisual();
-        
-        // Initialiser l'effet d'élasticité du pitch
-        this.initPitchElasticity();
     }
     
     // Charger les images disponibles
@@ -222,14 +216,25 @@ class DatGUIManager {
             }
         });
         
-        // Camera Pitch control (vertical rotation)
-        const cameraPitch = { pitch: BABYLON.Tools.ToDegrees(this.config.camera.beta) };
-        this.cameraFolder.add(cameraPitch, 'pitch', 0, 180).name('Pitch (Vertical)').onChange((value) => {
-            const radians = BABYLON.Tools.ToRadians(value);
-            this.scene.activeCamera.beta = radians;
-            this.config.camera.beta = radians;
+        // Initial Pitch control - Contrôle l'angle initial de la caméra
+        const initialPitch = { pitch: this.config.camera.initialPitch !== undefined ? this.config.camera.initialPitch : 0 };
+        this.cameraFolder.add(initialPitch, 'pitch', -90, 90).name('Initial Pitch').onChange((value) => {
+            // Convertir en radians
+            const pitchRadians = BABYLON.Tools.ToRadians(value);
+            
+            // Mettre à jour la caméra
+            this.scene.activeCamera.beta = pitchRadians;
+            this.scene.activeCamera.lowerBetaLimit = pitchRadians;
+            this.scene.activeCamera.upperBetaLimit = pitchRadians;
+            
+            // Mettre à jour la config
+            this.config.camera.initialPitch = value;
+            this.config.camera.beta = pitchRadians;
+            this.config.camera.lowerBetaLimit = pitchRadians;
+            this.config.camera.upperBetaLimit = pitchRadians;
+            
             if (this.onCameraChange) {
-                this.onCameraChange('beta', radians);
+                this.onCameraChange('initialPitch', value);
             }
         });
         
@@ -315,15 +320,7 @@ class DatGUIManager {
             }
         });
         
-        // Pitch Elasticity control
-        const pitchElasticity = { enabled: this.pitchElasticityEnabled };
-        this.cameraFolder.add(pitchElasticity, 'enabled').name('Pitch Elasticity').onChange((value) => {
-            this.pitchElasticityEnabled = value;
-            this.config.camera.pitchElasticity = value;
-            if (this.onCameraChange) {
-                this.onCameraChange('pitchElasticity', value);
-            }
-        });
+
         
         // Target controls
         this.targetFolder = this.cameraFolder.addFolder('Target Position');
@@ -846,63 +843,7 @@ class DatGUIManager {
         }
     }
     
-    // Initialiser l'effet d'élasticité du pitch
-    initPitchElasticity() {
-        if (this.scene && this.scene.activeCamera) {
-            // Ajouter les événements de souris pour détecter le clic
-            this.scene.onPointerDown = () => {
-                this.isMouseDown = true;
-            };
-            
-            this.scene.onPointerUp = async () => {
-                this.isMouseDown = false;
-                // Démarrer l'animation de retour au pitch initial
-                await this.startPitchReturnAnimation();
-            };
-            
-            // Ajouter l'animation de retour au pitch initial dans la boucle de rendu
-            this.scene.onBeforeRenderObservable.add(() => {
-                if (this.pitchElasticityEnabled && !this.isMouseDown) {
-                    this.updatePitchReturnAnimation();
-                }
-            });
-        }
-    }
-    
-    // Démarrer l'animation de retour au pitch initial
-    async startPitchReturnAnimation() {
-        if (this.pitchElasticityEnabled) {
-            try {
-                // Lire la valeur actuelle de beta depuis studio.json
-                const response = await fetch('studio.json?ts=' + Date.now(), { cache: 'no-store' });
-                if (response.ok) {
-                    const studioConfig = await response.json();
-                    this.initialPitch = studioConfig.camera.beta;
-                }
-            } catch (error) {
-                console.error("❌ Erreur lors de la lecture de studio.json:", error);
-            }
-        }
-    }
-    
-    // Mettre à jour l'animation de retour au pitch initial
-    updatePitchReturnAnimation() {
-        if (this.scene && this.scene.activeCamera) {
-            const currentPitch = this.scene.activeCamera.beta;
-            const targetPitch = this.initialPitch;
-            const difference = targetPitch - currentPitch;
-            
-            // Si la différence est suffisamment petite, on arrête l'animation
-            if (Math.abs(difference) < 0.01) {
-                this.scene.activeCamera.beta = targetPitch;
-                return;
-            }
-            
-            // Interpolation douce vers le pitch initial
-            const lerpFactor = 0.10; // Vitesse de retour (ajustable)
-            this.scene.activeCamera.beta = currentPitch + (difference * lerpFactor);
-        }
-    }
+    // Les contrôles personnalisés sont maintenant gérés dans scene.js
 }
 
 // Exporter la classe pour utilisation dans scene.js

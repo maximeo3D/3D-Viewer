@@ -382,10 +382,15 @@ const createScene = async function() {
     if (config.camera.maxDistance) camera.upperRadiusLimit = config.camera.maxDistance;
     
     // Bloquer complètement le beta de la caméra avec les limites
-    if (config.camera.lowerBetaLimit !== undefined) {
+    if (config.camera.initialPitch !== undefined) {
+        // Convertir l'angle initial de degrés en radians
+        const initialPitchRadians = BABYLON.Tools.ToRadians(config.camera.initialPitch);
+        camera.lowerBetaLimit = initialPitchRadians;
+        camera.upperBetaLimit = initialPitchRadians;
+        camera.beta = initialPitchRadians; // Appliquer aussi à la caméra
+    } else if (config.camera.lowerBetaLimit !== undefined) {
         camera.lowerBetaLimit = config.camera.lowerBetaLimit;
-    }
-    if (config.camera.upperBetaLimit !== undefined) {
+    } else if (config.camera.upperBetaLimit !== undefined) {
         camera.upperBetaLimit = config.camera.upperBetaLimit;
     }
     
