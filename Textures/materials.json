@@ -13,9 +13,14 @@
       "opacityTexture": "None",
       "bumpTexture": "metal_normal.png",
       "bumpTextureIntensity": 3.9000000000000004,
-      "lightmapTexture": "metal_ao.png",
+      "lightmapTexture": "",
       "useLightmapAsShadowmap": true,
-      "backFaceCulling": true
+      "backFaceCulling": true,
+      "uOffset": 0.75,
+      "vOffset": 0.25,
+      "uScale": 3,
+      "vScale": 3,
+      "wRotation": 47
     },
     "green": {
       "type": "pbr",
@@ -36,7 +41,7 @@
     },
     "yellow": {
       "type": "pbr",
-      "baseColor": "#d38720",
+      "baseColor": "#e49f09",
       "metallic": 0,
       "roughness": 0.14,
       "alpha": 1,
@@ -49,7 +54,12 @@
       "bumpTextureIntensity": 3.5,
       "backFaceCulling": true,
       "lightmapTexture": "None",
-      "useLightmapAsShadowmap": true
+      "useLightmapAsShadowmap": true,
+      "uOffset": 0.35000000000000003,
+      "vOffset": 0.4,
+      "uScale": 0.5,
+      "vScale": 0.5,
+      "wRotation": 96
     },
     "blue": {
       "type": "pbr",

@@ -334,6 +334,10 @@ function createPBRMaterial(materialConfig, scene) {
         console.log(`🌞 Applied lightmap texture: ${materialConfig.lightmapTexture}, useLightmapAsShadowmap: ${pbr.useLightmapAsShadowmap}`);
     }
     
+    // === TEXTURE TRANSFORMATIONS ===
+    // Apply transformations to all textures except lightmap
+    applyTextureTransformations(pbr, materialConfig);
+    
     // === TRANSPARENCY ===
     pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
     pbr.backFaceCulling = false; // Désactivé pour la transparence
@@ -349,6 +353,43 @@ function createPBRMaterial(materialConfig, scene) {
                 pbr.needDepthPrePass = true;
     
     return pbr;
+}
+
+// Function to apply texture transformations to all textures except lightmap
+function applyTextureTransformations(pbr, materialConfig) {
+    const textures = [
+        pbr.albedoTexture,
+        pbr.metallicTexture,
+        pbr.microSurfaceTexture,
+        pbr.ambientTexture,
+        pbr.opacityTexture,
+        pbr.bumpTexture
+    ].filter(texture => texture && texture !== pbr.lightmapTexture); // Exclude lightmap
+    
+    textures.forEach(texture => {
+        if (texture) {
+            // Apply U/V Offset
+            if (materialConfig.uOffset !== undefined) {
+                texture.uOffset = materialConfig.uOffset;
+            }
+            if (materialConfig.vOffset !== undefined) {
+                texture.vOffset = materialConfig.vOffset;
+            }
+            
+            // Apply U/V Scale
+            if (materialConfig.uScale !== undefined) {
+                texture.uScale = materialConfig.uScale;
+            }
+            if (materialConfig.vScale !== undefined) {
+                texture.vScale = materialConfig.vScale;
+            }
+            
+            // Apply W Rotation (convert degrees to radians)
+            if (materialConfig.wRotation !== undefined) {
+                texture.wAng = BABYLON.Tools.ToRadians(materialConfig.wRotation);
+            }
+        }
+    });
 }
 
 // Function to apply material to mesh
@@ -777,6 +818,34 @@ createScene().then(createdScene => {
     loadAvailableImages().then(() => {
         // console.log('Initial texture list loaded with', availableImages.length, 'images');
         
+        // Initialize material properties with values from the first material in config
+        if (materialsConfig && materialsConfig.materials && Object.keys(materialsConfig.materials).length > 0) {
+            const firstMaterialKey = Object.keys(materialsConfig.materials)[0];
+            const firstMaterial = materialsConfig.materials[firstMaterialKey];
+            
+            // Update materialProperties with actual values from materials.json
+            materialProperties.baseColor = firstMaterial.baseColor || '#ffffff';
+            materialProperties.metallic = firstMaterial.metallic !== undefined ? firstMaterial.metallic : 0.0;
+            materialProperties.roughness = firstMaterial.roughness !== undefined ? firstMaterial.roughness : 0.5;
+            materialProperties.alpha = firstMaterial.alpha !== undefined ? firstMaterial.alpha : 1.0;
+            materialProperties.albedoTexture = firstMaterial.albedoTexture || '';
+            materialProperties.metallicTexture = firstMaterial.metallicTexture || '';
+            materialProperties.microSurfaceTexture = firstMaterial.microSurfaceTexture || '';
+            materialProperties.ambientTexture = firstMaterial.ambientTexture || '';
+            materialProperties.opacityTexture = firstMaterial.opacityTexture || '';
+            materialProperties.bumpTexture = firstMaterial.bumpTexture || '';
+            materialProperties.bumpTextureIntensity = firstMaterial.bumpTextureIntensity !== undefined ? firstMaterial.bumpTextureIntensity : 1.0;
+            materialProperties.lightmapTexture = firstMaterial.lightmapTexture || '';
+            materialProperties.backFaceCulling = firstMaterial.backFaceCulling !== undefined ? firstMaterial.backFaceCulling : true;
+            
+            // Update texture transformation parameters
+            materialProperties.uOffset = firstMaterial.uOffset !== undefined ? firstMaterial.uOffset : 0.0;
+            materialProperties.vOffset = firstMaterial.vOffset !== undefined ? firstMaterial.vOffset : 0.0;
+            materialProperties.uScale = firstMaterial.uScale !== undefined ? firstMaterial.uScale : 1.0;
+            materialProperties.vScale = firstMaterial.vScale !== undefined ? firstMaterial.vScale : 1.0;
+            materialProperties.wRotation = firstMaterial.wRotation !== undefined ? firstMaterial.wRotation : 0.0;
+        }
+        
         // Create ALL material controls now that images are loaded
         createMaterialControls();
         
@@ -887,6 +956,15 @@ createScene().then(createdScene => {
         // Always set useLightmapAsShadowmap to true for optimal performance
         materialProperties.useLightmapAsShadowmap = true;
         
+        // Lightmap as shadowmap toggle - Hidden but always true for better performance
+        // lightmapAsShadowmapControl = materialsFolder.add(materialProperties, 'useLightmapAsShadowmap').name('Use Lightmap as Shadowmap').onChange(function(value) {
+        //     materialProperties.useLightmapAsShadowmap = value;
+        //     applyMaterialChanges();
+        // });
+        
+        // Always set useLightmapAsShadowmap to true for optimal performance
+        materialProperties.useLightmapAsShadowmap = true;
+        
         backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
             materialProperties.backFaceCulling = value;
             applyMaterialChanges();
@@ -931,8 +1009,16 @@ createScene().then(createdScene => {
         bumpTextureIntensity: 1.0,
         lightmapTexture: '',
         useLightmapAsShadowmap: true, // Always true for optimal performance
-        backFaceCulling: true
+        backFaceCulling: true,
+        // Texture transformation parameters
+        uOffset: 0.0,
+        vOffset: 0.0,
+        uScale: 1.0,
+        vScale: 1.0,
+        wRotation: 0.0
     };
+    
+
     
     // Declare export control variable
     let exportMaterialsControl;
@@ -940,6 +1026,9 @@ createScene().then(createdScene => {
     // Image list variables
     let availableImages = ['None'];
     let refreshImagesControl;
+    
+    // Track if Texture Parameters folder exists
+    let textureParamsFolderExists = false;
     
     // Function to load available texture images
     async function loadAvailableImages() {
@@ -988,12 +1077,15 @@ createScene().then(createdScene => {
             materialsFolder.remove(lightmapTextureControl);
             // materialsFolder.remove(lightmapAsShadowmapControl); // No longer needed as control is hidden
             materialsFolder.remove(backFaceCullingControl);
+            
+
+            
             if (refreshImagesControl) {
                 materialsFolder.remove(refreshImagesControl);
             }
-                         if (exportMaterialsControl) {
-                 materialsFolder.remove(exportMaterialsControl);
-             }
+            if (exportMaterialsControl) {
+                materialsFolder.remove(exportMaterialsControl);
+            }
 
             
             // Update the materialProperties object with actual values from materials.json
@@ -1010,6 +1102,13 @@ createScene().then(createdScene => {
             materialProperties.bumpTexture = material.bumpTexture || '';
             materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
             materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
+            
+            // Update texture transformation parameters
+            materialProperties.uOffset = material.uOffset !== undefined ? material.uOffset : 0.0;
+            materialProperties.vOffset = material.vOffset !== undefined ? material.vOffset : 0.0;
+            materialProperties.uScale = material.uScale !== undefined ? material.uScale : 1.0;
+            materialProperties.vScale = material.vScale !== undefined ? material.vScale : 1.0;
+            materialProperties.wRotation = material.wRotation !== undefined ? material.wRotation : 0.0;
             
             // Recreate controls with new values
             baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
@@ -1094,6 +1193,43 @@ createScene().then(createdScene => {
             // Always set useLightmapAsShadowmap to true for optimal performance
             materialProperties.useLightmapAsShadowmap = true;
             
+            // Create Texture Parameters subfolder only if it doesn't exist
+            if (!textureParamsFolderExists) {
+                const textureParamsFolder = materialsFolder.addFolder('Texture Parameters');
+                
+                // U Offset control
+                textureParamsFolder.add(materialProperties, 'uOffset', -2, 2).step(0.01).name('U Offset').onChange(function(value) {
+                    materialProperties.uOffset = value;
+                    applyMaterialChanges();
+                });
+                
+                // V Offset control
+                textureParamsFolder.add(materialProperties, 'vOffset', -2, 2).step(0.01).name('V Offset').onChange(function(value) {
+                    materialProperties.vOffset = value;
+                    applyMaterialChanges();
+                });
+                
+                // U Scale control
+                textureParamsFolder.add(materialProperties, 'uScale', 0.1, 5).step(0.1).name('U Scale').onChange(function(value) {
+                    materialProperties.uScale = value;
+                    applyMaterialChanges();
+                });
+                
+                // V Scale control
+                textureParamsFolder.add(materialProperties, 'vScale', 0.1, 5).step(0.1).name('V Scale').onChange(function(value) {
+                    materialProperties.vScale = value;
+                    applyMaterialChanges();
+                });
+                
+                // W Rotation control (around W axis)
+                textureParamsFolder.add(materialProperties, 'wRotation', 0, 360).step(1).name('W Rotation').onChange(function(value) {
+                    materialProperties.wRotation = value;
+                    applyMaterialChanges();
+                });
+                
+                textureParamsFolderExists = true;
+            }
+            
             backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling').onChange(function(value) {
                 materialProperties.backFaceCulling = value;
                 applyMaterialChanges();
@@ -1137,6 +1273,12 @@ createScene().then(createdScene => {
             materialsConfig.materials[selectedMaterial].lightmapTexture = materialProperties.lightmapTexture;
             materialsConfig.materials[selectedMaterial].useLightmapAsShadowmap = materialProperties.useLightmapAsShadowmap;
             materialsConfig.materials[selectedMaterial].backFaceCulling = materialProperties.backFaceCulling;
+            // Texture transformation parameters
+            materialsConfig.materials[selectedMaterial].uOffset = materialProperties.uOffset;
+            materialsConfig.materials[selectedMaterial].vOffset = materialProperties.vOffset;
+            materialsConfig.materials[selectedMaterial].uScale = materialProperties.uScale;
+            materialsConfig.materials[selectedMaterial].vScale = materialProperties.vScale;
+            materialsConfig.materials[selectedMaterial].wRotation = materialProperties.wRotation;
             
             // Find all meshes that currently use this material and update their material properties
             loadedModels.forEach((modelData, modelName) => {
