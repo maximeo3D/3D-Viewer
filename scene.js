@@ -780,6 +780,28 @@ createScene().then(createdScene => {
         // Create ALL material controls now that images are loaded
         createMaterialControls();
         
+        // Add Inspector toggle at the bottom of dat.GUI (global option)
+        const inspectorToggle = { showInspector: false };
+        gui.add(inspectorToggle, 'showInspector').name('Show Inspector').onChange(function(value) {
+            if (value) {
+                // Show Inspector
+                if (typeof BABYLON.Inspector !== 'undefined') {
+                    scene.debugLayer.show();
+                } else {
+                    // Load Inspector if not already loaded
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
+                    script.onload = function() {
+                        scene.debugLayer.show();
+                    };
+                    document.head.appendChild(script);
+                }
+            } else {
+                // Hide Inspector
+                scene.debugLayer.hide();
+            }
+        });
+        
         // Set menu states AFTER all controls are created
         setTimeout(() => {
             environmentFolder.close();
@@ -879,27 +901,7 @@ createScene().then(createdScene => {
         }};
         refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
         
-        // Add Babylon.js Inspector toggle
-        const inspectorToggle = { showInspector: false };
-        const inspectorControl = materialsFolder.add(inspectorToggle, 'showInspector').name('Show Inspector').onChange(function(value) {
-            if (value) {
-                // Show Inspector
-                if (typeof BABYLON.Inspector !== 'undefined') {
-                    scene.debugLayer.show();
-                } else {
-                    // Load Inspector if not already loaded
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
-                    script.onload = function() {
-                        scene.debugLayer.show();
-                    };
-                    document.head.appendChild(script);
-                }
-            } else {
-                // Hide Inspector
-                scene.debugLayer.hide();
-            }
-        });
+
         
         // Material dropdown onChange
         materialDropdown.onChange(function(value) {
@@ -989,9 +991,10 @@ createScene().then(createdScene => {
             if (refreshImagesControl) {
                 materialsFolder.remove(refreshImagesControl);
             }
-            if (exportMaterialsControl) {
-                materialsFolder.remove(exportMaterialsControl);
-            }
+                         if (exportMaterialsControl) {
+                 materialsFolder.remove(exportMaterialsControl);
+             }
+
             
             // Update the materialProperties object with actual values from materials.json
             materialProperties.baseColor = material.baseColor || '#ffffff';
@@ -1105,27 +1108,7 @@ createScene().then(createdScene => {
             }};
             refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
             
-            // Recreate Inspector toggle
-            const inspectorToggle = { showInspector: false };
-            const inspectorControl = materialsFolder.add(inspectorToggle, 'showInspector').name('Show Inspector').onChange(function(value) {
-                if (value) {
-                    // Show Inspector
-                    if (typeof BABYLON.Inspector !== 'undefined') {
-                        scene.debugLayer.show();
-                    } else {
-                        // Load Inspector if not already loaded
-                        const script = document.createElement('script');
-                        script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
-                        script.onload = function() {
-                            scene.debugLayer.show();
-                        };
-                        document.head.appendChild(script);
-                    }
-                } else {
-                    // Hide Inspector
-                    scene.debugLayer.hide();
-                }
-            });
+            
             
             // Recreate Export Materials button at the end
             exportMaterialsControl = materialsFolder.add(exportMaterials, 'export').name('Export Materials');

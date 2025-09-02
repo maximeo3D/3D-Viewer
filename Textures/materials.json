@@ -19,7 +19,7 @@
     },
     "green": {
       "type": "pbr",
-      "baseColor": "#45d321",
+      "baseColor": "#62d046",
       "metallic": 0,
       "roughness": 0.47000000000000003,
       "alpha": 1,
@@ -31,7 +31,24 @@
       "bumpTexture": "metal_normal.png",
       "bumpTextureIntensity": 3.5,
       "backFaceCulling": true,
-      "lightmapTexture": "",
+      "lightmapTexture": "None",
+      "useLightmapAsShadowmap": true
+    },
+    "yellow": {
+      "type": "pbr",
+      "baseColor": "#d38720",
+      "metallic": 0,
+      "roughness": 0.14,
+      "alpha": 1,
+      "albedoTexture": "None",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "leather_rough.png",
+      "ambientTexture": "leather_alb.png",
+      "opacityTexture": "None",
+      "bumpTexture": "leather_nm.png",
+      "bumpTextureIntensity": 3.5,
+      "backFaceCulling": true,
+      "lightmapTexture": "None",
       "useLightmapAsShadowmap": true
     },
     "blue": {
