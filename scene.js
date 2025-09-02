@@ -56,21 +56,36 @@ async function loadConfig() {
 // Function to load asset configuration
 async function loadAssetConfig() {
     try {
-        const response = await fetch('Assets/asset.json');
-        if (response.ok) {
-            assetConfig = await response.json();
-            // console.log("Asset configuration loaded from Assets/asset.json");
-        } else {
-            console.warn("Could not load Assets/asset.json, using default values");
-            assetConfig = {
-                models: []
+        // Charger le fichier JavaScript comme un script
+        const script = document.createElement('script');
+        script.src = 'Assets/asset.js';
+        script.async = true;
+        
+        return new Promise((resolve, reject) => {
+            script.onload = () => {
+                // Le fichier asset.js définit window.assetConfig
+                if (window.assetConfig) {
+                    assetConfig = window.assetConfig;
+                    console.log("✅ Asset configuration loaded from Assets/asset.js");
+                    resolve();
+                } else {
+                    console.warn("Could not load Assets/asset.js, using default values");
+                    assetConfig = { models: [] };
+                    resolve();
+                }
             };
-        }
+            
+            script.onerror = () => {
+                console.warn("Error loading Assets/asset.js, using default values");
+                assetConfig = { models: [] };
+                resolve();
+            };
+            
+            document.head.appendChild(script);
+        });
     } catch (error) {
-        console.warn("Error loading Assets/asset.json, using default values:", error);
-        assetConfig = {
-            models: []
-        };
+        console.warn("Error loading Assets/asset.js, using default values:", error);
+        assetConfig = { models: [] };
     }
 }
 
@@ -135,15 +150,33 @@ async function loadModels() {
                     );
                 }
                 
-                // Set visibility
-                if (modelConfig.visible !== undefined) {
-                    modelGroup.setEnabled(modelConfig.visible);
-                }
-                
                 // Parent all meshes to the group
                 result.meshes.forEach(mesh => {
                     mesh.parent = modelGroup;
                 });
+                
+                // Apply visibility per mesh based on configuration
+                if (modelConfig.meshes) {
+                    result.meshes.forEach(mesh => {
+                        // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
+                        const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                        if (primitiveMatch) {
+                            const baseMeshName = primitiveMatch[1];
+                            
+                            // Find the mesh config for the base mesh
+                            const meshConfig = modelConfig.meshes.find(m => m.name === baseMeshName);
+                            if (meshConfig && meshConfig.visible !== undefined) {
+                                mesh.setEnabled(meshConfig.visible);
+                            }
+                        } else {
+                            // Handle non-primitive meshes (fallback)
+                            const meshConfig = modelConfig.meshes.find(m => m.name === mesh.name);
+                            if (meshConfig && meshConfig.visible !== undefined) {
+                                mesh.setEnabled(meshConfig.visible);
+                            }
+                        }
+                    });
+                }
                 
                 // Apply materials based on mesh names and material slots
                 if (modelConfig.meshes && materialsConfig && materialsConfig.materials) {
