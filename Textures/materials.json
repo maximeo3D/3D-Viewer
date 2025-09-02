@@ -37,7 +37,12 @@
       "bumpTextureIntensity": 3.5,
       "backFaceCulling": true,
       "lightmapTexture": "None",
-      "useLightmapAsShadowmap": true
+      "useLightmapAsShadowmap": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
     },
     "yellow": {
       "type": "pbr",
@@ -65,18 +70,23 @@
       "type": "pbr",
       "baseColor": "#3b91e0",
       "metallic": 1,
-      "roughness": 0.23,
+      "roughness": 0.17,
       "alpha": 1,
       "albedoTexture": "None",
-      "metallicTexture": "",
-      "microSurfaceTexture": "",
-      "ambientTexture": "",
-      "opacityTexture": "",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "alpha.png",
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
       "backFaceCulling": true,
       "lightmapTexture": "None",
-      "useLightmapAsShadowmap": true
+      "useLightmapAsShadowmap": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
     }
   }
 }

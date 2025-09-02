@@ -1027,8 +1027,10 @@ createScene().then(createdScene => {
     let availableImages = ['None'];
     let refreshImagesControl;
     
-    // Track if Texture Parameters folder exists
+    // Track if Texture Parameters folder exists and store control references
     let textureParamsFolderExists = false;
+    let textureParamsFolder = null;
+    let uOffsetControl, vOffsetControl, uScaleControl, vScaleControl, wRotationControl;
     
     // Function to load available texture images
     async function loadAvailableImages() {
@@ -1109,6 +1111,15 @@ createScene().then(createdScene => {
             materialProperties.uScale = material.uScale !== undefined ? material.uScale : 1.0;
             materialProperties.vScale = material.vScale !== undefined ? material.vScale : 1.0;
             materialProperties.wRotation = material.wRotation !== undefined ? material.wRotation : 0.0;
+            
+            // Update Texture Parameters controls if they exist
+            if (textureParamsFolderExists && uOffsetControl && vOffsetControl && uScaleControl && vScaleControl && wRotationControl) {
+                uOffsetControl.setValue(materialProperties.uOffset);
+                vOffsetControl.setValue(materialProperties.vOffset);
+                uScaleControl.setValue(materialProperties.uScale);
+                vScaleControl.setValue(materialProperties.vScale);
+                wRotationControl.setValue(materialProperties.wRotation);
+            }
             
             // Recreate controls with new values
             baseColorControl = materialsFolder.addColor(materialProperties, 'baseColor').name('Albedo Color').onChange(function(value) {
@@ -1195,34 +1206,34 @@ createScene().then(createdScene => {
             
             // Create Texture Parameters subfolder only if it doesn't exist
             if (!textureParamsFolderExists) {
-                const textureParamsFolder = materialsFolder.addFolder('Texture Parameters');
+                textureParamsFolder = materialsFolder.addFolder('Texture Parameters');
                 
                 // U Offset control
-                textureParamsFolder.add(materialProperties, 'uOffset', -2, 2).step(0.01).name('U Offset').onChange(function(value) {
+                uOffsetControl = textureParamsFolder.add(materialProperties, 'uOffset', -2, 2).step(0.01).name('U Offset').onChange(function(value) {
                     materialProperties.uOffset = value;
                     applyMaterialChanges();
                 });
                 
                 // V Offset control
-                textureParamsFolder.add(materialProperties, 'vOffset', -2, 2).step(0.01).name('V Offset').onChange(function(value) {
+                vOffsetControl = textureParamsFolder.add(materialProperties, 'vOffset', -2, 2).step(0.01).name('V Offset').onChange(function(value) {
                     materialProperties.vOffset = value;
                     applyMaterialChanges();
                 });
                 
                 // U Scale control
-                textureParamsFolder.add(materialProperties, 'uScale', 0.1, 5).step(0.1).name('U Scale').onChange(function(value) {
+                uScaleControl = textureParamsFolder.add(materialProperties, 'uScale', 0.1, 5).step(0.1).name('U Scale').onChange(function(value) {
                     materialProperties.uScale = value;
                     applyMaterialChanges();
                 });
                 
                 // V Scale control
-                textureParamsFolder.add(materialProperties, 'vScale', 0.1, 5).step(0.1).name('V Scale').onChange(function(value) {
+                vScaleControl = textureParamsFolder.add(materialProperties, 'vScale', 0.1, 5).step(0.1).name('V Scale').onChange(function(value) {
                     materialProperties.vScale = value;
                     applyMaterialChanges();
                 });
                 
                 // W Rotation control (around W axis)
-                textureParamsFolder.add(materialProperties, 'wRotation', 0, 360).step(1).name('W Rotation').onChange(function(value) {
+                wRotationControl = textureParamsFolder.add(materialProperties, 'wRotation', 0, 360).step(1).name('W Rotation').onChange(function(value) {
                     materialProperties.wRotation = value;
                     applyMaterialChanges();
                 });
