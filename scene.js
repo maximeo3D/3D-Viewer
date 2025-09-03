@@ -29,6 +29,9 @@ let config = {
     }
 };
 
+console.log('Canvas dimensions:', canvas.width, canvas.height);
+console.log('Canvas style dimensions:', canvas.style.width, canvas.style.height);
+
 // Global variables to store scene and camera references
 let scene;
 let camera;

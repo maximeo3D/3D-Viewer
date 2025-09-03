@@ -210,6 +210,7 @@ try {
             $extension = [System.IO.Path]::GetExtension($full).ToLower()
             switch ($extension) {
                 '.html' { $response.ContentType = 'text/html' }
+                '.css' { $response.ContentType = 'text/css' }
                 '.js' { $response.ContentType = 'application/javascript' }
                 '.json' { $response.ContentType = 'application/json' }
                 '.hdr' { $response.ContentType = 'application/octet-stream' }
@@ -217,6 +218,9 @@ try {
                 '.gltf' { $response.ContentType = 'model/gltf+json' }
                 '.fbx' { $response.ContentType = 'application/octet-stream' }
                 '.obj' { $response.ContentType = 'text/plain' }
+                '.png' { $response.ContentType = 'image/png' }
+                '.jpg' { $response.ContentType = 'image/jpeg' }
+                '.jpeg' { $response.ContentType = 'image/jpeg' }
                 default { $response.ContentType = 'text/plain' }
             }
             
