@@ -480,8 +480,17 @@ const createScene = async function() {
         }
     });
     
-    // Désactiver les contrôles par défaut de la caméra
+    // Désactiver complètement les contrôles par défaut de la caméra
     camera.attachControl(canvas, false);
+    
+    // Désactiver explicitement tous les contrôles de caméra
+    camera.inputs.clear();
+    
+    // Désactiver le pan, zoom et rotation par défaut
+    camera.inertia = 0;
+    camera.angularSensibilityX = 0;
+    camera.angularSensibilityY = 0;
+    camera.panningSensibility = 0;
     
     // Variables pour les contrôles personnalisés
     let isMouseDown = false;
@@ -567,9 +576,18 @@ const createScene = async function() {
         }
     });
     
-    // Désactiver le menu contextuel du clic droit
+    // Désactiver complètement le menu contextuel et le clic droit
     canvas.addEventListener('contextmenu', (evt) => {
         evt.preventDefault();
+        evt.stopPropagation();
+        return false;
+    });
+    
+    // Désactiver aussi le clic droit sur le document entier
+    document.addEventListener('contextmenu', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        return false;
     });
     
     // Load 3D models from asset configuration
