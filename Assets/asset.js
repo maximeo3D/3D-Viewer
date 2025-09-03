@@ -6,7 +6,7 @@
 const assetConfiguration = {
   models: [
     {
-      name: "arrow",           // Nom unique du modèle
+      name: "Fleche",           // Nom unique du modèle
       file: "arrow.glb",       // Fichier 3D à charger (GLB/GLTF)
       meshes: [
         {

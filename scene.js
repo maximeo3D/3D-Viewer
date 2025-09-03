@@ -117,6 +117,64 @@ async function loadMaterialsConfig() {
     }
 }
 
+// Fonction globale pour contrôler les animations basées sur la rotation
+function updateAnimationsFromRotation() {
+    // Appliquer aux animations de tous les modèles en fonction de LEUR rotation X actuelle
+    if (window.loadedModels) {
+        window.loadedModels.forEach((modelData, modelName) => {
+            const groupNode = modelData.group;
+            if (!groupNode) return;
+            
+            // Rotation X du TransformNode du modèle en degrés
+            const rotationDegrees = BABYLON.Tools.ToDegrees(groupNode.rotation.x);
+            
+            // Normaliser -90°..+90° -> 0..1 (avec clamp pour éviter dépassements)
+            let normalized = (rotationDegrees + 90) / 180; // 0 à 1 attendu
+            if (normalized < 0) normalized = 0;
+            if (normalized > 1) normalized = 1;
+            
+            if (modelData.animationGroups && modelData.animationGroups.length > 0) {
+                modelData.animationGroups.forEach(animGroup => {
+                    // Utiliser la plage réelle de l'animation (ex. 0..250)
+                    const from = animGroup.from !== undefined ? animGroup.from : 0;
+                    const to = animGroup.to !== undefined ? animGroup.to : 0;
+                    const frameRange = to - from;
+                    const targetFrame = from + (normalized * frameRange);
+                    
+                    // Appliquer la frame de manière plus robuste
+                    animGroup.stop();
+                    animGroup.goToFrame(targetFrame); // Aller à la frame spécifique
+                    
+                    // Forcer la mise à jour de tous les meshes de l'animation
+                    if (animGroup.targetedAnimations) {
+                        animGroup.targetedAnimations.forEach(targetAnim => {
+                            if (targetAnim.target) {
+                                targetAnim.target.markAsDirty();
+                                // Forcer la mise à jour de la matrice de transformation
+                                targetAnim.target.computeWorldMatrix(true);
+                            }
+                        });
+                    }
+                    
+                    // Forcer la mise à jour de la scène
+                    if (scene) {
+                        scene.markAllMaterialsAsDirty();
+                    }
+                    
+                    // Forcer l'évaluation de l'animation à la frame spécifique
+                    animGroup.start(false, 1.0, targetFrame, targetFrame, false);
+                    animGroup.stop();
+                    
+                    // Debug détaillé
+                    console.log(`🎬 Animation ${animGroup.name} (${modelName}): rotX ${rotationDegrees.toFixed(1)}° → frame ${targetFrame.toFixed(1)}/${to.toFixed(1)}`);
+                    console.log(`   - Animation from/to: ${from}/${to}`);
+                    console.log(`   - Target animations count: ${animGroup.targetedAnimations ? animGroup.targetedAnimations.length : 0}`);
+                });
+            }
+        });
+    }
+}
+
 // Function to load 3D models
 async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
@@ -219,12 +277,30 @@ async function loadModels() {
                     });
                 }
                 
-                // Store the loaded model
+                // Handle animations - stop automatic playback and prepare for manual control
+                let animationGroups = [];
+                if (result.animationGroups && result.animationGroups.length > 0) {
+                    result.animationGroups.forEach(animGroup => {
+                        // Stop automatic playback
+                        animGroup.stop();
+                        // Store animation group for manual control
+                        animationGroups.push(animGroup);
+                        console.log(`🎬 Found animation: ${animGroup.name} (${animGroup.from} to ${animGroup.to} frames)`);
+                    });
+                }
+                
+                // Store the loaded model with animation groups
                 loadedModels.set(modelConfig.name, {
                     group: modelGroup,
                     meshes: result.meshes,
-                    config: modelConfig
+                    config: modelConfig,
+                    animationGroups: animationGroups
                 });
+                
+                // Initialiser les animations selon la rotation actuelle du node (au chargement)
+                if (animationGroups.length > 0) {
+                    updateAnimationsFromRotation();
+                }
                 
                 // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
             }
@@ -477,6 +553,9 @@ const createScene = async function() {
                     }
                 });
             }
+            
+            // Mettre à jour les animations basées sur la rotation du node
+            updateAnimationsFromRotation();
         }
     });
     
@@ -560,6 +639,9 @@ const createScene = async function() {
                         }
                     });
                 }
+                
+                // Mettre à jour les animations basées sur la rotation du node
+                updateAnimationsFromRotation();
                 
                             // Mettre à jour la rotation actuelle
             currentObjectRotationX = clampedRotationX;
