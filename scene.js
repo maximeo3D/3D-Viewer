@@ -29,8 +29,7 @@ let config = {
     }
 };
 
-console.log('Canvas dimensions:', canvas.width, canvas.height);
-console.log('Canvas style dimensions:', canvas.style.width, canvas.style.height);
+
 
 // Global variables to store scene and camera references
 let scene;
@@ -73,7 +72,7 @@ async function loadAssetConfig() {
                 // Le fichier asset.js définit window.assetConfig
                 if (window.assetConfig) {
                     assetConfig = window.assetConfig;
-                    console.log("✅ Asset configuration loaded from Assets/asset.js");
+
                     resolve();
                 } else {
                     console.warn("Could not load Assets/asset.js, using default values");
@@ -151,6 +150,8 @@ async function loadModels() {
                 
                 // Les objets commencent à 0° de rotation X
                 modelGroup.rotation.x = 0;
+                
+
                 
                 if (modelConfig.scale) {
                     modelGroup.scaling = new BABYLON.Vector3(
@@ -557,6 +558,8 @@ const createScene = async function() {
                     window.loadedModels.forEach((modelData, modelName) => {
                         if (modelData.group) {
                             modelData.group.rotation.x = clampedRotationX;
+                            
+
                         }
                     });
                 }
@@ -592,6 +595,13 @@ const createScene = async function() {
     
     // Load 3D models from asset configuration
     await loadModels();
+    
+    // Mettre les animations en pause par défaut
+    if (scene.animationGroups && scene.animationGroups.length > 0) {
+        scene.animationGroups.forEach(animationGroup => {
+            animationGroup.pause();
+        });
+    }
     
     // Set background color from config
     scene.clearColor = BABYLON.Color4.FromHexString(config.environment.backgroundColor);
@@ -699,6 +709,35 @@ createScene().then(async createdScene => {
 engine.runRenderLoop(function() {
     if (scene) {
         scene.render();
+        
+        // Synchroniser l'animation avec la rotation de l'objet "Fleche"
+        if (scene.animationGroups && scene.animationGroups.length > 0 && window.loadedModels && window.loadedModels.has("Fleche")) {
+            const flecheModel = window.loadedModels.get("Fleche");
+            if (flecheModel.group) {
+                // Récupérer la valeur de rotation
+                const currentRotationDegrees = BABYLON.Tools.ToDegrees(flecheModel.group.rotation.x);
+                
+                // Mapping rotation → frame (INVERSÉ pour le bon sens)
+                // -90° → frame 125
+                // 0° → frame 62.5  
+                // +90° → frame 0
+                const minRotation = -90;
+                const maxRotation = 90;
+                const minFrame = 250;
+                const maxFrame = 0;
+                
+                // Calculer la frame correspondante
+                const normalizedRotation = (currentRotationDegrees - minRotation) / (maxRotation - minRotation);
+                const targetFrame = minFrame + (normalizedRotation * (maxFrame - minFrame));
+                
+                // Envoyer la frame à l'animation
+                scene.animationGroups.forEach(animationGroup => {
+                    animationGroup.goToFrame(targetFrame);
+                });
+                
+
+            }
+        }
     }
 });
 
