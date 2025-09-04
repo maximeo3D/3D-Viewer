@@ -119,20 +119,26 @@ async function loadMaterialsConfig() {
 
 // Fonction globale pour contrôler les animations basées sur la rotation
 function updateAnimationsFromRotation() {
-    // Appliquer aux animations de tous les modèles en fonction de LEUR rotation X actuelle
-    if (window.loadedModels) {
+        // Utiliser directement la variable de contrôle de rotation (window.currentObjectRotationX)
+    // qui est la même que celle utilisée pour contrôler tous les modèles
+    if (window.loadedModels && typeof window.currentObjectRotationX !== 'undefined') {
+        // Rotation X en degrés (utilise la variable de contrôle globale)
+        const rotationDegrees = BABYLON.Tools.ToDegrees(window.currentObjectRotationX);
+        
+        // Debug: afficher la rotation de l'objet Fleche spécifiquement
+        const flecheModel = window.loadedModels.get("Fleche");
+        if (flecheModel && flecheModel.group) {
+            const flecheRotationDegrees = BABYLON.Tools.ToDegrees(flecheModel.group.rotation.x);
+            console.log(`🔍 Fleche rotation X: ${flecheRotationDegrees.toFixed(1)}° (currentObjectRotationX: ${rotationDegrees.toFixed(1)}°)`);
+        }
+        
+        // Normaliser -90°..+90° -> 0..1 (avec clamp pour éviter dépassements)
+        let normalized = (rotationDegrees + 90) / 180; // 0 à 1 attendu
+        if (normalized < 0) normalized = 0;
+        if (normalized > 1) normalized = 1;
+        
+        // Appliquer aux animations de tous les modèles
         window.loadedModels.forEach((modelData, modelName) => {
-            const groupNode = modelData.group;
-            if (!groupNode) return;
-            
-            // Rotation X du TransformNode du modèle en degrés
-            const rotationDegrees = BABYLON.Tools.ToDegrees(groupNode.rotation.x);
-            
-            // Normaliser -90°..+90° -> 0..1 (avec clamp pour éviter dépassements)
-            let normalized = (rotationDegrees + 90) / 180; // 0 à 1 attendu
-            if (normalized < 0) normalized = 0;
-            if (normalized > 1) normalized = 1;
-            
             if (modelData.animationGroups && modelData.animationGroups.length > 0) {
                 modelData.animationGroups.forEach(animGroup => {
                     // Utiliser la plage réelle de l'animation (ex. 0..250)
@@ -161,14 +167,61 @@ function updateAnimationsFromRotation() {
                         scene.markAllMaterialsAsDirty();
                     }
                     
-                    // Forcer l'évaluation de l'animation à la frame spécifique
+                    // Forcer l'animation avec des paramètres plus spécifiques
                     animGroup.start(false, 1.0, targetFrame, targetFrame, false);
                     animGroup.stop();
+                    
+                    // Essayer aussi de forcer l'animation avec un délai très court
+                    setTimeout(() => {
+                        animGroup.start(false, 1.0, targetFrame, targetFrame, false);
+                        setTimeout(() => {
+                            animGroup.stop();
+                        }, 1);
+                    }, 0);
+                    
+                    // Essayer aussi de forcer l'évaluation de chaque canal individuellement
+                    if (animGroup.targetedAnimations) {
+                        animGroup.targetedAnimations.forEach(targetAnim => {
+                            if (targetAnim.animation && targetAnim.target) {
+                                // Forcer l'évaluation de l'animation
+                                targetAnim.animation.evaluate(targetFrame, targetAnim.target);
+                                // Forcer la mise à jour de l'objet
+                                targetAnim.target.markAsDirty();
+                                targetAnim.target.computeWorldMatrix(true);
+                            }
+                        });
+                    }
+                    
+                    // Debug: vérifier l'état de l'animation
+                    console.log(`   - Animation name: ${animGroup.name}`);
+                    console.log(`   - Animation from/to: ${animGroup.from}/${animGroup.to}`);
+                    console.log(`   - Target frame: ${targetFrame.toFixed(1)}`);
+                    
+                    // Essayer aussi d'évaluer manuellement chaque canal d'animation
+                    if (animGroup.targetedAnimations) {
+                        animGroup.targetedAnimations.forEach(targetAnim => {
+                            if (targetAnim.animation && targetAnim.target) {
+                                // Évaluer l'animation à la frame spécifique
+                                targetAnim.animation.evaluate(targetFrame, targetAnim.target);
+                                // Forcer la mise à jour de l'objet
+                                targetAnim.target.markAsDirty();
+                                targetAnim.target.computeWorldMatrix(true);
+                            }
+                        });
+                    }
                     
                     // Debug détaillé
                     console.log(`🎬 Animation ${animGroup.name} (${modelName}): rotX ${rotationDegrees.toFixed(1)}° → frame ${targetFrame.toFixed(1)}/${to.toFixed(1)}`);
                     console.log(`   - Animation from/to: ${from}/${to}`);
                     console.log(`   - Target animations count: ${animGroup.targetedAnimations ? animGroup.targetedAnimations.length : 0}`);
+                    
+                    // Debug des canaux d'animation
+                    if (animGroup.targetedAnimations) {
+                        console.log(`   - Canaux d'animation:`);
+                        animGroup.targetedAnimations.forEach((targetAnim, index) => {
+                            console.log(`     ${index}: ${targetAnim.target.name} (${targetAnim.animation.propertyPath})`);
+                        });
+                    }
                 });
             }
         });
@@ -297,10 +350,8 @@ async function loadModels() {
                     animationGroups: animationGroups
                 });
                 
-                // Initialiser les animations selon la rotation actuelle du node (au chargement)
-                if (animationGroups.length > 0) {
-                    updateAnimationsFromRotation();
-                }
+                // Ne pas initialiser les animations ici - elles se synchroniseront automatiquement
+                // quand currentObjectRotationX sera mis à jour par les contrôles de souris
                 
                 // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
             }
@@ -544,6 +595,7 @@ const createScene = async function() {
             
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
+            window.currentObjectRotationX = currentObjectRotationX; // Mettre à jour la version globale
             
             // Appliquer la rotation aux objets
             if (window.loadedModels) {
@@ -581,6 +633,9 @@ const createScene = async function() {
     let currentObjectRotationX = 0; // Rotation actuelle en radians
     const minObjectRotationX = -Math.PI/2; // -90 degrés
     const maxObjectRotationX = Math.PI/2;  // +90 degrés
+    
+    // Rendre currentObjectRotationX accessible globalement
+    window.currentObjectRotationX = currentObjectRotationX;
     
     // Variables pour l'élasticité de rotation des objets
     let targetObjectRotationX = 0; // Rotation cible (toujours 0°)
@@ -645,6 +700,7 @@ const createScene = async function() {
                 
                             // Mettre à jour la rotation actuelle
             currentObjectRotationX = clampedRotationX;
+            window.currentObjectRotationX = currentObjectRotationX; // Mettre à jour la version globale
             
             // Désactiver l'élasticité pendant le mouvement
             objectRotationElasticityEnabled = false;
@@ -788,3 +844,4 @@ engine.runRenderLoop(function() {
 window.addEventListener("resize", function() {
     engine.resize();
 });
+
