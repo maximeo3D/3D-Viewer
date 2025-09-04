@@ -29,9 +29,6 @@ let config = {
     }
 };
 
-console.log('Canvas dimensions:', canvas.width, canvas.height);
-console.log('Canvas style dimensions:', canvas.style.width, canvas.style.height);
-
 // Global variables to store scene and camera references
 let scene;
 let camera;
@@ -51,7 +48,6 @@ async function loadConfig() {
         const response = await fetch('studio.json');
         if (response.ok) {
             config = await response.json();
-            // console.log("Configuration loaded from studio.json");
         } else {
             console.warn("Could not load studio.json, using default values");
         }
@@ -73,7 +69,6 @@ async function loadAssetConfig() {
                 // Le fichier asset.js définit window.assetConfig
                 if (window.assetConfig) {
                     assetConfig = window.assetConfig;
-                    console.log("✅ Asset configuration loaded from Assets/asset.js");
                     resolve();
                 } else {
                     console.warn("Could not load Assets/asset.js, using default values");
@@ -102,7 +97,6 @@ async function loadMaterialsConfig() {
         const response = await fetch('Textures/materials.json');
         if (response.ok) {
             materialsConfig = await response.json();
-            // console.log("Materials configuration loaded from Textures/materials.json");
         } else {
             console.warn("Could not load Textures/materials.json, using default values");
             materialsConfig = {
@@ -129,7 +123,6 @@ function updateAnimationsFromRotation() {
         const flecheModel = window.loadedModels.get("Fleche");
         if (flecheModel && flecheModel.group) {
             const flecheRotationDegrees = BABYLON.Tools.ToDegrees(flecheModel.group.rotation.x);
-            console.log(`🔍 Fleche rotation X: ${flecheRotationDegrees.toFixed(1)}° (currentObjectRotationX: ${rotationDegrees.toFixed(1)}°)`);
         }
         
         // Normaliser -90°..+90° -> 0..1 (avec clamp pour éviter dépassements)
@@ -192,11 +185,6 @@ function updateAnimationsFromRotation() {
                         });
                     }
                     
-                    // Debug: vérifier l'état de l'animation
-                    console.log(`   - Animation name: ${animGroup.name}`);
-                    console.log(`   - Animation from/to: ${animGroup.from}/${animGroup.to}`);
-                    console.log(`   - Target frame: ${targetFrame.toFixed(1)}`);
-                    
                     // Essayer aussi d'évaluer manuellement chaque canal d'animation
                     if (animGroup.targetedAnimations) {
                         animGroup.targetedAnimations.forEach(targetAnim => {
@@ -210,16 +198,9 @@ function updateAnimationsFromRotation() {
                         });
                     }
                     
-                    // Debug détaillé
-                    console.log(`🎬 Animation ${animGroup.name} (${modelName}): rotX ${rotationDegrees.toFixed(1)}° → frame ${targetFrame.toFixed(1)}/${to.toFixed(1)}`);
-                    console.log(`   - Animation from/to: ${from}/${to}`);
-                    console.log(`   - Target animations count: ${animGroup.targetedAnimations ? animGroup.targetedAnimations.length : 0}`);
-                    
                     // Debug des canaux d'animation
                     if (animGroup.targetedAnimations) {
-                        console.log(`   - Canaux d'animation:`);
                         animGroup.targetedAnimations.forEach((targetAnim, index) => {
-                            console.log(`     ${index}: ${targetAnim.target.name} (${targetAnim.animation.propertyPath})`);
                         });
                     }
                 });
@@ -234,7 +215,6 @@ async function loadModels() {
     
     for (const modelConfig of assetConfig.models) {
         try {
-            // console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
             
             // Load the GLB file
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
@@ -317,7 +297,6 @@ async function loadModels() {
                                 
                                 if (materialName && materialsConfig.materials[materialName]) {
                                     applyMaterial(mesh, materialsConfig.materials[materialName]);
-                                    // console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
                                 }
                             }
                         } else {
@@ -338,7 +317,6 @@ async function loadModels() {
                         animGroup.stop();
                         // Store animation group for manual control
                         animationGroups.push(animGroup);
-                        console.log(`🎬 Found animation: ${animGroup.name} (${animGroup.from} to ${animGroup.to} frames)`);
                     });
                 }
                 
@@ -353,7 +331,6 @@ async function loadModels() {
                 // Ne pas initialiser les animations ici - elles se synchroniseront automatiquement
                 // quand currentObjectRotationX sera mis à jour par les contrôles de souris
                 
-                // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
             }
         } catch (error) {
             console.error(`❌ Failed to load model ${modelConfig.name}:`, error);
@@ -745,7 +722,6 @@ const createScene = async function() {
             BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
         );
         
-        // console.log("HDR loaded successfully with HDRCubeTexture");
     } catch (error) {
         console.error("HDR loading failed:", error);
         
@@ -760,7 +736,6 @@ const createScene = async function() {
                 BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
             );
             
-            // console.log("HDR loaded successfully with CreateFromPrefilteredData");
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
         }
