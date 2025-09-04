@@ -12,7 +12,34 @@
     <script src="datGUI.js"></script>
 </head>
 <body>
-    <canvas id="renderCanvas"></canvas>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-content">
+                <div class="category">
+                    <h3>Models</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn">Model 1</button>
+                        <button class="sidebar-btn">Model 2</button>
+                        <button class="sidebar-btn">Model 3</button>
+                        <button class="sidebar-btn">Model 4</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Colors</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn">Red</button>
+                        <button class="sidebar-btn">Green</button>
+                        <button class="sidebar-btn">Blue</button>
+                        <button class="sidebar-btn">Yellow</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
     <script src="scene.js"></script>
 </body>
 </html>

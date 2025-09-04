@@ -712,10 +712,10 @@ engine.runRenderLoop(function() {
         
         // Synchroniser l'animation avec la rotation de l'objet "Fleche"
         if (scene.animationGroups && scene.animationGroups.length > 0 && window.loadedModels && window.loadedModels.has("Fleche")) {
-            const flecheModel = window.loadedModels.get("Fleche");
-            if (flecheModel.group) {
+            const ChainRotation = window.loadedModels.get("Fleche");
+            if (ChainRotation.group) {
                 // Récupérer la valeur de rotation
-                const currentRotationDegrees = BABYLON.Tools.ToDegrees(flecheModel.group.rotation.x);
+                const currentRotationDegrees = BABYLON.Tools.ToDegrees(ChainRotation.group.rotation.x);
                 
                 // Mapping rotation → frame (INVERSÉ pour le bon sens)
                 // -90° → frame 125
