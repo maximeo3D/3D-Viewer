@@ -29,6 +29,9 @@ let config = {
     }
 };
 
+console.log('Canvas dimensions:', canvas.width, canvas.height);
+console.log('Canvas style dimensions:', canvas.style.width, canvas.style.height);
+
 // Global variables to store scene and camera references
 let scene;
 let camera;
@@ -48,6 +51,7 @@ async function loadConfig() {
         const response = await fetch('studio.json');
         if (response.ok) {
             config = await response.json();
+            // console.log("Configuration loaded from studio.json");
         } else {
             console.warn("Could not load studio.json, using default values");
         }
@@ -69,6 +73,7 @@ async function loadAssetConfig() {
                 // Le fichier asset.js définit window.assetConfig
                 if (window.assetConfig) {
                     assetConfig = window.assetConfig;
+                    console.log("✅ Asset configuration loaded from Assets/asset.js");
                     resolve();
                 } else {
                     console.warn("Could not load Assets/asset.js, using default values");
@@ -97,6 +102,7 @@ async function loadMaterialsConfig() {
         const response = await fetch('Textures/materials.json');
         if (response.ok) {
             materialsConfig = await response.json();
+            // console.log("Materials configuration loaded from Textures/materials.json");
         } else {
             console.warn("Could not load Textures/materials.json, using default values");
             materialsConfig = {
@@ -111,110 +117,13 @@ async function loadMaterialsConfig() {
     }
 }
 
-// Fonction globale pour contrôler les animations basées sur la rotation
-function updateAnimationsFromRotation() {
-        // Utiliser directement la variable de contrôle de rotation (window.currentObjectRotationX)
-    // qui est la même que celle utilisée pour contrôler tous les modèles
-    if (window.loadedModels && typeof window.currentObjectRotationX !== 'undefined') {
-        // Rotation X en degrés (utilise la variable de contrôle globale)
-        const rotationDegrees = BABYLON.Tools.ToDegrees(window.currentObjectRotationX);
-        
-        // Debug: afficher la rotation de l'objet Fleche spécifiquement
-        const flecheModel = window.loadedModels.get("Fleche");
-        if (flecheModel && flecheModel.group) {
-            const flecheRotationDegrees = BABYLON.Tools.ToDegrees(flecheModel.group.rotation.x);
-        }
-        
-        // Normaliser -90°..+90° -> 0..1 (avec clamp pour éviter dépassements)
-        let normalized = (rotationDegrees + 90) / 180; // 0 à 1 attendu
-        if (normalized < 0) normalized = 0;
-        if (normalized > 1) normalized = 1;
-        
-        // Appliquer aux animations de tous les modèles
-        window.loadedModels.forEach((modelData, modelName) => {
-            if (modelData.animationGroups && modelData.animationGroups.length > 0) {
-                modelData.animationGroups.forEach(animGroup => {
-                    // Utiliser la plage réelle de l'animation (ex. 0..250)
-                    const from = animGroup.from !== undefined ? animGroup.from : 0;
-                    const to = animGroup.to !== undefined ? animGroup.to : 0;
-                    const frameRange = to - from;
-                    const targetFrame = from + (normalized * frameRange);
-                    
-                    // Appliquer la frame de manière plus robuste
-                    animGroup.stop();
-                    animGroup.goToFrame(targetFrame); // Aller à la frame spécifique
-                    
-                    // Forcer la mise à jour de tous les meshes de l'animation
-                    if (animGroup.targetedAnimations) {
-                        animGroup.targetedAnimations.forEach(targetAnim => {
-                            if (targetAnim.target) {
-                                targetAnim.target.markAsDirty();
-                                // Forcer la mise à jour de la matrice de transformation
-                                targetAnim.target.computeWorldMatrix(true);
-                            }
-                        });
-                    }
-                    
-                    // Forcer la mise à jour de la scène
-                    if (scene) {
-                        scene.markAllMaterialsAsDirty();
-                    }
-                    
-                    // Forcer l'animation avec des paramètres plus spécifiques
-                    animGroup.start(false, 1.0, targetFrame, targetFrame, false);
-                    animGroup.stop();
-                    
-                    // Essayer aussi de forcer l'animation avec un délai très court
-                    setTimeout(() => {
-                        animGroup.start(false, 1.0, targetFrame, targetFrame, false);
-                        setTimeout(() => {
-                            animGroup.stop();
-                        }, 1);
-                    }, 0);
-                    
-                    // Essayer aussi de forcer l'évaluation de chaque canal individuellement
-                    if (animGroup.targetedAnimations) {
-                        animGroup.targetedAnimations.forEach(targetAnim => {
-                            if (targetAnim.animation && targetAnim.target) {
-                                // Forcer l'évaluation de l'animation
-                                targetAnim.animation.evaluate(targetFrame, targetAnim.target);
-                                // Forcer la mise à jour de l'objet
-                                targetAnim.target.markAsDirty();
-                                targetAnim.target.computeWorldMatrix(true);
-                            }
-                        });
-                    }
-                    
-                    // Essayer aussi d'évaluer manuellement chaque canal d'animation
-                    if (animGroup.targetedAnimations) {
-                        animGroup.targetedAnimations.forEach(targetAnim => {
-                            if (targetAnim.animation && targetAnim.target) {
-                                // Évaluer l'animation à la frame spécifique
-                                targetAnim.animation.evaluate(targetFrame, targetAnim.target);
-                                // Forcer la mise à jour de l'objet
-                                targetAnim.target.markAsDirty();
-                                targetAnim.target.computeWorldMatrix(true);
-                            }
-                        });
-                    }
-                    
-                    // Debug des canaux d'animation
-                    if (animGroup.targetedAnimations) {
-                        animGroup.targetedAnimations.forEach((targetAnim, index) => {
-                        });
-                    }
-                });
-            }
-        });
-    }
-}
-
 // Function to load 3D models
 async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
     
     for (const modelConfig of assetConfig.models) {
         try {
+            // console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
             
             // Load the GLB file
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
@@ -297,6 +206,7 @@ async function loadModels() {
                                 
                                 if (materialName && materialsConfig.materials[materialName]) {
                                     applyMaterial(mesh, materialsConfig.materials[materialName]);
+                                    // console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
                                 }
                             }
                         } else {
@@ -309,28 +219,14 @@ async function loadModels() {
                     });
                 }
                 
-                // Handle animations - stop automatic playback and prepare for manual control
-                let animationGroups = [];
-                if (result.animationGroups && result.animationGroups.length > 0) {
-                    result.animationGroups.forEach(animGroup => {
-                        // Stop automatic playback
-                        animGroup.stop();
-                        // Store animation group for manual control
-                        animationGroups.push(animGroup);
-                    });
-                }
-                
-                // Store the loaded model with animation groups
+                // Store the loaded model
                 loadedModels.set(modelConfig.name, {
                     group: modelGroup,
                     meshes: result.meshes,
-                    config: modelConfig,
-                    animationGroups: animationGroups
+                    config: modelConfig
                 });
                 
-                // Ne pas initialiser les animations ici - elles se synchroniseront automatiquement
-                // quand currentObjectRotationX sera mis à jour par les contrôles de souris
-                
+                // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
             }
         } catch (error) {
             console.error(`❌ Failed to load model ${modelConfig.name}:`, error);
@@ -572,7 +468,6 @@ const createScene = async function() {
             
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
-            window.currentObjectRotationX = currentObjectRotationX; // Mettre à jour la version globale
             
             // Appliquer la rotation aux objets
             if (window.loadedModels) {
@@ -582,9 +477,6 @@ const createScene = async function() {
                     }
                 });
             }
-            
-            // Mettre à jour les animations basées sur la rotation du node
-            updateAnimationsFromRotation();
         }
     });
     
@@ -610,9 +502,6 @@ const createScene = async function() {
     let currentObjectRotationX = 0; // Rotation actuelle en radians
     const minObjectRotationX = -Math.PI/2; // -90 degrés
     const maxObjectRotationX = Math.PI/2;  // +90 degrés
-    
-    // Rendre currentObjectRotationX accessible globalement
-    window.currentObjectRotationX = currentObjectRotationX;
     
     // Variables pour l'élasticité de rotation des objets
     let targetObjectRotationX = 0; // Rotation cible (toujours 0°)
@@ -672,12 +561,8 @@ const createScene = async function() {
                     });
                 }
                 
-                // Mettre à jour les animations basées sur la rotation du node
-                updateAnimationsFromRotation();
-                
                             // Mettre à jour la rotation actuelle
             currentObjectRotationX = clampedRotationX;
-            window.currentObjectRotationX = currentObjectRotationX; // Mettre à jour la version globale
             
             // Désactiver l'élasticité pendant le mouvement
             objectRotationElasticityEnabled = false;
@@ -722,6 +607,7 @@ const createScene = async function() {
             BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
         );
         
+        // console.log("HDR loaded successfully with HDRCubeTexture");
     } catch (error) {
         console.error("HDR loading failed:", error);
         
@@ -736,6 +622,7 @@ const createScene = async function() {
                 BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
             );
             
+            // console.log("HDR loaded successfully with CreateFromPrefilteredData");
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
         }
@@ -819,4 +706,3 @@ engine.runRenderLoop(function() {
 window.addEventListener("resize", function() {
     engine.resize();
 });
-
