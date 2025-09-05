@@ -71,8 +71,10 @@
     },
     "yellow": {
       "type": "pbr",
-      "parent": "green",
-      "baseColor": "#FFAA00"
+      "parent": "red",
+      "useLightmapAsShadowmap": true,
+      "baseColor": "#d0ae46",
+      "alpha": 0.5460803267738382
     }
   }
 }

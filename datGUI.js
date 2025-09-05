@@ -628,6 +628,15 @@ class DatGUIManager {
         
         this.exportMaterialsControl = this.materialsFolder.add(exportMaterials, 'export').name('Export Materials');
         
+        // Bouton de test temporaire pour vérifier le toggle
+        const testToggle = {
+            test: () => {
+                console.log('Testing toggle for baseColor...');
+                this.togglePropertyIndependence('baseColor');
+            }
+        };
+        this.materialsFolder.add(testToggle, 'test').name('Test Toggle');
+        
         // Force update of GUI controls to reflect initial values
         setTimeout(() => {
             this.updateGUIControls();
@@ -637,7 +646,7 @@ class DatGUIManager {
         // Ajouter un délai supplémentaire pour les gestionnaires de clic
         setTimeout(() => {
             this.updateControlsAppearance();
-        }, 200);
+        }, 500);
     }
     
     // Créer les contrôles pour la création de matériaux
@@ -895,41 +904,64 @@ class DatGUIManager {
     
     // Ajouter gestionnaire de clic sur le label d'un contrôle
     addLabelClickHandler(control, propertyName) {
-        // Trouver le label (nom du paramètre) - essayer différents sélecteurs
-        let label = control.domElement.querySelector('.property-name') || 
-                   control.domElement.querySelector('.dg .property-name') ||
-                   control.domElement.querySelector('span') ||
-                   control.domElement.querySelector('div');
-        
-        // Si pas de label trouvé, utiliser le conteneur entier
-        if (!label) {
-            label = control.domElement;
-        }
-        
-        // Supprimer l'ancien gestionnaire s'il existe
-        if (label._labelClickHandler) {
-            label.removeEventListener('click', label._labelClickHandler);
-        }
-        
-        // Créer le nouveau gestionnaire
-        const handler = (e) => {
-            // Éviter de déclencher sur les inputs/sliders
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'CANVAS') {
+        // Attendre que l'élément DOM soit complètement créé
+        setTimeout(() => {
+            // Trouver spécifiquement le span.property-name dans la structure dat.GUI
+            let label = null;
+            
+            // Essayer différents sélecteurs pour trouver le bon élément
+            const selectors = [
+                'span.property-name',
+                '.property-name',
+                'span',
+                '.dg span'
+            ];
+            
+            for (const selector of selectors) {
+                label = control.domElement.querySelector(selector);
+                if (label) {
+                    console.log(`Found label for ${propertyName} with selector: ${selector}`, label);
+                    break;
+                }
+            }
+            
+            // Si pas de label trouvé, essayer de le trouver dans le parent
+            if (!label && control.domElement.parentElement) {
+                for (const selector of selectors) {
+                    label = control.domElement.parentElement.querySelector(selector);
+                    if (label) {
+                        console.log(`Found label for ${propertyName} in parent with selector: ${selector}`, label);
+                        break;
+                    }
+                }
+            }
+            
+            if (!label) {
+                console.warn(`Could not find label for ${propertyName}`, control.domElement);
                 return;
             }
             
-            e.preventDefault();
-            e.stopPropagation();
-            console.log(`Toggling independence for property: ${propertyName}`);
-            this.togglePropertyIndependence(propertyName);
-        };
-        
-        // Stocker la référence et ajouter l'événement
-        label._labelClickHandler = handler;
-        label.addEventListener('click', handler);
-        label.style.cursor = 'pointer';
-        
-        console.log(`Added click handler for ${propertyName} on element:`, label);
+            // Supprimer l'ancien gestionnaire s'il existe
+            if (label._labelClickHandler) {
+                label.removeEventListener('click', label._labelClickHandler);
+            }
+            
+            // Créer le nouveau gestionnaire
+            const handler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(`Toggling independence for property: ${propertyName}`);
+                this.togglePropertyIndependence(propertyName);
+            };
+            
+            // Stocker la référence et ajouter l'événement
+            label._labelClickHandler = handler;
+            label.addEventListener('click', handler);
+            label.style.cursor = 'pointer';
+            label.style.userSelect = 'none';
+            
+            console.log(`Added click handler for ${propertyName} on element:`, label);
+        }, 50); // Petit délai pour s'assurer que l'élément est créé
     }
     
     // Basculer l'indépendance d'une propriété
