@@ -628,15 +628,6 @@ class DatGUIManager {
         
         this.exportMaterialsControl = this.materialsFolder.add(exportMaterials, 'export').name('Export Materials');
         
-        // Bouton de test temporaire pour vérifier le toggle
-        const testToggle = {
-            test: () => {
-                console.log('Testing toggle for baseColor...');
-                this.togglePropertyIndependence('baseColor');
-            }
-        };
-        this.materialsFolder.add(testToggle, 'test').name('Test Toggle');
-        
         // Force update of GUI controls to reflect initial values
         setTimeout(() => {
             this.updateGUIControls();
@@ -920,7 +911,6 @@ class DatGUIManager {
             for (const selector of selectors) {
                 label = control.domElement.querySelector(selector);
                 if (label) {
-                    console.log(`Found label for ${propertyName} with selector: ${selector}`, label);
                     break;
                 }
             }
@@ -930,14 +920,12 @@ class DatGUIManager {
                 for (const selector of selectors) {
                     label = control.domElement.parentElement.querySelector(selector);
                     if (label) {
-                        console.log(`Found label for ${propertyName} in parent with selector: ${selector}`, label);
                         break;
                     }
                 }
             }
             
             if (!label) {
-                console.warn(`Could not find label for ${propertyName}`, control.domElement);
                 return;
             }
             
@@ -950,7 +938,6 @@ class DatGUIManager {
             const handler = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`Toggling independence for property: ${propertyName}`);
                 this.togglePropertyIndependence(propertyName);
             };
             
@@ -959,8 +946,6 @@ class DatGUIManager {
             label.addEventListener('click', handler);
             label.style.cursor = 'pointer';
             label.style.userSelect = 'none';
-            
-            console.log(`Added click handler for ${propertyName} on element:`, label);
         }, 50); // Petit délai pour s'assurer que l'élément est créé
     }
     
@@ -993,6 +978,9 @@ class DatGUIManager {
         // Mettre à jour l'affichage
         this.updateControlsAppearance();
         this.updateGUIControls();
+        
+        // Appliquer les changements sur les mesh pour refléter le toggle
+        this.applyMaterialChanges();
     }
     
     // Mettre à jour spécifiquement les contrôles de texture
