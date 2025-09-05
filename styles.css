@@ -19,9 +19,11 @@ html, body {
     border-right: 1px solid #ccc;
     flex-shrink: 0;
     overflow-y: auto;
+    display: var(--sidebar-display, flex);
 }
 
 .sidebar-content {
+    width: 100%;
     padding: 20px;
 }
 
@@ -45,6 +47,7 @@ html, body {
 }
 
 .sidebar-btn {
+    width: 100%;
     padding: 10px 15px;
     background-color: #f8f9fa;
     border: 1px solid #ddd;
