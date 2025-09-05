@@ -49,7 +49,7 @@
     "blue": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#3b91e0",
+      "baseColor": "#3077d3",
       "metallic": 1,
       "roughness": 0.17,
       "alpha": 1,
@@ -57,7 +57,7 @@
       "metallicTexture": "None",
       "microSurfaceTexture": "None",
       "ambientTexture": "None",
-      "opacityTexture": "alpha.png",
+      "opacityTexture": "",
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
       "backFaceCulling": true,
@@ -73,33 +73,6 @@
       "type": "pbr",
       "parent": "green",
       "baseColor": "#FFAA00"
-    },
-    "orange": {
-      "type": "pbr",
-      "parent": "red",
-      "baseColor": "#ff5a00",
-      "metallic": 1,
-      "roughness": 0,
-      "alpha": 1,
-      "albedoTexture": "",
-      "metallicTexture": "metal_metalness.png",
-      "microSurfaceTexture": "",
-      "ambientTexture": "metal_ao.png",
-      "opacityTexture": "None",
-      "bumpTexture": "metal_normal.png",
-      "bumpTextureIntensity": 3.9000000000000004,
-      "lightmapTexture": "metal_ao.png",
-      "useLightmapAsShadowmap": true,
-      "backFaceCulling": true,
-      "uOffset": 0,
-      "vOffset": 0,
-      "uScale": 1,
-      "vScale": 1,
-      "wRotation": 0
-    },
-    "gold": {
-      "type": "pbr",
-      "parent": "none"
     }
   }
 }

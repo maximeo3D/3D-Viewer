@@ -22,6 +22,10 @@ class DatGUIManager {
         this.materialSelectControl = null;
         this.materialParentControl = null;
         
+        // Système de logique parent-enfant
+        this.independentProperties = new Set(); // Paramètres indépendants du parent
+        this.materialControls = new Map(); // Références aux contrôles pour le grisage
+        
         // Variables pour la création de matériaux
         this.createMaterialFolder = null;
         this.newMaterialData = {
@@ -413,9 +417,7 @@ class DatGUIManager {
         const materialNames = Object.keys(this.materialsConfig.materials);
         this.materialSelectControl = this.materialsFolder.add(this.materialList, 'selected', materialNames).name('Material List').onChange((value) => {
             this.updateMaterialPropertiesDisplay();
-            if (this.onMaterialChange) {
-                this.onMaterialChange('selection', value);
-            }
+            // Ne pas appliquer les changements sur les mesh, juste lire les paramètres
         });
         
         // Create Material subfolder
@@ -464,7 +466,8 @@ class DatGUIManager {
             // Update the current material's parent
             if (this.materialsConfig.materials[this.materialList.selected]) {
                 this.materialsConfig.materials[this.materialList.selected].parent = value;
-                this.applyMaterialChanges();
+                // Ne pas appliquer sur les mesh, juste mettre à jour l'affichage
+                this.updateParentChildDisplay();
             }
         });
         
@@ -473,63 +476,75 @@ class DatGUIManager {
             this.materialProperties.baseColor = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('baseColor', this.baseColorControl);
         
         this.metallicControl = this.materialsFolder.add(this.materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange((value) => {
             this.materialProperties.metallic = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('metallic', this.metallicControl);
         
         this.roughnessControl = this.materialsFolder.add(this.materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange((value) => {
             this.materialProperties.roughness = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('roughness', this.roughnessControl);
         
         this.alphaControl = this.materialsFolder.add(this.materialProperties, 'alpha', 0, 1).name('Alpha').onChange((value) => {
             this.materialProperties.alpha = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('alpha', this.alphaControl);
         
         // Texture controls
         this.albedoTextureControl = this.materialsFolder.add(this.materialProperties, 'albedoTexture', this.availableImages).name('Albedo Texture').onChange((value) => {
             this.materialProperties.albedoTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('albedoTexture', this.albedoTextureControl);
         
         this.metallicTextureControl = this.materialsFolder.add(this.materialProperties, 'metallicTexture', this.availableImages).name('Metallic Texture').onChange((value) => {
             this.materialProperties.metallicTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('metallicTexture', this.metallicTextureControl);
         
         this.microSurfaceTextureControl = this.materialsFolder.add(this.materialProperties, 'microSurfaceTexture', this.availableImages).name('Microsurface Texture').onChange((value) => {
             this.materialProperties.microSurfaceTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('microSurfaceTexture', this.microSurfaceTextureControl);
         
         this.ambientTextureControl = this.materialsFolder.add(this.materialProperties, 'ambientTexture', this.availableImages).name('Ambient Texture').onChange((value) => {
             this.materialProperties.ambientTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('ambientTexture', this.ambientTextureControl);
         
         this.opacityTextureControl = this.materialsFolder.add(this.materialProperties, 'opacityTexture', this.availableImages).name('Opacity Texture').onChange((value) => {
             this.materialProperties.opacityTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('opacityTexture', this.opacityTextureControl);
         
         this.bumpTextureControl = this.materialsFolder.add(this.materialProperties, 'bumpTexture', this.availableImages).name('Normal Map').onChange((value) => {
             this.materialProperties.bumpTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('bumpTexture', this.bumpTextureControl);
         
         this.bumpTextureIntensityControl = this.materialsFolder.add(this.materialProperties, 'bumpTextureIntensity', 0, 5).step(0.1).name('Intensity').onChange((value) => {
             this.materialProperties.bumpTextureIntensity = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('bumpTextureIntensity', this.bumpTextureIntensityControl);
         
         // Lightmap texture control
         this.lightmapTextureControl = this.materialsFolder.add(this.materialProperties, 'lightmapTexture', this.availableImages).name('Lightmap Texture').onChange((value) => {
             this.materialProperties.lightmapTexture = value === 'None' ? '' : value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('lightmapTexture', this.lightmapTextureControl);
         
         // Always set useLightmapAsShadowmap to true for optimal performance
         this.materialProperties.useLightmapAsShadowmap = true;
@@ -542,30 +557,35 @@ class DatGUIManager {
             this.materialProperties.uOffset = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('uOffset', this.uOffsetControl);
         
         // V Offset control
         this.vOffsetControl = this.textureParamsFolder.add(this.materialProperties, 'vOffset', -2, 2).step(0.01).name('V Offset').onChange((value) => {
             this.materialProperties.vOffset = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('vOffset', this.vOffsetControl);
         
         // U Scale control
         this.uScaleControl = this.textureParamsFolder.add(this.materialProperties, 'uScale', 0.1, 5).step(0.1).name('U Scale').onChange((value) => {
             this.materialProperties.uScale = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('uScale', this.uScaleControl);
         
         // V Scale control
         this.vScaleControl = this.textureParamsFolder.add(this.materialProperties, 'vScale', 0.1, 5).step(0.1).name('V Scale').onChange((value) => {
             this.materialProperties.vScale = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('vScale', this.vScaleControl);
         
         // W Rotation control (around W axis)
         this.wRotationControl = this.textureParamsFolder.add(this.materialProperties, 'wRotation', 0, 360).step(1).name('W Rotation').onChange((value) => {
             this.materialProperties.wRotation = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('wRotation', this.wRotationControl);
         
         this.textureParamsFolderExists = true;
         
@@ -573,6 +593,7 @@ class DatGUIManager {
             this.materialProperties.backFaceCulling = value;
             this.applyMaterialChanges();
         });
+        this.materialControls.set('backFaceCulling', this.backFaceCullingControl);
         
         // Add Refresh Images button
         const refreshImages = { 
@@ -610,7 +631,13 @@ class DatGUIManager {
         // Force update of GUI controls to reflect initial values
         setTimeout(() => {
             this.updateGUIControls();
+            this.updateParentChildDisplay();
         }, 100);
+        
+        // Ajouter un délai supplémentaire pour les gestionnaires de clic
+        setTimeout(() => {
+            this.updateControlsAppearance();
+        }, 200);
     }
     
     // Créer les contrôles pour la création de matériaux
@@ -761,12 +788,16 @@ class DatGUIManager {
             this.materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
             this.materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
             this.materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
-            this.materialProperties.albedoTexture = material.albedoTexture || '';
-            this.materialProperties.metallicTexture = material.metallicTexture || '';
-            this.materialProperties.microSurfaceTexture = material.microSurfaceTexture || '';
-            this.materialProperties.ambientTexture = material.ambientTexture || '';
-            this.materialProperties.opacityTexture = material.opacityTexture || '';
-            this.materialProperties.bumpTexture = material.bumpTexture || '';
+            // Update texture dropdowns (convert empty strings to 'None')
+            this.materialProperties.albedoTexture = material.albedoTexture && material.albedoTexture !== '' ? material.albedoTexture : 'None';
+            this.materialProperties.metallicTexture = material.metallicTexture && material.metallicTexture !== '' ? material.metallicTexture : 'None';
+            this.materialProperties.microSurfaceTexture = material.microSurfaceTexture && material.microSurfaceTexture !== '' ? material.microSurfaceTexture : 'None';
+            this.materialProperties.ambientTexture = material.ambientTexture && material.ambientTexture !== '' ? material.ambientTexture : 'None';
+            this.materialProperties.opacityTexture = material.opacityTexture && material.opacityTexture !== '' ? material.opacityTexture : 'None';
+            this.materialProperties.bumpTexture = material.bumpTexture && material.bumpTexture !== '' ? material.bumpTexture : 'None';
+            this.materialProperties.lightmapTexture = material.lightmapTexture && material.lightmapTexture !== '' ? material.lightmapTexture : 'None';
+            
+            // Update other properties
             this.materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
             this.materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
             
@@ -777,20 +808,184 @@ class DatGUIManager {
             this.materialProperties.vScale = material.vScale !== undefined ? material.vScale : 1.0;
             this.materialProperties.wRotation = material.wRotation !== undefined ? material.wRotation : 0.0;
             
-            // Update texture dropdowns
-            this.materialProperties.albedoTexture = material.albedoTexture && material.albedoTexture !== '' ? material.albedoTexture : 'None';
-            this.materialProperties.metallicTexture = material.metallicTexture && material.metallicTexture !== '' ? material.metallicTexture : 'None';
-            this.materialProperties.microSurfaceTexture = material.microSurfaceTexture && material.microSurfaceTexture !== '' ? material.microSurfaceTexture : 'None';
-            this.materialProperties.ambientTexture = material.ambientTexture && material.ambientTexture !== '' ? material.ambientTexture : 'None';
-            this.materialProperties.opacityTexture = material.opacityTexture && material.opacityTexture !== '' ? material.opacityTexture : 'None';
-            this.materialProperties.bumpTexture = material.bumpTexture && material.bumpTexture !== '' ? material.bumpTexture : 'None';
-            this.materialProperties.lightmapTexture = material.lightmapTexture && material.lightmapTexture !== '' ? material.lightmapTexture : 'None';
-            
             // Always set useLightmapAsShadowmap to true for optimal performance
             this.materialProperties.useLightmapAsShadowmap = true;
             
             // Force update of GUI controls to reflect the new values
             this.updateGUIControls();
+            
+            // Mettre à jour spécifiquement les contrôles de texture
+            this.updateTextureControls();
+            
+            // Mettre à jour l'affichage parent-enfant
+            this.updateParentChildDisplay();
+        }
+    }
+    
+    // Mettre à jour l'affichage parent-enfant
+    updateParentChildDisplay() {
+        const selectedMaterial = this.materialList.selected;
+        if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) return;
+        
+        const material = this.materialsConfig.materials[selectedMaterial];
+        const parent = material.parent;
+        
+        // Réinitialiser l'état des propriétés indépendantes
+        this.independentProperties.clear();
+        
+        // Si le matériau a un parent, déterminer quelles propriétés sont indépendantes
+        if (parent && parent !== 'none' && this.materialsConfig.materials[parent]) {
+            const parentMaterial = this.materialsConfig.materials[parent];
+            
+            // Vérifier chaque propriété pour voir si elle est définie dans le matériau enfant
+            const allProperties = [
+                'baseColor', 'metallic', 'roughness', 'alpha',
+                'albedoTexture', 'metallicTexture', 'microSurfaceTexture', 
+                'ambientTexture', 'opacityTexture', 'bumpTexture', 
+                'bumpTextureIntensity', 'lightmapTexture', 'backFaceCulling',
+                'uOffset', 'vOffset', 'uScale', 'vScale', 'wRotation'
+            ];
+            
+            allProperties.forEach(prop => {
+                if (material[prop] !== undefined && material[prop] !== parentMaterial[prop]) {
+                    this.independentProperties.add(prop);
+                }
+            });
+        }
+        
+        // Mettre à jour l'affichage des contrôles
+        this.updateControlsAppearance();
+    }
+    
+    // Mettre à jour l'apparence des contrôles (grisage)
+    updateControlsAppearance() {
+        const selectedMaterial = this.materialList.selected;
+        if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) return;
+        
+        const material = this.materialsConfig.materials[selectedMaterial];
+        const parent = material.parent;
+        
+        this.materialControls.forEach((control, propertyName) => {
+            if (!control || !control.domElement) return;
+            
+            const isIndependent = this.independentProperties.has(propertyName);
+            const hasParent = parent && parent !== 'none';
+            
+            if (hasParent && !isIndependent) {
+                // Propriété héritée - griser seulement
+                control.domElement.style.opacity = '0.5';
+                control.domElement.title = `Inherited from parent: ${parent} (Click label to make independent)`;
+                
+                // Ajouter gestionnaire de clic sur le label
+                this.addLabelClickHandler(control, propertyName);
+            } else if (hasParent && isIndependent) {
+                // Propriété indépendante avec parent - normal avec option de reparenté
+                control.domElement.style.opacity = '1';
+                control.domElement.title = `Independent property (Click label to inherit from parent)`;
+                
+                // Ajouter gestionnaire de clic sur le label
+                this.addLabelClickHandler(control, propertyName);
+            } else {
+                // Pas de parent - normal
+                control.domElement.style.opacity = '1';
+                control.domElement.title = '';
+            }
+        });
+    }
+    
+    // Ajouter gestionnaire de clic sur le label d'un contrôle
+    addLabelClickHandler(control, propertyName) {
+        // Trouver le label (nom du paramètre) - essayer différents sélecteurs
+        let label = control.domElement.querySelector('.property-name') || 
+                   control.domElement.querySelector('.dg .property-name') ||
+                   control.domElement.querySelector('span') ||
+                   control.domElement.querySelector('div');
+        
+        // Si pas de label trouvé, utiliser le conteneur entier
+        if (!label) {
+            label = control.domElement;
+        }
+        
+        // Supprimer l'ancien gestionnaire s'il existe
+        if (label._labelClickHandler) {
+            label.removeEventListener('click', label._labelClickHandler);
+        }
+        
+        // Créer le nouveau gestionnaire
+        const handler = (e) => {
+            // Éviter de déclencher sur les inputs/sliders
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'CANVAS') {
+                return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`Toggling independence for property: ${propertyName}`);
+            this.togglePropertyIndependence(propertyName);
+        };
+        
+        // Stocker la référence et ajouter l'événement
+        label._labelClickHandler = handler;
+        label.addEventListener('click', handler);
+        label.style.cursor = 'pointer';
+        
+        console.log(`Added click handler for ${propertyName} on element:`, label);
+    }
+    
+    // Basculer l'indépendance d'une propriété
+    togglePropertyIndependence(propertyName) {
+        const selectedMaterial = this.materialList.selected;
+        if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) return;
+        
+        const material = this.materialsConfig.materials[selectedMaterial];
+        const parent = material.parent;
+        
+        if (!parent || parent === 'none') return;
+        
+        const parentMaterial = this.materialsConfig.materials[parent];
+        if (!parentMaterial) return;
+        
+        if (this.independentProperties.has(propertyName)) {
+            // Reparenté - supprimer la propriété du matériau enfant
+            delete material[propertyName];
+            this.independentProperties.delete(propertyName);
+            
+            // Mettre à jour l'affichage avec la valeur du parent
+            this.materialProperties[propertyName] = parentMaterial[propertyName];
+        } else {
+            // Déparenté - ajouter la propriété au matériau enfant
+            material[propertyName] = this.materialProperties[propertyName];
+            this.independentProperties.add(propertyName);
+        }
+        
+        // Mettre à jour l'affichage
+        this.updateControlsAppearance();
+        this.updateGUIControls();
+    }
+    
+    // Mettre à jour spécifiquement les contrôles de texture
+    updateTextureControls() {
+        // Forcer la mise à jour des contrôles de texture
+        if (this.albedoTextureControl) {
+            this.albedoTextureControl.updateDisplay();
+        }
+        if (this.metallicTextureControl) {
+            this.metallicTextureControl.updateDisplay();
+        }
+        if (this.microSurfaceTextureControl) {
+            this.microSurfaceTextureControl.updateDisplay();
+        }
+        if (this.ambientTextureControl) {
+            this.ambientTextureControl.updateDisplay();
+        }
+        if (this.opacityTextureControl) {
+            this.opacityTextureControl.updateDisplay();
+        }
+        if (this.bumpTextureControl) {
+            this.bumpTextureControl.updateDisplay();
+        }
+        if (this.lightmapTextureControl) {
+            this.lightmapTextureControl.updateDisplay();
         }
     }
     
@@ -840,28 +1035,32 @@ class DatGUIManager {
     applyMaterialChanges() {
         const selectedMaterial = this.materialList.selected;
         if (selectedMaterial && this.materialsConfig.materials[selectedMaterial]) {
-            // Update the material config
-            this.materialsConfig.materials[selectedMaterial].baseColor = this.materialProperties.baseColor;
-            this.materialsConfig.materials[selectedMaterial].metallic = this.materialProperties.metallic;
-            this.materialsConfig.materials[selectedMaterial].roughness = this.materialProperties.roughness;
-            this.materialsConfig.materials[selectedMaterial].alpha = this.materialProperties.alpha;
-            this.materialsConfig.materials[selectedMaterial].albedoTexture = this.materialProperties.albedoTexture;
-            this.materialsConfig.materials[selectedMaterial].metallicTexture = this.materialProperties.metallicTexture;
-            this.materialsConfig.materials[selectedMaterial].microSurfaceTexture = this.materialProperties.microSurfaceTexture;
-            this.materialsConfig.materials[selectedMaterial].ambientTexture = this.materialProperties.ambientTexture;
-            this.materialsConfig.materials[selectedMaterial].opacityTexture = this.materialProperties.opacityTexture;
-            this.materialsConfig.materials[selectedMaterial].bumpTexture = this.materialProperties.bumpTexture;
-            this.materialsConfig.materials[selectedMaterial].bumpTextureIntensity = this.materialProperties.bumpTextureIntensity;
-            this.materialsConfig.materials[selectedMaterial].lightmapTexture = this.materialProperties.lightmapTexture;
-            this.materialsConfig.materials[selectedMaterial].useLightmapAsShadowmap = this.materialProperties.useLightmapAsShadowmap;
-            this.materialsConfig.materials[selectedMaterial].backFaceCulling = this.materialProperties.backFaceCulling;
+            const material = this.materialsConfig.materials[selectedMaterial];
             
-            // Texture transformation parameters
-            this.materialsConfig.materials[selectedMaterial].uOffset = this.materialProperties.uOffset;
-            this.materialsConfig.materials[selectedMaterial].vOffset = this.materialProperties.vOffset;
-            this.materialsConfig.materials[selectedMaterial].uScale = this.materialProperties.uScale;
-            this.materialsConfig.materials[selectedMaterial].vScale = this.materialProperties.vScale;
-            this.materialsConfig.materials[selectedMaterial].wRotation = this.materialProperties.wRotation;
+            // Ne mettre à jour que les propriétés indépendantes
+            const allProperties = [
+                'baseColor', 'metallic', 'roughness', 'alpha',
+                'albedoTexture', 'metallicTexture', 'microSurfaceTexture', 
+                'ambientTexture', 'opacityTexture', 'bumpTexture', 
+                'bumpTextureIntensity', 'lightmapTexture', 'backFaceCulling',
+                'uOffset', 'vOffset', 'uScale', 'vScale', 'wRotation'
+            ];
+            
+            allProperties.forEach(prop => {
+                if (this.independentProperties.has(prop)) {
+                    // Propriété indépendante - la sauvegarder
+                    material[prop] = this.materialProperties[prop];
+                } else if (material.parent && material.parent !== 'none') {
+                    // Propriété héritée - la supprimer du matériau enfant
+                    delete material[prop];
+                } else {
+                    // Pas de parent - sauvegarder normalement
+                    material[prop] = this.materialProperties[prop];
+                }
+            });
+            
+            // Toujours sauvegarder useLightmapAsShadowmap
+            material.useLightmapAsShadowmap = this.materialProperties.useLightmapAsShadowmap;
             
             if (this.onMaterialChange) {
                 this.onMaterialChange('properties', this.materialProperties);
