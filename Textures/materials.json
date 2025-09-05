@@ -2,9 +2,10 @@
   "materials": {
     "red": {
       "type": "pbr",
+      "parent": "none",
       "baseColor": "#ffffff",
       "metallic": 1,
-      "roughness": 0.56,
+      "roughness": 0,
       "alpha": 1,
       "albedoTexture": "metal_albedo.png",
       "metallicTexture": "metal_metalness.png",
@@ -24,6 +25,7 @@
     },
     "green": {
       "type": "pbr",
+      "parent": "none",
       "baseColor": "#62d046",
       "metallic": 0,
       "roughness": 0.47000000000000003,
@@ -44,30 +46,9 @@
       "vScale": 1,
       "wRotation": 0
     },
-    "yellow": {
-      "type": "pbr",
-      "baseColor": "#e49f09",
-      "metallic": 0,
-      "roughness": 0.14,
-      "alpha": 1,
-      "albedoTexture": "None",
-      "metallicTexture": "None",
-      "microSurfaceTexture": "leather_rough.png",
-      "ambientTexture": "leather_alb.png",
-      "opacityTexture": "None",
-      "bumpTexture": "leather_nm.png",
-      "bumpTextureIntensity": 3.5,
-      "backFaceCulling": true,
-      "lightmapTexture": "None",
-      "useLightmapAsShadowmap": true,
-      "uOffset": 0.35000000000000003,
-      "vOffset": 0.4,
-      "uScale": 1,
-      "vScale": 1,
-      "wRotation": 96
-    },
     "blue": {
       "type": "pbr",
+      "parent": "none",
       "baseColor": "#3b91e0",
       "metallic": 1,
       "roughness": 0.17,
@@ -87,6 +68,38 @@
       "uScale": 1,
       "vScale": 1,
       "wRotation": 0
+    },
+    "yellow": {
+      "type": "pbr",
+      "parent": "green",
+      "baseColor": "#FFAA00"
+    },
+    "orange": {
+      "type": "pbr",
+      "parent": "red",
+      "baseColor": "#ff5a00",
+      "metallic": 1,
+      "roughness": 0,
+      "alpha": 1,
+      "albedoTexture": "",
+      "metallicTexture": "metal_metalness.png",
+      "microSurfaceTexture": "",
+      "ambientTexture": "metal_ao.png",
+      "opacityTexture": "None",
+      "bumpTexture": "metal_normal.png",
+      "bumpTextureIntensity": 3.9000000000000004,
+      "lightmapTexture": "metal_ao.png",
+      "useLightmapAsShadowmap": true,
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
+    },
+    "gold": {
+      "type": "pbr",
+      "parent": "none"
     }
   }
 }

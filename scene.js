@@ -237,72 +237,80 @@ async function loadModels() {
 
 // Function to create PBR material according to Babylon.js documentation
 function createPBRMaterial(materialConfig, scene) {
-    const pbr = new BABYLON.PBRMaterial(`${materialConfig.name || "pbr"}_material`, scene);
+    // Handle parent-child material inheritance
+    let finalMaterialConfig = materialConfig;
+    if (materialConfig.parent && materialConfig.parent !== 'none' && materialsConfig && materialsConfig.materials[materialConfig.parent]) {
+        const parentMaterial = materialsConfig.materials[materialConfig.parent];
+        // Merge parent properties with child properties (child overrides parent)
+        finalMaterialConfig = { ...parentMaterial, ...materialConfig };
+    }
+    
+    const pbr = new BABYLON.PBRMaterial(`${finalMaterialConfig.name || "pbr"}_material`, scene);
     
     // === BASE PBR PROPERTIES ===
-    if (materialConfig.baseColor) {
-        const color = BABYLON.Color3.FromHexString(materialConfig.baseColor);
+    if (finalMaterialConfig.baseColor) {
+        const color = BABYLON.Color3.FromHexString(finalMaterialConfig.baseColor);
         pbr.albedoColor = color;
     }
     
-    pbr.metallic = materialConfig.metallic !== undefined ? materialConfig.metallic : 0;
-    pbr.roughness = materialConfig.roughness !== undefined ? materialConfig.roughness : 0.5;
-    pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
+    pbr.metallic = finalMaterialConfig.metallic !== undefined ? finalMaterialConfig.metallic : 0;
+    pbr.roughness = finalMaterialConfig.roughness !== undefined ? finalMaterialConfig.roughness : 0.5;
+    pbr.alpha = finalMaterialConfig.alpha !== undefined ? finalMaterialConfig.alpha : 1.0;
     
     // === TEXTURES ===
     // Albedo texture (base color)
-    if (materialConfig.albedoTexture && materialConfig.albedoTexture.trim() !== '' && materialConfig.albedoTexture !== 'None') {
-        pbr.albedoTexture = new BABYLON.Texture(`Textures/${materialConfig.albedoTexture}`, scene);
+    if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
+        pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
     } else {
         pbr.albedoTexture = null;
     }
     
     // Normal/Bump texture
-    if (materialConfig.bumpTexture && materialConfig.bumpTexture.trim() !== '' && materialConfig.bumpTexture !== 'None') {
-        pbr.bumpTexture = new BABYLON.Texture(`Textures/${materialConfig.bumpTexture}`, scene);
-        pbr.bumpTexture.level = materialConfig.bumpTextureIntensity !== undefined ? materialConfig.bumpTextureIntensity : 1.0;
+    if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None') {
+        pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
+        pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity !== undefined ? finalMaterialConfig.bumpTextureIntensity : 1.0;
     }
     
     // === SEPARATE TEXTURES ===
     // Metallic texture
-    if (materialConfig.metallicTexture && materialConfig.metallicTexture.trim() !== '' && materialConfig.metallicTexture !== 'None') {
-        pbr.metallicTexture = new BABYLON.Texture(`Textures/${materialConfig.metallicTexture}`, scene);
+    if (finalMaterialConfig.metallicTexture && finalMaterialConfig.metallicTexture.trim() !== '' && finalMaterialConfig.metallicTexture !== 'None') {
+        pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
     }
     
     // Microsurface (roughness) texture
-    if (materialConfig.microSurfaceTexture && materialConfig.microSurfaceTexture.trim() !== '' && materialConfig.microSurfaceTexture !== 'None') {
-        pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${materialConfig.microSurfaceTexture}`, scene);
+    if (finalMaterialConfig.microSurfaceTexture && finalMaterialConfig.microSurfaceTexture.trim() !== '' && finalMaterialConfig.microSurfaceTexture !== 'None') {
+        pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
     }
     
     // Ambient occlusion texture
-    if (materialConfig.ambientTexture && materialConfig.ambientTexture.trim() !== '' && materialConfig.ambientTexture !== 'None') {
-        pbr.ambientTexture = new BABYLON.Texture(`Textures/${materialConfig.ambientTexture}`, scene);
+    if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture.trim() !== '' && finalMaterialConfig.ambientTexture !== 'None') {
+        pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
     }
     
     // Opacity texture for local transparency control
-    if (materialConfig.opacityTexture && materialConfig.opacityTexture.trim() !== '' && materialConfig.opacityTexture !== 'None') {
-        pbr.opacityTexture = new BABYLON.Texture(`Textures/${materialConfig.opacityTexture}`, scene);
+    if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None') {
+        pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
         pbr.opacityTexture.getAlphaFromRGB = true; // CRUCIAL pour que l'opacityTexture fonctionne
         
         // When opacity texture is present, DON'T set pbr.opacity - let the texture handle it
         // The alpha slider will control the overall transparency of the visible parts
     } else {
         // When no opacity texture, use alpha for global transparency
-        pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
+        pbr.alpha = finalMaterialConfig.alpha !== undefined ? finalMaterialConfig.alpha : 1.0;
     }
     
     // === LIGHTMAP ===
     // Lightmap texture for baked lighting
-    if (materialConfig.lightmapTexture && materialConfig.lightmapTexture.trim() !== '' && materialConfig.lightmapTexture !== 'None') {
-        pbr.lightmapTexture = new BABYLON.Texture(`Textures/${materialConfig.lightmapTexture}`, scene);
+    if (finalMaterialConfig.lightmapTexture && finalMaterialConfig.lightmapTexture.trim() !== '' && finalMaterialConfig.lightmapTexture !== 'None') {
+        pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
         
         // Enable lightmap as shadowmap by default for better performance
-        pbr.useLightmapAsShadowmap = materialConfig.useLightmapAsShadowmap !== undefined ? materialConfig.useLightmapAsShadowmap : true;
+        pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
     }
     
     // === TEXTURE TRANSFORMATIONS ===
     // Apply transformations to all textures except lightmap
-    applyTextureTransformations(pbr, materialConfig);
+    applyTextureTransformations(pbr, finalMaterialConfig);
     
     // === TRANSPARENCY ===
     pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
@@ -322,7 +330,7 @@ function createPBRMaterial(materialConfig, scene) {
 }
 
 // Function to apply texture transformations to all textures except lightmap
-function applyTextureTransformations(pbr, materialConfig) {
+function applyTextureTransformations(pbr, finalMaterialConfig) {
     const textures = [
         pbr.albedoTexture,
         pbr.metallicTexture,
@@ -335,24 +343,24 @@ function applyTextureTransformations(pbr, materialConfig) {
     textures.forEach(texture => {
         if (texture) {
             // Apply U/V Offset
-            if (materialConfig.uOffset !== undefined) {
-                texture.uOffset = materialConfig.uOffset;
+            if (finalMaterialConfig.uOffset !== undefined) {
+                texture.uOffset = finalMaterialConfig.uOffset;
             }
-            if (materialConfig.vOffset !== undefined) {
-                texture.vOffset = materialConfig.vOffset;
+            if (finalMaterialConfig.vOffset !== undefined) {
+                texture.vOffset = finalMaterialConfig.vOffset;
             }
             
             // Apply U/V Scale
-            if (materialConfig.uScale !== undefined) {
-                texture.uScale = materialConfig.uScale;
+            if (finalMaterialConfig.uScale !== undefined) {
+                texture.uScale = finalMaterialConfig.uScale;
             }
-            if (materialConfig.vScale !== undefined) {
-                texture.vScale = materialConfig.vScale;
+            if (finalMaterialConfig.vScale !== undefined) {
+                texture.vScale = finalMaterialConfig.vScale;
             }
             
             // Apply W Rotation (convert degrees to radians)
-            if (materialConfig.wRotation !== undefined) {
-                texture.wAng = BABYLON.Tools.ToRadians(materialConfig.wRotation);
+            if (finalMaterialConfig.wRotation !== undefined) {
+                texture.wAng = BABYLON.Tools.ToRadians(finalMaterialConfig.wRotation);
             }
         }
     });

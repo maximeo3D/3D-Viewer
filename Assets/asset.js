@@ -17,7 +17,7 @@ const assetConfiguration = {
         {
           name: "link1",            // Nom du mesh dans le fichier 3D
           visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "red",      // Matériau pour le slot 1 (primitive0)
+          materialSlot1: "orange",      // Matériau pour le slot 1 (primitive0)
         },
         {
           name: "link2",            // Nom du mesh dans le fichier 3D
@@ -27,7 +27,7 @@ const assetConfiguration = {
         {
           name: "link3",            // Nom du mesh dans le fichier 3D
           visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "red",      // Matériau pour le slot 1 (primitive0)
+          materialSlot1: "orange",      // Matériau pour le slot 1 (primitive0)
         },
         {
           name: "link4",            // Nom du mesh dans le fichier 3D

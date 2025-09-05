@@ -20,6 +20,13 @@ class DatGUIManager {
         // Variables pour les contrôles de matériaux
         this.materialList = { selected: Object.keys(materialsConfig.materials)[0] || 'red' };
         this.materialSelectControl = null;
+        this.materialParentControl = null;
+        
+        // Variables pour la création de matériaux
+        this.createMaterialFolder = null;
+        this.newMaterialData = {
+            name: ''
+        };
         this.materialProperties = {
             baseColor: '#ffffff',
             metallic: 0.0,
@@ -410,6 +417,10 @@ class DatGUIManager {
                 this.onMaterialChange('selection', value);
             }
         });
+        
+        // Create Material subfolder
+        this.createMaterialFolder = this.materialsFolder.addFolder('Create Material');
+        this.createNewMaterialControls();
     }
     
     // Initialiser les propriétés du premier matériau
@@ -444,6 +455,19 @@ class DatGUIManager {
     
     // Créer tous les contrôles de matériaux
     createMaterialControls() {
+        // Parent material control
+        const parentOptions = ['none', ...Object.keys(this.materialsConfig.materials)];
+        const currentParent = this.materialsConfig.materials[this.materialList.selected]?.parent || 'none';
+        const parentData = { parent: currentParent };
+        
+        this.materialParentControl = this.materialsFolder.add(parentData, 'parent', parentOptions).name('Parent').onChange((value) => {
+            // Update the current material's parent
+            if (this.materialsConfig.materials[this.materialList.selected]) {
+                this.materialsConfig.materials[this.materialList.selected].parent = value;
+                this.applyMaterialChanges();
+            }
+        });
+        
         // Basic material properties
         this.baseColorControl = this.materialsFolder.addColor(this.materialProperties, 'baseColor').name('Albedo Color').onChange((value) => {
             this.materialProperties.baseColor = value;
@@ -589,6 +613,96 @@ class DatGUIManager {
         }, 100);
     }
     
+    // Créer les contrôles pour la création de matériaux
+    createNewMaterialControls() {
+        // Champ Name
+        this.createMaterialFolder.add(this.newMaterialData, 'name').name('Name').onChange((value) => {
+            this.newMaterialData.name = value;
+        });
+        
+        // Bouton Create
+        const createMaterial = {
+            create: async () => {
+                await this.createNewMaterial();
+            }
+        };
+        this.createMaterialFolder.add(createMaterial, 'create').name('Create');
+    }
+    
+    
+    // Créer le nouveau matériau
+    async createNewMaterial() {
+        if (!this.newMaterialData.name.trim()) {
+            alert('❌ Please enter a material name');
+            return;
+        }
+        
+        if (this.materialsConfig.materials[this.newMaterialData.name]) {
+            alert('❌ A material with this name already exists');
+            return;
+        }
+        
+        try {
+            // Créer le nouveau matériau avec parent: "none" par défaut
+            const newMaterial = {
+                type: 'pbr',
+                parent: 'none'
+            };
+            
+            // Ajouter le nouveau matériau à la configuration
+            this.materialsConfig.materials[this.newMaterialData.name] = newMaterial;
+            
+            // Mettre à jour la liste des matériaux dans l'interface
+            this.updateMaterialList();
+            
+            // Exporter la configuration mise à jour
+            const jsonContent = JSON.stringify(this.materialsConfig, null, 2);
+            const res = await fetch('materials.json?path=Textures', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: jsonContent
+            });
+            
+            if (!res.ok) {
+                throw new Error('Save failed: ' + res.status);
+            }
+            
+            console.log(`✅ Material "${this.newMaterialData.name}" created successfully!`);
+            
+            // Réinitialiser le formulaire
+            this.resetCreateMaterialForm();
+            
+        } catch (error) {
+            console.error("❌ Material creation failed:", error);
+            alert("❌ Material creation failed: " + error.message);
+        }
+    }
+    
+    // Mettre à jour la liste des matériaux dans l'interface
+    updateMaterialList() {
+        const materialNames = Object.keys(this.materialsConfig.materials);
+        
+        // Pour dat.GUI, on ne peut pas facilement mettre à jour les options d'un contrôle existant
+        // On va simplement ne pas recréer les contrôles pour éviter le déplacement
+        // Les nouveaux matériaux seront disponibles au prochain rechargement de la page
+        console.log(`✅ Material list updated. New materials: ${materialNames.join(', ')}`);
+    }
+    
+    // Réinitialiser le formulaire de création de matériau
+    resetCreateMaterialForm() {
+        this.newMaterialData.name = '';
+        
+        // Réinitialiser le contrôle Name
+        if (this.createMaterialFolder) {
+            const allControls = this.createMaterialFolder.__controllers || [];
+            allControls.forEach(controller => {
+                if (controller.property === 'name') {
+                    controller.setValue('');
+                }
+            });
+        }
+    }
+    
     // Fonction pour activer/désactiver la visibilité de dat.GUI
     toggleDatGUIVisibility(show) {
         if (this.gui && this.gui.domElement) {
@@ -635,6 +749,12 @@ class DatGUIManager {
         const selectedMaterial = this.materialList.selected;
         if (selectedMaterial && this.materialsConfig.materials[selectedMaterial]) {
             const material = this.materialsConfig.materials[selectedMaterial];
+            
+            // Update the parent control
+            if (this.materialParentControl) {
+                const currentParent = material.parent || 'none';
+                this.materialParentControl.setValue(currentParent);
+            }
             
             // Update the materialProperties object with actual values from materials.json
             this.materialProperties.baseColor = material.baseColor || '#ffffff';
