@@ -120,119 +120,45 @@ async function loadMaterialsConfig() {
 async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
     
-    for (const modelConfig of assetConfig.models) {
-        try {
-            // console.log(`Loading model: ${modelConfig.name} from ${modelConfig.file}`);
+    // Charger le modèle cubes.glb pour tous les modèles SKU
+    const modelFile = "cubes.glb";
+    
+    try {
+        console.log(`Loading model: ${modelFile}`);
+        
+        // Load the GLB file
+        const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
+        
+        if (result.meshes.length > 0) {
+            // Créer un groupe pour tous les meshes
+            const modelGroup = new BABYLON.TransformNode("SKU_Models", scene);
             
-            // Load the GLB file
-            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelConfig.file, scene);
+            // Appliquer les transformations par défaut
+            modelGroup.position = new BABYLON.Vector3(0, 0, 0);
+            modelGroup.rotation = new BABYLON.Vector3(0, 0, 0);
+            modelGroup.scaling = new BABYLON.Vector3(1, 1, 1);
             
-            if (result.meshes.length > 0) {
-                // Group all meshes under a transform node
-                const modelGroup = new BABYLON.TransformNode(modelConfig.name, scene);
-                
-                // Apply transform from config
-                if (modelConfig.position) {
-                    modelGroup.position = new BABYLON.Vector3(
-                        modelConfig.position[0],
-                        modelConfig.position[1],
-                        modelConfig.position[2]
-                    );
-                }
-                
-                if (modelConfig.rotation) {
-                    modelGroup.rotation = new BABYLON.Vector3(
-                        modelConfig.rotation[0],
-                        modelConfig.rotation[1],
-                        modelConfig.rotation[2]
-                    );
-                }
-                
-                // Les objets commencent à 0° de rotation X
-                modelGroup.rotation.x = 0;
-                
-
-                
-                if (modelConfig.scale) {
-                    modelGroup.scaling = new BABYLON.Vector3(
-                        modelConfig.scale[0],
-                        modelConfig.scale[1],
-                        modelConfig.scale[2]
-                    );
-                }
-                
-                // Parent all meshes to the group
-                result.meshes.forEach(mesh => {
+            // Attacher tous les meshes au groupe
+            result.meshes.forEach(mesh => {
+                if (mesh !== modelGroup) {
                     mesh.parent = modelGroup;
-                });
-                
-                // Apply visibility per mesh based on configuration
-                if (modelConfig.meshes) {
-                    result.meshes.forEach(mesh => {
-                        // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
-                        const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                        if (primitiveMatch) {
-                            const baseMeshName = primitiveMatch[1];
-                            
-                            // Find the mesh config for the base mesh
-                            const meshConfig = modelConfig.meshes.find(m => m.name === baseMeshName);
-                            if (meshConfig && meshConfig.visible !== undefined) {
-                                mesh.setEnabled(meshConfig.visible);
-                            }
-                        } else {
-                            // Handle non-primitive meshes (fallback)
-                            const meshConfig = modelConfig.meshes.find(m => m.name === mesh.name);
-                            if (meshConfig && meshConfig.visible !== undefined) {
-                                mesh.setEnabled(meshConfig.visible);
-                            }
-                        }
-                    });
                 }
-                
-                // Apply materials based on mesh names and material slots
-                if (modelConfig.meshes && materialsConfig && materialsConfig.materials) {
-                    result.meshes.forEach(mesh => {
-                        // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
-                        const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                        if (primitiveMatch) {
-                            const baseMeshName = primitiveMatch[1];
-                            const primitiveIndex = parseInt(primitiveMatch[2]);
-                            
-                            // Find the mesh config for the base mesh
-                            const meshConfig = modelConfig.meshes.find(m => m.name === baseMeshName);
-                            if (meshConfig) {
-                                // Apply material based on primitive index
-                                const materialSlotKey = `materialSlot${primitiveIndex + 1}`;
-                                const materialName = meshConfig[materialSlotKey];
-                                
-                                if (materialName && materialsConfig.materials[materialName]) {
-                                    applyMaterial(mesh, materialsConfig.materials[materialName]);
-                                    // console.log(`Applied ${materialName} material to ${mesh.name} (${materialSlotKey})`);
-                                }
-                            }
-                        } else {
-                            // Handle non-primitive meshes (fallback)
-                            const meshConfig = modelConfig.meshes.find(m => m.name === mesh.name);
-                            if (meshConfig && meshConfig.materialSlot1 && materialsConfig.materials[meshConfig.materialSlot1]) {
-                                applyMaterial(mesh, materialsConfig.materials[meshConfig.materialSlot1]);
-                            }
-                        }
-                    });
+            });
+            
+            console.log(`✅ Model ${modelFile} loaded successfully with ${result.meshes.length} meshes`);
+            
+            // Stocker les références des meshes pour le système SKU
+            result.meshes.forEach(mesh => {
+                if (mesh.name && mesh.name !== "SKU_Models") {
+                    console.log(`📦 Mesh found: ${mesh.name}`);
                 }
-                
-                // Store the loaded model
-                loadedModels.set(modelConfig.name, {
-                    group: modelGroup,
-                    meshes: result.meshes,
-                    config: modelConfig
-                });
-                
-                // console.log(`✅ Model ${modelConfig.name} loaded successfully`);
-            }
-        } catch (error) {
-            console.error(`❌ Failed to load model ${modelConfig.name}:`, error);
+            });
         }
+    } catch (error) {
+        console.error(`❌ Error loading model ${modelFile}:`, error);
     }
+    
+    // Le modèle est maintenant chargé une seule fois pour tous les SKUs
 }
 
 // Function to create PBR material according to Babylon.js documentation
@@ -478,13 +404,10 @@ const createScene = async function() {
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
             
-            // Appliquer la rotation aux objets
-            if (window.loadedModels) {
-                window.loadedModels.forEach((modelData, modelName) => {
-                    if (modelData.group) {
-                        modelData.group.rotation.x = currentObjectRotationX;
-                    }
-                });
+            // Appliquer la rotation au groupe SKU_Models
+            const skuModelsGroup = scene.getTransformNodeByName("SKU_Models");
+            if (skuModelsGroup) {
+                skuModelsGroup.rotation.x = currentObjectRotationX;
             }
         }
     });
@@ -561,15 +484,10 @@ const createScene = async function() {
                 const newRotationX = currentObjectRotationX + rotationDelta;
                 const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
                 
-                // Appliquer la rotation limitée à tous les objets chargés
-                if (window.loadedModels) {
-                    window.loadedModels.forEach((modelData, modelName) => {
-                        if (modelData.group) {
-                            modelData.group.rotation.x = clampedRotationX;
-                            
-
-                        }
-                    });
+                // Appliquer la rotation limitée au groupe SKU_Models
+                const skuModelsGroup = scene.getTransformNodeByName("SKU_Models");
+                if (skuModelsGroup) {
+                    skuModelsGroup.rotation.x = clampedRotationX;
                 }
                 
                             // Mettre à jour la rotation actuelle
@@ -649,10 +567,199 @@ const createScene = async function() {
     return scene;
 };
 
+// Classe SKUManager pour gérer le système SKU
+class SKUManager {
+    constructor(scene, materialsConfig) {
+        this.scene = scene;
+        this.materialsConfig = materialsConfig;
+        this.skuConfig = null;
+        this.currentSKU = null;
+        this.currentModel = 'model1';
+        this.currentColorScheme = 'color1';
+    }
+    
+    // Charger la configuration SKU depuis le fichier JSON
+    async loadSKUConfiguration() {
+        try {
+            const response = await fetch('SKUconfigs.json');
+            this.skuConfig = await response.json();
+            this.updateSKUFromSelection();
+        } catch (error) {
+            console.error('❌ Erreur lors du chargement de SKUconfigs.json:', error);
+        }
+    }
+    
+    // Définir le modèle
+    setModel(model) {
+        this.currentModel = model;
+        this.updateSKUFromSelection();
+    }
+    
+    // Définir le schéma de couleurs
+    setColorScheme(colorScheme) {
+        this.currentColorScheme = colorScheme;
+        this.updateSKUFromSelection();
+    }
+    
+    // Mettre à jour le SKU basé sur la sélection actuelle
+    updateSKUFromSelection() {
+        if (!this.skuConfig) return;
+        
+        // Trouver le SKU correspondant
+        const skuKey = Object.keys(this.skuConfig.skus).find(skuKey => {
+            const sku = this.skuConfig.skus[skuKey];
+            return sku.model === this.currentModel && sku.colorScheme === this.currentColorScheme;
+        });
+        
+        if (skuKey) {
+            this.currentSKU = skuKey;
+            this.applySKUConfiguration(skuKey);
+        }
+    }
+    
+    // Appliquer la configuration SKU
+    applySKUConfiguration(skuKey) {
+        if (!this.skuConfig || !this.skuConfig.skus[skuKey]) return;
+        
+        const skuConfig = this.skuConfig.skus[skuKey];
+        const configuration = skuConfig.configuration;
+        
+        // Appliquer la configuration à chaque mesh
+        Object.keys(configuration).forEach(meshName => {
+            const meshConfig = configuration[meshName];
+            
+            // Chercher tous les meshes qui correspondent au nom de base (ex: cube1 -> cube1_primitive0, cube1_primitive1)
+            const meshes = this.scene.meshes.filter(mesh => 
+                mesh.name.startsWith(meshName + '_primitive')
+            );
+            
+            meshes.forEach(mesh => {
+                // Gérer la visibilité
+                mesh.setEnabled(meshConfig.visible);
+                
+                // Gérer les matériaux si le mesh est visible
+                if (meshConfig.visible && meshConfig.materialSlots && mesh.material && mesh.material.subMaterials) {
+                    Object.keys(meshConfig.materialSlots).forEach(slotName => {
+                        const materialName = meshConfig.materialSlots[slotName];
+                        const slotIndex = this.getSlotIndex(slotName);
+                        
+                        if (slotIndex !== -1 && this.materialsConfig.materials[materialName]) {
+                            const material = this.createPBRMaterial(this.materialsConfig.materials[materialName], this.scene);
+                            mesh.material.subMaterials[slotIndex] = material;
+                        }
+                    });
+                }
+            });
+        });
+        
+        console.log(`✅ Configuration SKU ${skuKey} appliquée`);
+    }
+    
+    // Obtenir l'index du slot de matériau
+    getSlotIndex(slotName) {
+        const slotMap = {
+            'slot1': 0,
+            'slot2': 1,
+            'slot3': 2,
+            'slot4': 3
+        };
+        return slotMap[slotName] || -1;
+    }
+    
+    // Créer un matériau PBR
+    createPBRMaterial(materialConfig, scene) {
+        let finalMaterialConfig = materialConfig;
+        if (materialConfig.parent && materialConfig.parent !== 'none' && this.materialsConfig && this.materialsConfig.materials[materialConfig.parent]) {
+            const parentMaterial = this.materialsConfig.materials[materialConfig.parent];
+            finalMaterialConfig = { ...parentMaterial, ...materialConfig };
+        }
+        
+        const pbr = new BABYLON.PBRMaterial(`${finalMaterialConfig.name || "pbr"}_material`, scene);
+        
+        // Appliquer les propriétés de base
+        if (finalMaterialConfig.baseColor) {
+            pbr.baseColor = BABYLON.Color3.FromHexString(finalMaterialConfig.baseColor);
+        }
+        if (finalMaterialConfig.metallic !== undefined) {
+            pbr.metallic = finalMaterialConfig.metallic;
+        }
+        if (finalMaterialConfig.roughness !== undefined) {
+            pbr.roughness = finalMaterialConfig.roughness;
+        }
+        if (finalMaterialConfig.alpha !== undefined) {
+            pbr.alpha = finalMaterialConfig.alpha;
+        }
+        
+        // Appliquer les textures
+        if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture !== 'None') {
+            pbr.baseTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
+        }
+        if (finalMaterialConfig.metallicTexture && finalMaterialConfig.metallicTexture !== 'None') {
+            pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
+        }
+        if (finalMaterialConfig.microSurfaceTexture && finalMaterialConfig.microSurfaceTexture !== 'None') {
+            pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
+        }
+        if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture !== 'None') {
+            pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
+        }
+        if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture !== 'None') {
+            pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
+        }
+        if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture !== 'None') {
+            pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
+            if (finalMaterialConfig.bumpTextureIntensity !== undefined) {
+                pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity;
+            }
+        }
+        if (finalMaterialConfig.lightmapTexture && finalMaterialConfig.lightmapTexture !== 'None') {
+            pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
+            pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
+        }
+        
+        // Propriétés supplémentaires
+        if (finalMaterialConfig.backFaceCulling !== undefined) {
+            pbr.backFaceCulling = finalMaterialConfig.backFaceCulling;
+        }
+        
+        // Appliquer les transformations de texture
+        this.applyTextureTransformations(pbr, finalMaterialConfig);
+        
+        return pbr;
+    }
+    
+    // Appliquer les transformations de texture
+    applyTextureTransformations(pbr, finalMaterialConfig) {
+        if (finalMaterialConfig.uOffset !== undefined || finalMaterialConfig.vOffset !== undefined || 
+            finalMaterialConfig.uScale !== undefined || finalMaterialConfig.vScale !== undefined || 
+            finalMaterialConfig.wRotation !== undefined) {
+            
+            const texture = pbr.baseTexture || pbr.metallicTexture || pbr.microSurfaceTexture || 
+                           pbr.ambientTexture || pbr.opacityTexture || pbr.bumpTexture || pbr.lightmapTexture;
+            
+            if (texture) {
+                if (finalMaterialConfig.uOffset !== undefined) texture.uOffset = finalMaterialConfig.uOffset;
+                if (finalMaterialConfig.vOffset !== undefined) texture.vOffset = finalMaterialConfig.vOffset;
+                if (finalMaterialConfig.uScale !== undefined) texture.uScale = finalMaterialConfig.uScale;
+                if (finalMaterialConfig.vScale !== undefined) texture.vScale = finalMaterialConfig.vScale;
+                if (finalMaterialConfig.wRotation !== undefined) texture.wAng = BABYLON.Tools.ToRadians(finalMaterialConfig.wRotation);
+            }
+        }
+    }
+}
+
 // Call the createScene function
 createScene().then(async createdScene => {
     // Initialiser l'interface dat.GUI complète avec la classe DatGUIManager
     const datGUIManager = new DatGUIManager(scene, materialsConfig, config);
+    
+    // Initialiser le système SKU
+    const skuManager = new SKUManager(scene, materialsConfig);
+    await skuManager.loadSKUConfiguration();
+    
+    // Exposer les managers globalement pour les boutons HTML
+    window.datGUIManager = datGUIManager;
+    window.skuManager = skuManager;
     
     // Configurer les callbacks pour les changements de matériaux
     datGUIManager.onMaterialChange = (type, data) => {

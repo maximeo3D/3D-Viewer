@@ -1,45 +1,50 @@
-// Configuration des modèles 3D
-// Ce fichier définit les modèles à charger, leurs matériaux et leurs propriétés
-// Format: module JavaScript avec export par défaut
+// Configuration des modèles 3D - Données techniques
+// Ce fichier définit les modèles à charger et leurs paramètres techniques
+// Les configurations SKU sont gérées par SKUconfigs.json
 
-// Utiliser un nom unique pour éviter les conflits
 const assetConfiguration = {
-  models: [
-    {
-      name: "Fleche",           // Nom unique du modèle
-      file: "arrow.glb",       // Fichier 3D à charger (GLB/GLTF)
-      meshes: [
-        {
-          name: "arrow",              // Nom du mesh dans le fichier 3D
-          visible: true,             // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "red",      // Matériau pour le slot 1 (primitive0)
+  models: {
+    "model1": {
+      name: "Cube 1",
+      file: "cubes.glb",
+      meshes: {
+        "cube1": {
+          materialSlots: ["slot1", "slot2"]
         },
-        {
-          name: "link1",            // Nom du mesh dans le fichier 3D
-          visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "yellow",      // Matériau pour le slot 1 (primitive0)
-        },
-        {
-          name: "link2",            // Nom du mesh dans le fichier 3D
-          visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "red",      // Matériau pour le slot 1 (primitive0)
-        },
-        {
-          name: "link3",            // Nom du mesh dans le fichier 3D
-          visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "yellow",      // Matériau pour le slot 1 (primitive0)
-        },
-        {
-          name: "link4",            // Nom du mesh dans le fichier 3D
-          visible: true,            // Visibilité du mesh individuel (true = visible, false = caché)
-          materialSlot1: "blue",      // Matériau pour le slot 1 (primitive0)
+        "cube2": {
+          materialSlots: ["slot1", "slot2"]
         }
-      ],
-      position: [0, 0, 0],           // Position [X, Y, Z] dans la scène
-      rotation: [0, 0, 0],           // Rotation [X, Y, Z] en radians
-      scale: [1, 1, 1]              // Échelle [X, Y, Z]
+      },
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
+    },
+    "model2": {
+      name: "Cube 2", 
+      file: "cubes.glb",
+      meshes: {
+        "cube1": {
+          materialSlots: ["slot1", "slot2"]
+        },
+        "cube2": {
+          materialSlots: ["slot1", "slot2"]
+        }
+      },
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
     }
-  ]
+  },
+  defaultMaterials: {
+    "cube1": {
+      "slot1": "red",
+      "slot2": "red"
+    },
+    "cube2": {
+      "slot1": "green", 
+      "slot2": "blue"
+    }
+  }
 };
 
 // Exporter la configuration pour utilisation dans scene.js

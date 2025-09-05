@@ -1,0 +1,76 @@
+{
+  "models": {
+    "model1": "Cube 1",
+    "model2": "Cube 2"
+  },
+  "colorSchemes": {
+    "color1": "Rouge",
+    "color2": "Vert/Bleu"
+  },
+  "skus": {
+    "001-001-001": {
+      "model": "model1",
+      "colorScheme": "color1",
+      "configuration": {
+        "cube1": {
+          "visible": true,
+          "materialSlots": {
+            "slot1": "red",
+            "slot2": "red"
+          }
+        },
+        "cube2": {
+          "visible": false
+        }
+      }
+    },
+    "001-001-002": {
+      "model": "model1",
+      "colorScheme": "color2",
+      "configuration": {
+        "cube1": {
+          "visible": true,
+          "materialSlots": {
+            "slot1": "green",
+            "slot2": "blue"
+          }
+        },
+        "cube2": {
+          "visible": false
+        }
+      }
+    },
+    "001-002-001": {
+      "model": "model2",
+      "colorScheme": "color1",
+      "configuration": {
+        "cube1": {
+          "visible": false
+        },
+        "cube2": {
+          "visible": true,
+          "materialSlots": {
+            "slot1": "red",
+            "slot2": "red"
+          }
+        }
+      }
+    },
+    "001-002-002": {
+      "model": "model2",
+      "colorScheme": "color2",
+      "configuration": {
+        "cube1": {
+          "visible": false
+        },
+        "cube2": {
+          "visible": true,
+          "materialSlots": {
+            "slot1": "green",
+            "slot2": "blue"
+          }
+        }
+      }
+    }
+  }
+}

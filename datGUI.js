@@ -6,6 +6,7 @@ class DatGUIManager {
         this.scene = scene;
         this.materialsConfig = materialsConfig;
         this.config = config;
+        
         this.gui = null;
         this.loadedModels = new Map(); // Référence aux modèles chargés
         
@@ -628,6 +629,7 @@ class DatGUIManager {
         
         this.exportMaterialsControl = this.materialsFolder.add(exportMaterials, 'export').name('Export Materials');
         
+        
         // Force update of GUI controls to reflect initial values
         setTimeout(() => {
             this.updateGUIControls();
@@ -1092,6 +1094,7 @@ class DatGUIManager {
     getMaterialSelectControl() {
         return this.materialSelectControl;
     }
+    
     
     // Mettre à jour la sélection de matériau (pour la sélection par clic)
     setSelectedMaterial(materialName) {
