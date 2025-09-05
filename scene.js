@@ -50,7 +50,6 @@ async function loadConfig() {
         const response = await fetch('studio.json');
         if (response.ok) {
             config = await response.json();
-            // console.log("Configuration loaded from studio.json");
         } else {
             console.warn("Could not load studio.json, using default values");
         }
@@ -101,7 +100,6 @@ async function loadMaterialsConfig() {
         const response = await fetch('Textures/materials.json');
         if (response.ok) {
             materialsConfig = await response.json();
-            // console.log("Materials configuration loaded from Textures/materials.json");
         } else {
             console.warn("Could not load Textures/materials.json, using default values");
             materialsConfig = {
@@ -124,7 +122,6 @@ async function loadModels() {
     const modelFile = "cubes.glb";
     
     try {
-        console.log(`Loading model: ${modelFile}`);
         
         // Load the GLB file
         const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
@@ -145,12 +142,11 @@ async function loadModels() {
                 }
             });
             
-            console.log(`✅ Model ${modelFile} loaded successfully with ${result.meshes.length} meshes`);
             
             // Stocker les références des meshes pour le système SKU
             result.meshes.forEach(mesh => {
                 if (mesh.name && mesh.name !== "SKU_Models") {
-                    console.log(`📦 Mesh found: ${mesh.name}`);
+                    // Meshes chargés pour le système SKU
                 }
             });
         }
@@ -187,6 +183,11 @@ function createPBRMaterial(materialConfig, scene) {
     // Albedo texture (base color)
     if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
         pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
+        if (pbr.albedoTexture.onErrorObservable) {
+            pbr.albedoTexture.onErrorObservable.add(() => {
+                console.error(`❌ Failed to load albedo texture: ${finalMaterialConfig.albedoTexture}`);
+            });
+        }
     } else {
         pbr.albedoTexture = null;
     }
@@ -195,6 +196,11 @@ function createPBRMaterial(materialConfig, scene) {
     if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None') {
         pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
         pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity !== undefined ? finalMaterialConfig.bumpTextureIntensity : 1.0;
+        if (pbr.bumpTexture.onErrorObservable) {
+            pbr.bumpTexture.onErrorObservable.add(() => {
+                console.error(`❌ Failed to load bump texture: ${finalMaterialConfig.bumpTexture}`);
+            });
+        }
     }
     
     // === SEPARATE TEXTURES ===
@@ -543,7 +549,6 @@ const createScene = async function() {
             BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
         );
         
-        // console.log("HDR loaded successfully with HDRCubeTexture");
     } catch (error) {
         console.error("HDR loading failed:", error);
         
@@ -558,7 +563,6 @@ const createScene = async function() {
                 BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
             );
             
-            // console.log("HDR loaded successfully with CreateFromPrefilteredData");
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
         }
@@ -638,21 +642,30 @@ class SKUManager {
                 mesh.setEnabled(meshConfig.visible);
                 
                 // Gérer les matériaux si le mesh est visible
-                if (meshConfig.visible && meshConfig.materialSlots && mesh.material && mesh.material.subMaterials) {
-                    Object.keys(meshConfig.materialSlots).forEach(slotName => {
-                        const materialName = meshConfig.materialSlots[slotName];
-                        const slotIndex = this.getSlotIndex(slotName);
+                if (meshConfig.visible && meshConfig.materialSlots) {
+                    // Déterminer quel matériau appliquer selon le nom du mesh
+                    let materialName = null;
+                    
+                    // Si c'est un mesh primitif, déterminer le slot selon le nom
+                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                    if (primitiveMatch) {
+                        const baseMeshName = primitiveMatch[1];
+                        const primitiveIndex = parseInt(primitiveMatch[2]);
+                        const slotName = `slot${primitiveIndex + 1}`;
                         
-                        if (slotIndex !== -1 && this.materialsConfig.materials[materialName]) {
-                            const material = this.createPBRMaterial(this.materialsConfig.materials[materialName], this.scene);
-                            mesh.material.subMaterials[slotIndex] = material;
+                        if (meshConfig.materialSlots[slotName]) {
+                            materialName = meshConfig.materialSlots[slotName];
                         }
-                    });
+                    }
+                    
+                    // Appliquer le matériau si trouvé
+                    if (materialName && this.materialsConfig.materials[materialName]) {
+                        applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                    }
                 }
             });
         });
         
-        console.log(`✅ Configuration SKU ${skuKey} appliquée`);
     }
     
     // Obtenir l'index du slot de matériau

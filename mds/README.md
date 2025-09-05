@@ -1,22 +1,61 @@
-# Assets Folder
+# 3D Viewer - Documentation Principale
 
-This folder contains 3D models and asset configuration for the 3D Viewer.
+Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion des SKUs.
 
-## Structure
+## 🎯 **Fonctionnalités Principales**
 
-- `asset.js` - Asset configuration file defining models, meshes, and materials (JavaScript format)
-- `*.glb` - 3D model files in GLB format
-- `README.md` - This file
+### **Système SKU (Stock Keeping Unit)**
+- Gestion des configurations de produits via `SKUconfigs.json`
+- Boutons HTML pour sélection de modèles et schémas de couleurs
+- Contrôle de visibilité des meshes par configuration
+- Assignation automatique de matériaux selon les slots
 
-## Asset Configuration
+### **Système de Matériaux Avancé**
+- Éditeur PBR complet avec textures et transformations
+- Système parent-enfant avec héritage de propriétés
+- Interface dat.GUI avec paramètres grisés pour les propriétés héritées
+- Toggle d'indépendance par clic sur le nom du paramètre
+- Création de matériaux depuis l'interface
 
-The `asset.js` file defines:
-- **Models**: 3D model files and their properties
-- **Meshes**: Individual mesh names within each model with visibility control
-- **Material Slots**: Material assignments for each mesh
-- **Transform**: Position, rotation, scale, and visibility
+### **Contrôles de Caméra Personnalisés**
+- Mouvement horizontal : contrôle uniquement l'alpha (yaw) de la caméra
+- Mouvement vertical : rotation des objets 3D sur l'axe X
+- Limites de rotation des objets (-90° à +90°)
+- Élasticité de rotation des objets (retour à 0° au relâchement)
 
-**Note**: Materials are defined separately in `Textures/materials.json`
+## 📁 **Structure du Projet**
+
+```
+3D-Viewer/
+├── index.html                 # Interface HTML avec boutons SKU
+├── scene.js                   # Logique 3D, contrôles, SKUManager
+├── datGUI.js                  # Interface utilisateur dat.GUI
+├── SKUconfigs.json            # Configuration des SKUs
+├── studio.json                # Configuration environnement/caméra
+├── Assets/
+│   ├── asset.js              # Données techniques des modèles
+│   └── cubes.glb             # Modèle de test
+└── Textures/
+    ├── materials.json         # Matériaux PBR avec héritage
+    └── [textures]            # Textures PBR
+```
+
+## 🔧 **Configuration des Assets**
+
+### **Assets/asset.js**
+Fichier de données techniques définissant :
+- **Models**: Fichiers de modèles 3D et leurs propriétés
+- **Meshes**: Noms des meshes individuels avec slots de matériaux
+- **Material Slots**: Définition des slots de matériaux pour chaque mesh
+- **Transform**: Position, rotation, échelle
+
+### **SKUconfigs.json**
+Configuration métier des produits :
+- **Models**: Correspondance entre identifiants techniques et noms d'affichage
+- **ColorSchemes**: Schémas de couleurs disponibles
+- **SKUs**: Configurations complètes des produits (visibilité, matériaux)
+
+**Note**: Les matériaux sont définis séparément dans `Textures/materials.json`
 
 ## Adding Models
 

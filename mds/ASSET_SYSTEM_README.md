@@ -1,31 +1,33 @@
-# 3D Model Loading & Asset System
+# Système de Gestion des Assets 3D
 
-This document explains the 3D model loading and asset management system implemented in the 3D Viewer.
+Documentation du système de chargement et de gestion des modèles 3D avec support SKU.
 
-## 🚀 **System Overview**
+## 🚀 **Vue d'Ensemble du Système**
 
-The asset system allows you to:
-- **Load 3D models** in GLB format
-- **Configure models** with position, rotation, scale, and visibility
-- **Assign materials** to specific mesh names
-- **Export/import** asset configurations
-- **Manage materials** with PBR properties
+Le système d'assets permet de :
+- **Charger des modèles 3D** au format GLB
+- **Configurer les modèles** avec position, rotation, échelle et visibilité
+- **Assigner des matériaux** à des noms de meshes spécifiques
+- **Gérer les SKUs** avec configurations de produits
+- **Exporter/importer** les configurations d'assets
+- **Gérer les matériaux** avec propriétés PBR et héritage
 
 ## 📁 **Folder Structure**
 
 ```
 3D-Viewer/
-├── Assets/                    ← 3D models and configuration
-│   ├── asset.json            ← Asset configuration file
-│   ├── cube-sphere.glb       ← 3D model file
-│   └── README.md             ← Assets folder documentation
-├── Textures/                  ← Texture files and materials
-│   ├── materials.json        ← PBR materials configuration
-│   ├── HDR/                  ← HDR environment textures
-│   └── ...                   ← Other texture files
-├── scene.js                   ← Main scene with asset loading
-├── serve.ps1                  ← Server with GLB support
-└── studio.json                ← Camera and environment settings
+├── Assets/                    ← Modèles 3D et configuration technique
+│   ├── asset.js              ← Configuration technique des assets
+│   ├── cubes.glb             ← Fichier de modèle 3D avec meshes primitifs
+│   └── README.md             ← Documentation du dossier Assets
+├── Textures/                  ← Fichiers de textures et matériaux
+│   ├── materials.json        ← Configuration des matériaux PBR avec héritage
+│   ├── HDR/                  ← Textures d'environnement HDR
+│   └── ...                   ← Autres fichiers de textures
+├── SKUconfigs.json           ← Configuration métier des SKUs
+├── scene.js                   ← Scène principale avec chargement d'assets et SKUManager
+├── serve.ps1                  ← Serveur avec support GLB
+└── studio.json                ← Paramètres de caméra et d'environnement
 ```
 
 ## 🎯 **Asset Configuration**

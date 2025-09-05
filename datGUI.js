@@ -202,7 +202,6 @@ class DatGUIManager {
                     });
                     
                     if (res.ok) {
-                        console.log("✅ Environment parameters exported successfully!");
                         this.config = exportConfig;
                     } else {
                         throw new Error('Save failed: ' + res.status);
@@ -397,7 +396,6 @@ class DatGUIManager {
                     });
                     
                     if (res.ok) {
-                        console.log("✅ Studio configuration exported successfully!");
                     } else {
                         throw new Error('Save failed: ' + res.status);
                     }
@@ -620,7 +618,6 @@ class DatGUIManager {
                         throw new Error('Save failed: ' + res.status);
                     }
                     
-                    console.log("✅ Materials configuration exported successfully!");
                 } catch (error) {
                     console.error("❌ Materials export failed:", error);
                 }
@@ -696,7 +693,6 @@ class DatGUIManager {
                 throw new Error('Save failed: ' + res.status);
             }
             
-            console.log(`✅ Material "${this.newMaterialData.name}" created successfully!`);
             
             // Réinitialiser le formulaire
             this.resetCreateMaterialForm();
@@ -714,7 +710,6 @@ class DatGUIManager {
         // Pour dat.GUI, on ne peut pas facilement mettre à jour les options d'un contrôle existant
         // On va simplement ne pas recréer les contrôles pour éviter le déplacement
         // Les nouveaux matériaux seront disponibles au prochain rechargement de la page
-        console.log(`✅ Material list updated. New materials: ${materialNames.join(', ')}`);
     }
     
     // Réinitialiser le formulaire de création de matériau

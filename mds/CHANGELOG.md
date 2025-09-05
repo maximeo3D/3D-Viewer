@@ -5,6 +5,79 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [2.3.0] - 2024-12-XX - Système SKU et Matériaux Avancés
+
+### 🎉 Ajouté
+- **Système SKU (Stock Keeping Unit)**
+  - Gestion des configurations de produits via `SKUconfigs.json`
+  - Boutons HTML pour sélection de modèles et schémas de couleurs
+  - Contrôle de visibilité des meshes par configuration
+  - Assignation automatique de matériaux selon les slots
+  - Classe `SKUManager` pour la gestion centralisée
+
+- **Système de Matériaux Parent-Enfant**
+  - Héritage de propriétés entre matériaux
+  - Interface dat.GUI avec paramètres grisés pour les propriétés héritées
+  - Toggle d'indépendance par clic sur le nom du paramètre
+  - Export intelligent (seules les propriétés modifiées sont sauvegardées)
+  - Support complet des textures et transformations
+
+- **Création de Matériaux depuis dat.GUI**
+  - Sous-menu "Create Material" dans l'interface Materials
+  - Champ "Name" pour le nom du nouveau matériau
+  - Sélection du matériau parent via dropdown
+  - Export automatique vers `materials.json`
+  - Interface intuitive et cohérente
+
+- **Gestion des Meshes Primitifs**
+  - Support automatique des meshes `*_primitive0`, `*_primitive1`
+  - Mapping intelligent des slots de matériaux
+  - Application sélective des matériaux par slot
+  - Gestion de la visibilité par mesh individuel
+
+### 🔧 Modifié
+- **Architecture des Assets**
+  - Séparation entre `asset.js` (données techniques) et `SKUconfigs.json` (configuration métier)
+  - Simplification de la structure des modèles
+  - Chargement unique des modèles GLB pour tous les SKUs
+  - Optimisation des performances de chargement
+
+- **Interface dat.GUI**
+  - Ajout du contrôle "Parent" dans le menu Materials
+  - Réorganisation des contrôles de matériaux
+  - Amélioration de la gestion des textures
+  - Interface plus intuitive pour la création de matériaux
+
+- **Système de Rotation**
+  - Correction de la référence aux groupes de modèles
+  - Utilisation du groupe `SKU_Models` pour la rotation
+  - Maintien de l'élasticité et des limites de rotation
+
+### 🐛 Corrigé
+- **Gestion des Matériaux**
+  - Correction de l'application des matériaux via `applyMaterial()`
+  - Résolution des problèmes de chargement des textures
+  - Gestion sécurisée des observables de texture
+  - Correction des erreurs de référence aux meshes
+
+- **Système SKU**
+  - Résolution des conflits de noms de variables
+  - Correction de la logique de recherche des meshes primitifs
+  - Gestion des erreurs de configuration
+  - Optimisation des performances
+
+- **Interface Utilisateur**
+  - Correction des logs de débogage
+  - Amélioration de la stabilité de l'interface
+  - Résolution des problèmes de réorganisation des contrôles
+
+### 🗑️ Supprimé
+- **Code Obsolète**
+  - Suppression de la boucle de chargement redondante des modèles
+  - Nettoyage des références à `window.loadedModels`
+  - Suppression des logs de débogage temporaires
+  - Code de compatibilité obsolète
+
 ## [2.2.0] - 2024-12-XX - Refactoring et Contrôles Avancés
 
 ### 🎉 Ajouté

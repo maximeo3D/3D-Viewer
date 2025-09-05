@@ -7,17 +7,18 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ### **Structure des Fichiers**
 ```
 3D-Viewer/
-├── index.html                 # Interface HTML principale
-├── scene.js                   # Logique 3D et contrôles personnalisés
+├── index.html                 # Interface HTML principale avec boutons SKU
+├── scene.js                   # Logique 3D, contrôles personnalisés, SKUManager
 ├── datGUI.js                  # Interface utilisateur dat.GUI complète
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
 ├── studio.json                # Configuration environnement/caméra
+├── SKUconfigs.json            # Configuration des SKUs (produits/couleurs)
 ├── Assets/
-│   ├── asset.js              # Configuration des modèles 3D (JavaScript)
-│   └── cube-sphere.glb       # Modèle de test
+│   ├── asset.js              # Données techniques des modèles 3D
+│   └── cubes.glb             # Modèle de test avec meshes primitifs
 └── Textures/
-    ├── materials.json         # Configuration des matériaux PBR
+    ├── materials.json         # Configuration des matériaux PBR avec héritage
     ├── HDR/
     │   └── default.hdr       # Environnement HDR
     └── [autres textures]     # Textures PBR (PNG, JPG, etc.)
@@ -32,10 +33,11 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ### **Architecture Modulaire**
 
 #### **Séparation des Responsabilités**
-- **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles
-- **`datGUI.js`** : Interface utilisateur complète, gestion des matériaux, contrôles d'environnement
+- **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles, classe SKUManager
+- **`datGUI.js`** : Interface utilisateur complète, gestion des matériaux avec héritage, contrôles d'environnement
 - **`studio.json`** : Configuration persistante de la caméra et de l'environnement
-- **`Assets/asset.js`** : Configuration des modèles 3D avec visibilité par mesh
+- **`Assets/asset.js`** : Données techniques des modèles 3D (fichiers, slots de matériaux)
+- **`SKUconfigs.json`** : Configuration métier des produits (visibilité, assignation de matériaux)
 
 #### **Classe DatGUIManager**
 ```javascript
@@ -574,6 +576,245 @@ if (materialConfig.opacityTexture && materialConfig.opacityTexture.trim() !== ''
 } else {
     // Quand pas d'opacityTexture, utiliser alpha pour la transparence globale
     pbr.alpha = materialConfig.alpha !== undefined ? materialConfig.alpha : 1.0;
+}
+```
+
+## 🎯 **Système SKU (Stock Keeping Unit)**
+
+### **Classe SKUManager**
+```javascript
+class SKUManager {
+    constructor(scene, materialsConfig) {
+        this.scene = scene;
+        this.materialsConfig = materialsConfig;
+        this.skuConfig = null;
+        this.currentSKU = null;
+        this.currentModel = 'model1';
+        this.currentColorScheme = 'color1';
+    }
+    
+    async loadSKUConfiguration() {
+        try {
+            const response = await fetch('SKUconfigs.json');
+            this.skuConfig = await response.json();
+            this.updateSKUFromSelection();
+        } catch (error) {
+            console.error('❌ Erreur lors du chargement de SKUconfigs.json:', error);
+        }
+    }
+    
+    setModel(model) {
+        this.currentModel = model;
+        this.updateSKUFromSelection();
+    }
+    
+    setColorScheme(colorScheme) {
+        this.currentColorScheme = colorScheme;
+        this.updateSKUFromSelection();
+    }
+    
+    updateSKUFromSelection() {
+        if (!this.skuConfig) return;
+        
+        const skuKey = Object.keys(this.skuConfig.skus).find(skuKey => {
+            const sku = this.skuConfig.skus[skuKey];
+            return sku.model === this.currentModel && 
+                   sku.colorScheme === this.currentColorScheme;
+        });
+        
+        if (skuKey) {
+            this.currentSKU = skuKey;
+            this.applySKUConfiguration(skuKey);
+        }
+    }
+    
+    applySKUConfiguration(skuKey) {
+        const skuConfig = this.skuConfig.skus[skuKey];
+        const configuration = skuConfig.configuration;
+        
+        Object.keys(configuration).forEach(meshName => {
+            const meshConfig = configuration[meshName];
+            
+            // Trouver les meshes primitifs correspondants
+            const meshes = this.scene.meshes.filter(mesh => 
+                mesh.name.startsWith(meshName + '_primitive')
+            );
+            
+            meshes.forEach(mesh => {
+                // Gérer la visibilité
+                mesh.setEnabled(meshConfig.visible);
+                
+                // Gérer les matériaux
+                if (meshConfig.visible && meshConfig.materialSlots) {
+                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                    if (primitiveMatch) {
+                        const primitiveIndex = parseInt(primitiveMatch[2]);
+                        const slotName = `slot${primitiveIndex + 1}`;
+                        
+                        if (meshConfig.materialSlots[slotName]) {
+                            const materialName = meshConfig.materialSlots[slotName];
+                            applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                        }
+                    }
+                }
+            });
+        });
+        
+        console.log(`✅ Configuration SKU ${skuKey} appliquée`);
+    }
+}
+```
+
+### **Configuration SKU**
+```json
+{
+  "models": {
+    "model1": "Cube 1",
+    "model2": "Cube 2"
+  },
+  "colorSchemes": {
+    "color1": "Red",
+    "color2": "Green/Blue"
+  },
+  "skus": {
+    "001-001-001": {
+      "model": "model1",
+      "colorScheme": "color1",
+      "configuration": {
+        "cube1": {
+          "visible": true,
+          "materialSlots": {
+            "slot1": "red",
+            "slot2": "red"
+          }
+        },
+        "cube2": {
+          "visible": false
+        }
+      }
+    }
+  }
+}
+```
+
+### **Interface HTML**
+```html
+<div class="sidebar">
+    <h3>Models</h3>
+    <button id="model1-btn" class="sidebar-btn">Model 1</button>
+    <button id="model2-btn" class="sidebar-btn">Model 2</button>
+    
+    <h3>Colors</h3>
+    <button id="color1-btn" class="sidebar-btn">Red</button>
+    <button id="color2-btn" class="sidebar-btn">Green</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        if (window.skuManager) {
+            // Boutons de modèles
+            document.getElementById('model1-btn').addEventListener('click', () => {
+                window.skuManager.setModel('model1');
+                updateButtonStates();
+            });
+            
+            // Boutons de couleurs
+            document.getElementById('color1-btn').addEventListener('click', () => {
+                window.skuManager.setColorScheme('color1');
+                updateButtonStates();
+            });
+            
+            updateButtonStates();
+        }
+    }, 1000);
+});
+</script>
+```
+
+## 🎨 **Système de Matériaux Parent-Enfant**
+
+### **Héritage de Propriétés**
+```javascript
+function createPBRMaterial(materialConfig, scene) {
+    // Handle parent-child material inheritance
+    let finalMaterialConfig = materialConfig;
+    if (materialConfig.parent && materialConfig.parent !== 'none' && materialsConfig && materialsConfig.materials[materialConfig.parent]) {
+        const parentMaterial = materialsConfig.materials[materialConfig.parent];
+        // Merge parent properties with child properties (child overrides parent)
+        finalMaterialConfig = { ...parentMaterial, ...materialConfig };
+    }
+    
+    const pbr = new BABYLON.PBRMaterial(`${finalMaterialConfig.name || "pbr"}_material`, scene);
+    
+    // ... application des propriétés
+    return pbr;
+}
+```
+
+### **Interface dat.GUI avec Héritage**
+```javascript
+updateParentChildDisplay() {
+    // Clear independent properties
+    this.independentProperties.clear();
+    
+    // If material has a parent, determine which properties are independent
+    if (this.materialsConfig.materials[this.materialList.selected]?.parent !== 'none') {
+        const currentMaterial = this.materialsConfig.materials[this.materialList.selected];
+        const parentMaterial = this.materialsConfig.materials[currentMaterial.parent];
+        
+        // Compare each property to determine independence
+        Object.keys(this.materialProperties).forEach(propertyName => {
+            if (currentMaterial[propertyName] !== undefined && 
+                currentMaterial[propertyName] !== parentMaterial[propertyName]) {
+                this.independentProperties.add(propertyName);
+            }
+        });
+    }
+    
+    this.updateControlsAppearance();
+}
+
+updateControlsAppearance() {
+    this.materialControls.forEach((control, propertyName) => {
+        const isIndependent = this.independentProperties.has(propertyName);
+        
+        // Set opacity for inherited properties
+        control.domElement.style.opacity = isIndependent ? '1' : '0.5';
+        
+        // Set tooltip
+        control.domElement.title = isIndependent ? 
+            `Independent - Click to inherit from parent` : 
+            `Inherited from parent - Click to make independent`;
+        
+        // Add click handler to parameter name
+        this.addLabelClickHandler(control, propertyName);
+    });
+}
+```
+
+### **Toggle d'Indépendance**
+```javascript
+togglePropertyIndependence(propertyName) {
+    const currentMaterial = this.materialsConfig.materials[this.materialList.selected];
+    
+    if (this.independentProperties.has(propertyName)) {
+        // Make inherited - remove from material and independentProperties
+        delete currentMaterial[propertyName];
+        this.independentProperties.delete(propertyName);
+        
+        // Update display with parent value
+        const parentMaterial = this.materialsConfig.materials[currentMaterial.parent];
+        this.materialProperties[propertyName] = parentMaterial[propertyName];
+    } else {
+        // Make independent - add to material and independentProperties
+        currentMaterial[propertyName] = this.materialProperties[propertyName];
+        this.independentProperties.add(propertyName);
+    }
+    
+    this.updateControlsAppearance();
+    this.updateGUIControls();
+    this.applyMaterialChanges();
 }
 ```
 
