@@ -1107,11 +1107,12 @@ class DatGUIManager {
         const scene = window.tagManager.scene;
         
         // Utiliser les informations du TagManager pour trouver les bons meshes
-        if (window.tagManager.activeMaterialConfig) {
-            const { objectName, configName } = window.tagManager.activeMaterialConfig;
-            const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
-            
+        if (window.tagManager.activeMaterialConfigs && window.tagManager.activeMaterialConfigs.size > 0) {
             let updatedCount = 0;
+            
+            // Parcourir toutes les configurations actives
+            for (const [objectName, configName] of window.tagManager.activeMaterialConfigs) {
+                const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
             
             // Parcourir tous les meshes et vérifier s'ils utilisent le matériau sélectionné
             scene.meshes.forEach(mesh => {
@@ -1160,11 +1161,98 @@ class DatGUIManager {
                             mesh.material.alpha = this.materialProperties.alpha;
                         }
                         
+                        // Mettre à jour les textures
+                        if (this.materialProperties.albedoTexture && this.materialProperties.albedoTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.albedoTexture}`, scene);
+                            mesh.material.albedoTexture = texture;
+                        } else {
+                            mesh.material.albedoTexture = null;
+                        }
+                        
+                        if (this.materialProperties.metallicTexture && this.materialProperties.metallicTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.metallicTexture}`, scene);
+                            mesh.material.metallicTexture = texture;
+                        } else {
+                            mesh.material.metallicTexture = null;
+                        }
+                        
+                        if (this.materialProperties.microSurfaceTexture && this.materialProperties.microSurfaceTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.microSurfaceTexture}`, scene);
+                            mesh.material.microSurfaceTexture = texture;
+                        } else {
+                            mesh.material.microSurfaceTexture = null;
+                        }
+                        
+                        if (this.materialProperties.ambientTexture && this.materialProperties.ambientTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.ambientTexture}`, scene);
+                            mesh.material.ambientTexture = texture;
+                        } else {
+                            mesh.material.ambientTexture = null;
+                        }
+                        
+                        if (this.materialProperties.opacityTexture && this.materialProperties.opacityTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.opacityTexture}`, scene);
+                            mesh.material.opacityTexture = texture;
+                        } else {
+                            mesh.material.opacityTexture = null;
+                        }
+                        
+                        if (this.materialProperties.bumpTexture && this.materialProperties.bumpTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.bumpTexture}`, scene);
+                            mesh.material.bumpTexture = texture;
+                        } else {
+                            mesh.material.bumpTexture = null;
+                        }
+                        
+                        if (this.materialProperties.lightmapTexture && this.materialProperties.lightmapTexture !== 'None') {
+                            const texture = new BABYLON.Texture(`Textures/${this.materialProperties.lightmapTexture}`, scene);
+                            mesh.material.lightmapTexture = texture;
+                        } else {
+                            mesh.material.lightmapTexture = null;
+                        }
+                        
+                        // Mettre à jour les paramètres de texture
+                        if (this.materialProperties.bumpTextureIntensity !== undefined && mesh.material.bumpTexture) {
+                            mesh.material.bumpTexture.level = this.materialProperties.bumpTextureIntensity;
+                        }
+                        
+                        // Appliquer les transformations UV à toutes les textures actives
+                        const textureTransform = {
+                            uOffset: this.materialProperties.uOffset || 0,
+                            vOffset: this.materialProperties.vOffset || 0,
+                            uScale: this.materialProperties.uScale || 1,
+                            vScale: this.materialProperties.vScale || 1,
+                            wRotation: this.materialProperties.wRotation || 0
+                        };
+                        
+                        // Appliquer les transformations à toutes les textures du matériau
+                        const textures = [
+                            mesh.material.albedoTexture,
+                            mesh.material.metallicTexture,
+                            mesh.material.microSurfaceTexture,
+                            mesh.material.ambientTexture,
+                            mesh.material.opacityTexture,
+                            mesh.material.bumpTexture,
+                            mesh.material.lightmapTexture
+                        ];
+                        
+                        textures.forEach(texture => {
+                            if (texture) {
+                                texture.uOffset = textureTransform.uOffset;
+                                texture.vOffset = textureTransform.vOffset;
+                                texture.uScale = textureTransform.uScale;
+                                texture.vScale = textureTransform.vScale;
+                                // Convertir les degrés en radians pour la rotation
+                                texture.wAng = BABYLON.Tools.ToRadians(textureTransform.wRotation);
+                            }
+                        });
+                        
                         // Marquer le matériau comme modifié
                         mesh.material.markDirty(BABYLON.Material.TextureDirtyFlag);
                     }
                 }
             });
+            }
             
             // Mise à jour temps réel terminée
         }
@@ -1238,24 +1326,30 @@ class DatGUIManager {
     
     // Déterminer si un mesh devrait utiliser un matériau spécifique pour son slot
     shouldMeshUseMaterialForSlot(meshName, materialName) {
-        if (!window.tagManager || !window.tagManager.activeMaterialConfig) return false;
+        if (!window.tagManager || !window.tagManager.activeMaterialConfigs || window.tagManager.activeMaterialConfigs.size === 0) return false;
         
-        const { objectName, configName } = window.tagManager.activeMaterialConfig;
-        if (!window.tagManager.tagConfig || !window.tagManager.tagConfig.materials[objectName]) return false;
+        // Vérifier toutes les configurations actives
+        for (const [objectName, configName] of window.tagManager.activeMaterialConfigs) {
+            if (!window.tagManager.tagConfig || !window.tagManager.tagConfig.materials[objectName]) continue;
+            
+            const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
+            if (!materialConfig) continue;
         
-        const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
-        if (!materialConfig) return false;
+            // Extraire le nom de base du mesh et l'index du primitif (ex: cube1_primitive0 -> cube1, 0)
+            const primitiveMatch = meshName.match(/^(.+)_primitive(\d+)$/);
+            if (!primitiveMatch) continue;
+            
+            const baseMeshName = primitiveMatch[1];
+            const primitiveIndex = parseInt(primitiveMatch[2]);
+            const slotName = `slot${primitiveIndex + 1}`;
+            
+            // Vérifier si ce slot spécifique utilise le matériau modifié
+            if (materialConfig[slotName] === materialName) {
+                return true;
+            }
+        }
         
-        // Extraire le nom de base du mesh et l'index du primitif (ex: cube1_primitive0 -> cube1, 0)
-        const primitiveMatch = meshName.match(/^(.+)_primitive(\d+)$/);
-        if (!primitiveMatch) return false;
-        
-        const baseMeshName = primitiveMatch[1];
-        const primitiveIndex = parseInt(primitiveMatch[2]);
-        const slotName = `slot${primitiveIndex + 1}`;
-        
-        // Vérifier si ce slot spécifique utilise le matériau modifié
-        return materialConfig[slotName] === materialName;
+        return false;
     }
     
     // Créer un matériau PBR (copie de la fonction dans scene.js)

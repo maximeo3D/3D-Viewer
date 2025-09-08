@@ -16,8 +16,11 @@
         
         // Configuration par défaut
         const defaultConfig = {
-            options: 'option1',
-            materials: 'config1'
+            option: 'base',
+            blocMaterial: 'red',
+            flagOption: 'none',
+            engravingEnabled: true,
+            engravingText: ''
         };
     </script>
 </head>
@@ -29,16 +32,37 @@
                     <h3>Options</h3>
                     <div class="buttons">
                         <button class="sidebar-btn" id="option1-btn">Option 1</button>
-                        <button class="sidebar-btn" id="option2-btn">Option 2</button>
-                        <button class="sidebar-btn" id="option3-btn">Option 3</button>
                     </div>
                 </div>
                 
                 <div class="category">
-                    <h3>Material Configs</h3>
+                    <h3>Bloc Material</h3>
                     <div class="buttons">
-                        <button class="sidebar-btn" id="config1-btn">Config 1 (Red/Blue)</button>
-                        <button class="sidebar-btn" id="config2-btn">Config 2 (Blue/Red)</button>
+                        <button class="sidebar-btn" id="bloc-red-btn">Red</button>
+                        <button class="sidebar-btn" id="bloc-blue-btn">Blue</button>
+                        <button class="sidebar-btn" id="bloc-green-btn">Green</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Flag</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="flag-none-btn">None</button>
+                        <button class="sidebar-btn" id="flag-red-btn">Red</button>
+                        <button class="sidebar-btn" id="flag-blue-btn">Blue</button>
+                        <button class="sidebar-btn" id="flag-green-btn">Green</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Engraving</h3>
+                    <div class="controls">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="engraving-checkbox">
+                            <span class="checkmark"></span>
+                            Enable Engraving
+                        </label>
+                        <input type="text" id="engraving-text" placeholder="Enter engraving text..." style="display: none;">
                     </div>
                 </div>
             </div>
@@ -54,39 +78,106 @@
             // Attendre que le TagManager soit initialisé
             setTimeout(() => {
                 if (window.tagManager) {
-                    // Boutons d'options (sélection exclusive)
+                    // Bouton Option 1 (affiche le bloc)
                     document.getElementById('option1-btn').addEventListener('click', () => {
-                        window.tagManager.setOption('option1');
+                        window.tagManager.setOption('base');
                         updateButtonStates();
                     });
                     
-                    document.getElementById('option2-btn').addEventListener('click', () => {
-                        window.tagManager.setOption('option2');
+                    // Boutons de matériau pour le bloc
+                    document.getElementById('bloc-red-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'red');
                         updateButtonStates();
                     });
                     
-                    document.getElementById('option3-btn').addEventListener('click', () => {
-                        window.tagManager.setOption('option3');
+                    document.getElementById('bloc-blue-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'blue');
                         updateButtonStates();
                     });
                     
-                    // Boutons de configuration de matériaux
-                    document.getElementById('config1-btn').addEventListener('click', () => {
-                        window.tagManager.applyMaterialConfig('object1', 'config1');
+                    document.getElementById('bloc-green-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'green');
                         updateButtonStates();
                     });
                     
-                    document.getElementById('config2-btn').addEventListener('click', () => {
-                        window.tagManager.applyMaterialConfig('object1', 'config2');
+                    // Boutons pour le flag
+                    document.getElementById('flag-none-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'none');
+                        // Masquer le flag en désactivant le tag
+                        window.tagManager.activeTags.delete('flag');
+                        window.tagManager.applyActiveTags();
                         updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-red-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'red');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-blue-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'blue');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-green-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'green');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    // Checkbox pour l'engraving
+                    document.getElementById('engraving-checkbox').addEventListener('change', (e) => {
+                        const isEnabled = e.target.checked;
+                        
+                        if (isEnabled) {
+                            window.tagManager.activeTags.add('engraving');
+                        } else {
+                            window.tagManager.activeTags.delete('engraving');
+                        }
+                        window.tagManager.applyActiveTags();
+                        
+                        // Afficher/masquer le champ de texte
+                        const textField = document.getElementById('engraving-text');
+                        textField.style.display = isEnabled ? 'block' : 'none';
+                        
+                        if (isEnabled) {
+                            textField.focus();
+                        }
+                    });
+                    
+                    // Champ de texte pour l'engraving
+                    document.getElementById('engraving-text').addEventListener('input', (e) => {
+                        window.tagManager.setEngravingText(e.target.value);
                     });
                     
                     // Appliquer la configuration par défaut
-                    window.tagManager.setOption(defaultConfig.options);
-                    window.tagManager.applyMaterialConfig('object1', defaultConfig.materials);
+                    window.tagManager.setOption(defaultConfig.option);
+                    window.tagManager.applyMaterialConfig('bloc', defaultConfig.blocMaterial);
+                    window.tagManager.applyMaterialConfig('flag', defaultConfig.flagOption);
+                    
+                    // Gérer la visibilité par défaut avec les tags
+                    if (defaultConfig.flagOption !== 'none') {
+                        window.tagManager.activeTags.add('flag');
+                    }
+                    if (defaultConfig.engravingEnabled) {
+                        window.tagManager.activeTags.add('engraving');
+                    }
+                    window.tagManager.applyActiveTags();
                     
                     // Mettre à jour l'état initial des boutons
                     updateButtonStates();
+                    
+                    // Initialiser l'état des contrôles HTML
+                    document.getElementById('engraving-checkbox').checked = defaultConfig.engravingEnabled;
+                    document.getElementById('engraving-text').style.display = defaultConfig.engravingEnabled ? 'block' : 'none';
                 }
             }, 1000);
             
@@ -100,20 +191,52 @@
                     btn.classList.remove('active');
                 });
                 
-                // Activate tag buttons
+                // Activate option buttons
                 activeTags.activeTags.forEach(tag => {
-                    const btn = document.getElementById(`${tag}-btn`);
-                    if (btn) {
-                        btn.classList.add('active');
+                    if (tag === 'base') {
+                        const btn = document.getElementById('option1-btn');
+                        if (btn) {
+                            btn.classList.add('active');
+                        }
                     }
                 });
                 
-                // Activate material config button
-                if (activeTags.material) {
-                    const btn = document.getElementById(`${activeTags.material.configName}-btn`);
+                // Activate material config buttons independently
+                // Bloc material buttons
+                const blocMaterials = ['red', 'blue', 'green'];
+                blocMaterials.forEach(material => {
+                    const btn = document.getElementById(`bloc-${material}-btn`);
                     if (btn) {
-                        btn.classList.add('active');
+                        btn.classList.remove('active');
+                        // Check if this material is currently applied to bloc
+                        if (activeTags.materials && activeTags.materials.bloc === material) {
+                            btn.classList.add('active');
+                        }
                     }
+                });
+                
+                // Flag material buttons
+                const flagMaterials = ['none', 'red', 'blue', 'green'];
+                flagMaterials.forEach(material => {
+                    const btn = document.getElementById(`flag-${material}-btn`);
+                    if (btn) {
+                        btn.classList.remove('active');
+                        // Check if this material is currently applied to flag
+                        if (activeTags.materials && activeTags.materials.flag === material) {
+                            btn.classList.add('active');
+                        }
+                    }
+                });
+                
+                // Update engraving checkbox based on active tags
+                const engravingCheckbox = document.getElementById('engraving-checkbox');
+                const engravingText = document.getElementById('engraving-text');
+                if (activeTags.activeTags.includes('engraving')) {
+                    engravingCheckbox.checked = true;
+                    engravingText.style.display = 'block';
+                } else {
+                    engravingCheckbox.checked = false;
+                    engravingText.style.display = 'none';
                 }
             }
         });

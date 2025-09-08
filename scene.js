@@ -119,7 +119,7 @@ async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
     
     // Charger le modèle depuis la configuration asset.js
-    const modelFile = assetConfig.models.main_model.file;
+    const modelFile = assetConfig.models.part_model.file;
     
     try {
         
@@ -577,8 +577,9 @@ class TagManager {
         this.scene = scene;
         this.materialsConfig = materialsConfig;
         this.tagConfig = null;
-        this.activeMaterialConfig = null;
+        this.activeMaterialConfigs = new Map(); // Map<objectName, configName>
         this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
+        this.engravingText = '';
     }
     
     // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
@@ -648,16 +649,17 @@ class TagManager {
         }
         
         const materialConfig = this.tagConfig.materials[objectName][configName];
-        this.activeMaterialConfig = { objectName, configName };
+        this.activeMaterialConfigs.set(objectName, configName);
         
-        // Appliquer les matériaux à tous les meshes du modèle principal
+        // Appliquer les matériaux seulement au mesh spécifique (objectName)
         Object.keys(assetConfig.models).forEach(modelKey => {
             const model = assetConfig.models[modelKey];
             
-            Object.keys(model.meshes).forEach(meshName => {
-                const meshConfig = model.meshes[meshName];
+            // Vérifier si ce modèle contient le mesh spécifique (objectName)
+            if (model.meshes[objectName]) {
+                const meshConfig = model.meshes[objectName];
                 
-                // Appliquer les matériaux aux slots de ce mesh
+                // Appliquer les matériaux aux slots de ce mesh spécifique
                 Object.keys(materialConfig).forEach(slotName => {
                     const materialName = materialConfig[slotName];
                     const slotIndex = this.getSlotIndex(slotName);
@@ -665,13 +667,13 @@ class TagManager {
                     if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
                         // Chercher d'abord les meshes primitifs (cas multi-matériaux)
                         let meshes = this.scene.meshes.filter(mesh => 
-                            mesh.name === `${meshName}_primitive${slotIndex}`
+                            mesh.name === `${objectName}_primitive${slotIndex}`
                         );
                         
                         // Si aucun mesh primitif trouvé, chercher le mesh original (cas mono-matériau)
                         if (meshes.length === 0 && slotName === 'slot1') {
                             meshes = this.scene.meshes.filter(mesh => 
-                                mesh.name === meshName && !mesh.name.includes('_primitive')
+                                mesh.name === objectName && !mesh.name.includes('_primitive')
                             );
                         }
                         
@@ -680,7 +682,7 @@ class TagManager {
                         });
                     }
                 });
-            });
+            }
         });
         
         // Configuration de matériaux appliquée
@@ -706,11 +708,19 @@ class TagManager {
         return result;
     }
     
+    // Définir le texte d'engraving
+    setEngravingText(text) {
+        this.engravingText = text;
+        // Ici vous pourriez ajouter la logique pour appliquer le texte à l'objet 3D
+        console.log('Engraving text:', text);
+    }
+    
     // Obtenir les tags actifs
     getActiveTags() {
         return {
             activeTags: Array.from(this.activeTags),
-            material: this.activeMaterialConfig
+            materials: Object.fromEntries(this.activeMaterialConfigs),
+            engravingText: this.engravingText || ''
         };
     }
     

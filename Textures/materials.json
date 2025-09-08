@@ -13,14 +13,14 @@
       "ambientTexture": "metal_ao.png",
       "opacityTexture": "None",
       "bumpTexture": "metal_normal.png",
-      "bumpTextureIntensity": 3.5,
+      "bumpTextureIntensity": 3.1,
       "lightmapTexture": "",
       "useLightmapAsShadowmap": true,
       "backFaceCulling": true,
       "uOffset": 0,
       "vOffset": 0,
-      "uScale": 2,
-      "vScale": 2,
+      "uScale": 1,
+      "vScale": 1,
       "wRotation": 0
     },
     "green": {

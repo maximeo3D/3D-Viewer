@@ -6,41 +6,50 @@
 //Declaration des modèles
 const assetConfiguration = {
   models: {
-    "main_model": {
-      name: "Modèle Principal",
-      file: "cubes.glb",
+    "part_model": {
+      name: "Modèle Part",
+      file: "part.glb",
       meshes: {
-        "cube1": {
-          materialSlots: ["slot1", "slot2"],
-          tags: ["option1", "option3"]
+        "bloc": {
+          materialSlots: ["slot1"],
+          tags: ["base"]
         },
-        "cube2": {
-          materialSlots: ["slot1", "slot2"],
-          tags: ["option2", "option3"]
+        "flag": {
+          materialSlots: ["slot1"],
+          tags: ["flag"]
+        },
+        "engraving": {
+          materialSlots: ["slot1"],
+          tags: ["engraving"]
         }
       }
     }
   },
   // Configuration des matériaux par objet (définie manuellement)
   materialConfigs: {
-    "object1": {
-      "config1": {
-        "slot1": "red",
-        "slot2": "blue"
+    "bloc": {
+      "red": {
+        "slot1": "red"
       },
-      "config2": {
-        "slot1": "blue",
-        "slot2": "red"
+      "blue": {
+        "slot1": "blue"
+      },
+      "green": {
+        "slot1": "green"
       }
     },
-    "object2": {
-      "config1": {
-        "slot1": "yellow",
-        "slot2": "green"
+    "flag": {
+      "none": {
+        "slot1": "red" // Matériau par défaut, mais sera caché
       },
-      "config2": {
-        "slot1": "blue",
-        "slot2": "red"
+      "red": {
+        "slot1": "red"
+      },
+      "blue": {
+        "slot1": "blue"
+      },
+      "green": {
+        "slot1": "green"
       }
     }
   }

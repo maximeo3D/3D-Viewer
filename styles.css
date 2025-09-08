@@ -92,3 +92,38 @@ html, body {
 .sidebar-btn.active:hover {
     background-color: #2c4466;
 }
+
+/* Styles pour les contrôles d'engraving */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+#engraving-text {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+#engraving-text:focus {
+    outline: none;
+    border-color: #4c77af;
+    box-shadow: 0 0 0 2px rgba(76, 119, 175, 0.2);
+}
