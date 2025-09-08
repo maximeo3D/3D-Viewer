@@ -128,7 +128,7 @@ async function loadModels() {
         
         if (result.meshes.length > 0) {
             // Créer un groupe pour tous les meshes
-            const modelGroup = new BABYLON.TransformNode("SKU_Models", scene);
+            const modelGroup = new BABYLON.TransformNode("Main_Models", scene);
             
             // Appliquer les transformations par défaut
             modelGroup.position = new BABYLON.Vector3(0, 0, 0);
@@ -143,10 +143,10 @@ async function loadModels() {
             });
             
             
-            // Stocker les références des meshes pour le système SKU
+            // Stocker les références des meshes pour le système de tags
             result.meshes.forEach(mesh => {
-                if (mesh.name && mesh.name !== "SKU_Models") {
-                    console.log(`📦 Mesh chargé: ${mesh.name}`);
+                if (mesh.name && mesh.name !== "Main_Models") {
+                    // Meshes chargés pour le système de tags
                 }
             });
         }
@@ -154,7 +154,7 @@ async function loadModels() {
         console.error(`❌ Error loading model ${modelFile}:`, error);
     }
     
-    // Le modèle est maintenant chargé une seule fois pour tous les SKUs
+    // Le modèle est maintenant chargé une seule fois pour le système de tags
 }
 
 // Function to create PBR material according to Babylon.js documentation
@@ -410,10 +410,10 @@ const createScene = async function() {
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
             
-            // Appliquer la rotation au groupe SKU_Models
-            const skuModelsGroup = scene.getTransformNodeByName("SKU_Models");
-            if (skuModelsGroup) {
-                skuModelsGroup.rotation.x = currentObjectRotationX;
+            // Appliquer la rotation au groupe Main_Models
+            const mainModelsGroup = scene.getTransformNodeByName("Main_Models");
+            if (mainModelsGroup) {
+                mainModelsGroup.rotation.x = currentObjectRotationX;
             }
         }
     });
@@ -490,10 +490,10 @@ const createScene = async function() {
                 const newRotationX = currentObjectRotationX + rotationDelta;
                 const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
                 
-                // Appliquer la rotation limitée au groupe SKU_Models
-                const skuModelsGroup = scene.getTransformNodeByName("SKU_Models");
-                if (skuModelsGroup) {
-                    skuModelsGroup.rotation.x = clampedRotationX;
+                // Appliquer la rotation limitée au groupe Main_Models
+                const mainModelsGroup = scene.getTransformNodeByName("Main_Models");
+                if (mainModelsGroup) {
+                    mainModelsGroup.rotation.x = clampedRotationX;
                 }
                 
                             // Mettre à jour la rotation actuelle
@@ -587,7 +587,7 @@ class TagManager {
             this.tagConfig = {
                 materials: assetConfig.materialConfigs
             };
-            console.log('✅ Configuration des tags chargée depuis assetConfig:', this.tagConfig);
+            // Configuration des tags chargée depuis assetConfig
         } else {
             console.warn('⚠️ assetConfig.materialConfigs non trouvé');
         }
@@ -629,7 +629,7 @@ class TagManager {
             });
         });
         
-        console.log(`🎯 Tags actifs appliqués:`, Array.from(this.activeTags));
+        // Tags actifs appliqués
     }
     
     
@@ -651,12 +651,9 @@ class TagManager {
                 const meshConfig = model.meshes[meshName];
                 
                 // Appliquer les matériaux aux slots de ce mesh
-                console.log(`🔧 materialConfig keys:`, Object.keys(materialConfig));
                 Object.keys(materialConfig).forEach(slotName => {
                     const materialName = materialConfig[slotName];
                     const slotIndex = this.getSlotIndex(slotName);
-                    
-                    console.log(`🔧 Traitement slot "${slotName}" -> index ${slotIndex}, matériau: ${materialName}`);
                     
                     if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
                         // Trouver le mesh primitif correspondant au slot
@@ -664,11 +661,7 @@ class TagManager {
                             mesh.name === `${meshName}_primitive${slotIndex}`
                         );
                         
-                        console.log(`🔍 Recherche meshes pour ${meshName}_primitive${slotIndex}:`, meshes.length, 'trouvés');
-                        
                         meshes.forEach(mesh => {
-                            console.log(`🎨 Application matériau ${materialName} au mesh ${mesh.name}`);
-                            console.log(`📋 Configuration matériau:`, this.materialsConfig.materials[materialName]);
                             applyMaterial(mesh, this.materialsConfig.materials[materialName]);
                         });
                     }
@@ -676,15 +669,13 @@ class TagManager {
             });
         });
         
-        console.log(`🎨 Configuration ${configName} appliquée à ${objectName}:`, materialConfig);
-        console.log(`📋 Meshes disponibles dans la scène:`, this.scene.meshes.map(m => m.name));
+        // Configuration de matériaux appliquée
     }
     
     // Obtenir l'index du slot de matériau
     getSlotIndex(slotName) {
         // Nettoyer la chaîne pour éliminer les caractères invisibles
         const cleanSlotName = slotName.trim();
-        console.log(`🔍 getSlotIndex appelé avec: "${slotName}" -> nettoyé: "${cleanSlotName}"`);
         
         // Test direct avec if/else
         let result = -1;
@@ -698,7 +689,6 @@ class TagManager {
             result = 3;
         }
         
-        console.log(`🔍 Résultat pour "${cleanSlotName}": ${result}`);
         return result;
     }
     

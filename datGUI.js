@@ -473,75 +473,75 @@ class DatGUIManager {
         // Basic material properties
         this.baseColorControl = this.materialsFolder.addColor(this.materialProperties, 'baseColor').name('Albedo Color').onChange((value) => {
             this.materialProperties.baseColor = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('baseColor', this.baseColorControl);
         
         this.metallicControl = this.materialsFolder.add(this.materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic').onChange((value) => {
             this.materialProperties.metallic = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('metallic', this.metallicControl);
         
         this.roughnessControl = this.materialsFolder.add(this.materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness').onChange((value) => {
             this.materialProperties.roughness = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('roughness', this.roughnessControl);
         
         this.alphaControl = this.materialsFolder.add(this.materialProperties, 'alpha', 0, 1).name('Alpha').onChange((value) => {
             this.materialProperties.alpha = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('alpha', this.alphaControl);
         
         // Texture controls
         this.albedoTextureControl = this.materialsFolder.add(this.materialProperties, 'albedoTexture', this.availableImages).name('Albedo Texture').onChange((value) => {
             this.materialProperties.albedoTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('albedoTexture', this.albedoTextureControl);
         
         this.metallicTextureControl = this.materialsFolder.add(this.materialProperties, 'metallicTexture', this.availableImages).name('Metallic Texture').onChange((value) => {
             this.materialProperties.metallicTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('metallicTexture', this.metallicTextureControl);
         
         this.microSurfaceTextureControl = this.materialsFolder.add(this.materialProperties, 'microSurfaceTexture', this.availableImages).name('Microsurface Texture').onChange((value) => {
             this.materialProperties.microSurfaceTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('microSurfaceTexture', this.microSurfaceTextureControl);
         
         this.ambientTextureControl = this.materialsFolder.add(this.materialProperties, 'ambientTexture', this.availableImages).name('Ambient Texture').onChange((value) => {
             this.materialProperties.ambientTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('ambientTexture', this.ambientTextureControl);
         
         this.opacityTextureControl = this.materialsFolder.add(this.materialProperties, 'opacityTexture', this.availableImages).name('Opacity Texture').onChange((value) => {
             this.materialProperties.opacityTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('opacityTexture', this.opacityTextureControl);
         
         this.bumpTextureControl = this.materialsFolder.add(this.materialProperties, 'bumpTexture', this.availableImages).name('Normal Map').onChange((value) => {
             this.materialProperties.bumpTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('bumpTexture', this.bumpTextureControl);
         
         this.bumpTextureIntensityControl = this.materialsFolder.add(this.materialProperties, 'bumpTextureIntensity', 0, 5).step(0.1).name('Intensity').onChange((value) => {
             this.materialProperties.bumpTextureIntensity = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('bumpTextureIntensity', this.bumpTextureIntensityControl);
         
         // Lightmap texture control
         this.lightmapTextureControl = this.materialsFolder.add(this.materialProperties, 'lightmapTexture', this.availableImages).name('Lightmap Texture').onChange((value) => {
             this.materialProperties.lightmapTexture = value === 'None' ? '' : value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('lightmapTexture', this.lightmapTextureControl);
         
@@ -554,35 +554,35 @@ class DatGUIManager {
         // U Offset control
         this.uOffsetControl = this.textureParamsFolder.add(this.materialProperties, 'uOffset', -2, 2).step(0.01).name('U Offset').onChange((value) => {
             this.materialProperties.uOffset = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('uOffset', this.uOffsetControl);
         
         // V Offset control
         this.vOffsetControl = this.textureParamsFolder.add(this.materialProperties, 'vOffset', -2, 2).step(0.01).name('V Offset').onChange((value) => {
             this.materialProperties.vOffset = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('vOffset', this.vOffsetControl);
         
         // U Scale control
         this.uScaleControl = this.textureParamsFolder.add(this.materialProperties, 'uScale', 0.1, 5).step(0.1).name('U Scale').onChange((value) => {
             this.materialProperties.uScale = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('uScale', this.uScaleControl);
         
         // V Scale control
         this.vScaleControl = this.textureParamsFolder.add(this.materialProperties, 'vScale', 0.1, 5).step(0.1).name('V Scale').onChange((value) => {
             this.materialProperties.vScale = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('vScale', this.vScaleControl);
         
         // W Rotation control (around W axis)
         this.wRotationControl = this.textureParamsFolder.add(this.materialProperties, 'wRotation', 0, 360).step(1).name('W Rotation').onChange((value) => {
             this.materialProperties.wRotation = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('wRotation', this.wRotationControl);
         
@@ -590,7 +590,7 @@ class DatGUIManager {
         
         this.backFaceCullingControl = this.materialsFolder.add(this.materialProperties, 'backFaceCulling').name('Back Face Culling').onChange((value) => {
             this.materialProperties.backFaceCulling = value;
-            this.applyMaterialChanges();
+            this.saveAndUpdateMaterials();
         });
         this.materialControls.set('backFaceCulling', this.backFaceCullingControl);
         
@@ -1048,6 +1048,114 @@ class DatGUIManager {
         }
     }
     
+    // Sauvegarder les changements et mettre à jour les matériaux appliqués
+    saveAndUpdateMaterials() {
+        const selectedMaterial = this.materialList.selected;
+        
+        if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) {
+            return;
+        }
+        
+        const material = this.materialsConfig.materials[selectedMaterial];
+        
+        // Sauvegarder les changements dans la configuration
+        const allProperties = [
+            'baseColor', 'metallic', 'roughness', 'alpha',
+            'albedoTexture', 'metallicTexture', 'microSurfaceTexture', 
+            'ambientTexture', 'opacityTexture', 'bumpTexture', 
+            'bumpTextureIntensity', 'lightmapTexture', 'backFaceCulling',
+            'uOffset', 'vOffset', 'uScale', 'vScale', 'wRotation'
+        ];
+        
+        allProperties.forEach(prop => {
+            if (this.independentProperties.has(prop)) {
+                // Propriété indépendante - la sauvegarder
+                material[prop] = this.materialProperties[prop];
+            } else if (material.parent && material.parent !== 'none') {
+                // Propriété héritée - la supprimer du matériau enfant
+                delete material[prop];
+            } else {
+                // Pas de parent - sauvegarder normalement
+                material[prop] = this.materialProperties[prop];
+            }
+        });
+        
+        // Toujours sauvegarder useLightmapAsShadowmap
+        material.useLightmapAsShadowmap = this.materialProperties.useLightmapAsShadowmap;
+        
+        // Maintenant mettre à jour les matériaux appliqués en temps réel
+        this.updateAppliedMaterials();
+        
+        if (this.onMaterialChange) {
+            this.onMaterialChange('properties', this.materialProperties);
+        }
+    }
+    
+    // Mettre à jour seulement les matériaux déjà appliqués (temps réel)
+    updateAppliedMaterials() {
+        const selectedMaterial = this.materialList.selected;
+        
+        if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) {
+            return;
+        }
+        
+        // Trouver tous les meshes qui utilisent actuellement ce matériau
+        if (!window.tagManager || !window.tagManager.scene) {
+            return;
+        }
+        
+        const scene = window.tagManager.scene;
+        
+        // Utiliser les informations du TagManager pour trouver les bons meshes
+        if (window.tagManager.activeMaterialConfig) {
+            const { objectName, configName } = window.tagManager.activeMaterialConfig;
+            const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
+            
+            let updatedCount = 0;
+            
+            // Parcourir tous les meshes primitifs et vérifier s'ils utilisent le matériau sélectionné
+            scene.meshes.forEach(mesh => {
+                if (mesh.isEnabled() && mesh.material && mesh.name.includes('_primitive')) {
+                    // Extraire le nom de base du mesh et l'index du primitif
+                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                    if (primitiveMatch) {
+                        const baseMeshName = primitiveMatch[1];
+                        const primitiveIndex = parseInt(primitiveMatch[2]);
+                        const slotName = `slot${primitiveIndex + 1}`;
+                        
+                        // Vérifier si ce slot utilise le matériau sélectionné
+                        if (materialConfig[slotName] === selectedMaterial) {
+                            updatedCount++;
+                            
+                            // Mettre à jour les propriétés du matériau existant
+                            if (this.materialProperties.baseColor) {
+                                const color = BABYLON.Color3.FromHexString(this.materialProperties.baseColor);
+                                mesh.material.albedoColor = color;
+                            }
+                            
+                            if (this.materialProperties.metallic !== undefined) {
+                                mesh.material.metallic = this.materialProperties.metallic;
+                            }
+                            
+                            if (this.materialProperties.roughness !== undefined) {
+                                mesh.material.roughness = this.materialProperties.roughness;
+                            }
+                            
+                            if (this.materialProperties.alpha !== undefined) {
+                                mesh.material.alpha = this.materialProperties.alpha;
+                            }
+                            
+                            // Marquer le matériau comme modifié
+                            mesh.material.markDirty(BABYLON.Material.TextureDirtyFlag);
+                        }
+                    }
+                }
+            });
+            
+            console.log(`🎨 Mise à jour temps réel: ${updatedCount} meshes mis à jour pour ${selectedMaterial}`);
+        }
+    }
+    
     // Appliquer les changements de matériau
     applyMaterialChanges() {
         const selectedMaterial = this.materialList.selected;
@@ -1090,9 +1198,9 @@ class DatGUIManager {
     
     // Appliquer le matériau modifié aux meshes visibles
     applyMaterialToVisibleMeshes(materialName) {
-        if (!window.skuManager || !window.skuManager.scene) return;
+        if (!window.tagManager || !window.tagManager.scene) return;
         
-        const scene = window.skuManager.scene;
+        const scene = window.tagManager.scene;
         const materialConfig = this.materialsConfig.materials[materialName];
         
         // Trouver tous les meshes visibles qui utilisent ce matériau
@@ -1116,13 +1224,13 @@ class DatGUIManager {
     
     // Déterminer si un mesh devrait utiliser un matériau spécifique pour son slot
     shouldMeshUseMaterialForSlot(meshName, materialName) {
-        if (!window.skuManager || !window.skuManager.skuConfig) return false;
+        if (!window.tagManager || !window.tagManager.activeMaterialConfig) return false;
         
-        const currentSKU = window.skuManager.currentSKU;
-        if (!currentSKU || !window.skuManager.skuConfig.skus[currentSKU]) return false;
+        const { objectName, configName } = window.tagManager.activeMaterialConfig;
+        if (!window.tagManager.tagConfig || !window.tagManager.tagConfig.materials[objectName]) return false;
         
-        const skuConfig = window.skuManager.skuConfig.skus[currentSKU];
-        const configuration = skuConfig.configuration;
+        const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
+        if (!materialConfig) return false;
         
         // Extraire le nom de base du mesh et l'index du primitif (ex: cube1_primitive0 -> cube1, 0)
         const primitiveMatch = meshName.match(/^(.+)_primitive(\d+)$/);
@@ -1132,11 +1240,8 @@ class DatGUIManager {
         const primitiveIndex = parseInt(primitiveMatch[2]);
         const slotName = `slot${primitiveIndex + 1}`;
         
-        const meshConfig = configuration[baseMeshName];
-        if (!meshConfig || !meshConfig.materialSlots) return false;
-        
         // Vérifier si ce slot spécifique utilise le matériau modifié
-        return meshConfig.materialSlots[slotName] === materialName;
+        return materialConfig[slotName] === materialName;
     }
     
     // Créer un matériau PBR (copie de la fonction dans scene.js)
