@@ -146,7 +146,7 @@ async function loadModels() {
             // Stocker les références des meshes pour le système SKU
             result.meshes.forEach(mesh => {
                 if (mesh.name && mesh.name !== "SKU_Models") {
-                    // Meshes chargés pour le système SKU
+                    console.log(`📦 Mesh chargé: ${mesh.name}`);
                 }
             });
         }
@@ -643,48 +643,63 @@ class TagManager {
         const materialConfig = this.tagConfig.materials[objectName][configName];
         this.activeMaterialConfig = { objectName, configName };
         
-        // Trouver les meshes correspondants et appliquer les matériaux
+        // Appliquer les matériaux à tous les meshes du modèle principal
         Object.keys(assetConfig.models).forEach(modelKey => {
             const model = assetConfig.models[modelKey];
             
             Object.keys(model.meshes).forEach(meshName => {
                 const meshConfig = model.meshes[meshName];
-                const meshTags = meshConfig.tags || [];
                 
-                // Vérifier si ce mesh appartient à l'objet concerné
-                if (meshTags.some(tag => tag.includes(objectName))) {
-                    // Appliquer les matériaux aux slots
-                    Object.keys(materialConfig).forEach(slotName => {
-                        const materialName = materialConfig[slotName];
-                        const slotIndex = this.getSlotIndex(slotName);
+                // Appliquer les matériaux aux slots de ce mesh
+                console.log(`🔧 materialConfig keys:`, Object.keys(materialConfig));
+                Object.keys(materialConfig).forEach(slotName => {
+                    const materialName = materialConfig[slotName];
+                    const slotIndex = this.getSlotIndex(slotName);
+                    
+                    console.log(`🔧 Traitement slot "${slotName}" -> index ${slotIndex}, matériau: ${materialName}`);
+                    
+                    if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
+                        // Trouver le mesh primitif correspondant au slot
+                        const meshes = this.scene.meshes.filter(mesh => 
+                            mesh.name === `${meshName}_primitive${slotIndex}`
+                        );
                         
-                        if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
-                            // Trouver le mesh primitif correspondant au slot
-                            const meshes = this.scene.meshes.filter(mesh => 
-                                mesh.name === `${meshName}_primitive${slotIndex}`
-                            );
-                            
-                            meshes.forEach(mesh => {
-                                applyMaterial(mesh, this.materialsConfig.materials[materialName]);
-                            });
-                        }
-                    });
-                }
+                        console.log(`🔍 Recherche meshes pour ${meshName}_primitive${slotIndex}:`, meshes.length, 'trouvés');
+                        
+                        meshes.forEach(mesh => {
+                            console.log(`🎨 Application matériau ${materialName} au mesh ${mesh.name}`);
+                            console.log(`📋 Configuration matériau:`, this.materialsConfig.materials[materialName]);
+                            applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                        });
+                    }
+                });
             });
         });
         
         console.log(`🎨 Configuration ${configName} appliquée à ${objectName}:`, materialConfig);
+        console.log(`📋 Meshes disponibles dans la scène:`, this.scene.meshes.map(m => m.name));
     }
     
     // Obtenir l'index du slot de matériau
     getSlotIndex(slotName) {
-        const slotMap = {
-            'slot1': 0,
-            'slot2': 1,
-            'slot3': 2,
-            'slot4': 3
-        };
-        return slotMap[slotName] || -1;
+        // Nettoyer la chaîne pour éliminer les caractères invisibles
+        const cleanSlotName = slotName.trim();
+        console.log(`🔍 getSlotIndex appelé avec: "${slotName}" -> nettoyé: "${cleanSlotName}"`);
+        
+        // Test direct avec if/else
+        let result = -1;
+        if (cleanSlotName === 'slot1') {
+            result = 0;
+        } else if (cleanSlotName === 'slot2') {
+            result = 1;
+        } else if (cleanSlotName === 'slot3') {
+            result = 2;
+        } else if (cleanSlotName === 'slot4') {
+            result = 3;
+        }
+        
+        console.log(`🔍 Résultat pour "${cleanSlotName}": ${result}`);
+        return result;
     }
     
     // Obtenir les tags actifs
