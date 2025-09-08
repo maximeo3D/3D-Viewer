@@ -1113,46 +1113,60 @@ class DatGUIManager {
             
             let updatedCount = 0;
             
-            // Parcourir tous les meshes primitifs et vérifier s'ils utilisent le matériau sélectionné
+            // Parcourir tous les meshes et vérifier s'ils utilisent le matériau sélectionné
             scene.meshes.forEach(mesh => {
-                if (mesh.isEnabled() && mesh.material && mesh.name.includes('_primitive')) {
-                    // Extraire le nom de base du mesh et l'index du primitif
-                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                    if (primitiveMatch) {
-                        const baseMeshName = primitiveMatch[1];
-                        const primitiveIndex = parseInt(primitiveMatch[2]);
-                        const slotName = `slot${primitiveIndex + 1}`;
-                        
-                        // Vérifier si ce slot utilise le matériau sélectionné
-                        if (materialConfig[slotName] === selectedMaterial) {
-                            updatedCount++;
+                if (mesh.isEnabled() && mesh.material) {
+                    let shouldUpdate = false;
+                    
+                    if (mesh.name.includes('_primitive')) {
+                        // Cas multi-matériaux : mesh primitif
+                        const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
+                        if (primitiveMatch) {
+                            const baseMeshName = primitiveMatch[1];
+                            const primitiveIndex = parseInt(primitiveMatch[2]);
+                            const slotName = `slot${primitiveIndex + 1}`;
                             
-                            // Mettre à jour les propriétés du matériau existant
-                            if (this.materialProperties.baseColor) {
-                                const color = BABYLON.Color3.FromHexString(this.materialProperties.baseColor);
-                                mesh.material.albedoColor = color;
+                            // Vérifier si ce slot utilise le matériau sélectionné
+                            if (materialConfig[slotName] === selectedMaterial) {
+                                shouldUpdate = true;
                             }
-                            
-                            if (this.materialProperties.metallic !== undefined) {
-                                mesh.material.metallic = this.materialProperties.metallic;
-                            }
-                            
-                            if (this.materialProperties.roughness !== undefined) {
-                                mesh.material.roughness = this.materialProperties.roughness;
-                            }
-                            
-                            if (this.materialProperties.alpha !== undefined) {
-                                mesh.material.alpha = this.materialProperties.alpha;
-                            }
-                            
-                            // Marquer le matériau comme modifié
-                            mesh.material.markDirty(BABYLON.Material.TextureDirtyFlag);
                         }
+                    } else {
+                        // Cas mono-matériau : mesh original (utilise slot1 par défaut)
+                        const baseMeshName = mesh.name;
+                        if (materialConfig['slot1'] === selectedMaterial) {
+                            shouldUpdate = true;
+                        }
+                    }
+                    
+                    if (shouldUpdate) {
+                        updatedCount++;
+                        
+                        // Mettre à jour les propriétés du matériau existant
+                        if (this.materialProperties.baseColor) {
+                            const color = BABYLON.Color3.FromHexString(this.materialProperties.baseColor);
+                            mesh.material.albedoColor = color;
+                        }
+                        
+                        if (this.materialProperties.metallic !== undefined) {
+                            mesh.material.metallic = this.materialProperties.metallic;
+                        }
+                        
+                        if (this.materialProperties.roughness !== undefined) {
+                            mesh.material.roughness = this.materialProperties.roughness;
+                        }
+                        
+                        if (this.materialProperties.alpha !== undefined) {
+                            mesh.material.alpha = this.materialProperties.alpha;
+                        }
+                        
+                        // Marquer le matériau comme modifié
+                        mesh.material.markDirty(BABYLON.Material.TextureDirtyFlag);
                     }
                 }
             });
             
-            console.log(`🎨 Mise à jour temps réel: ${updatedCount} meshes mis à jour pour ${selectedMaterial}`);
+            // Mise à jour temps réel terminée
         }
     }
     

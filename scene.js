@@ -618,10 +618,17 @@ class TagManager {
                 // Un mesh est visible si au moins un de ses tags est actif
                 const shouldBeVisible = meshTags.some(tag => this.activeTags.has(tag));
                 
-                // Appliquer la visibilité aux meshes primitifs
-                const meshes = this.scene.meshes.filter(mesh => 
+                // Appliquer la visibilité aux meshes primitifs (cas multi-matériaux)
+                let meshes = this.scene.meshes.filter(mesh => 
                     mesh.name.startsWith(meshName + '_primitive')
                 );
+                
+                // Si aucun mesh primitif trouvé, chercher le mesh original (cas mono-matériau)
+                if (meshes.length === 0) {
+                    meshes = this.scene.meshes.filter(mesh => 
+                        mesh.name === meshName && !mesh.name.includes('_primitive')
+                    );
+                }
                 
                 meshes.forEach(mesh => {
                     mesh.setEnabled(shouldBeVisible);
@@ -656,10 +663,17 @@ class TagManager {
                     const slotIndex = this.getSlotIndex(slotName);
                     
                     if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
-                        // Trouver le mesh primitif correspondant au slot
-                        const meshes = this.scene.meshes.filter(mesh => 
+                        // Chercher d'abord les meshes primitifs (cas multi-matériaux)
+                        let meshes = this.scene.meshes.filter(mesh => 
                             mesh.name === `${meshName}_primitive${slotIndex}`
                         );
+                        
+                        // Si aucun mesh primitif trouvé, chercher le mesh original (cas mono-matériau)
+                        if (meshes.length === 0 && slotName === 'slot1') {
+                            meshes = this.scene.meshes.filter(mesh => 
+                                mesh.name === meshName && !mesh.name.includes('_primitive')
+                            );
+                        }
                         
                         meshes.forEach(mesh => {
                             applyMaterial(mesh, this.materialsConfig.materials[materialName]);
