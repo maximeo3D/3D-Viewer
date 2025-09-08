@@ -369,11 +369,20 @@ const createScene = async function() {
         }
     });
     
-    // Test: utiliser les contrôles par défaut sans modification
-    camera.attachControl(canvas, true);
+    // Désactiver complètement tous les contrôles par défaut
+    camera.detachControl(canvas);
     
-    // Configuration spécifique du zoom
-    camera.wheelPrecision = config.camera.zoomSpeed || 1;
+    // Ajouter seulement le contrôle de zoom (si pas déjà présent)
+    const existingWheelInput = camera.inputs.attached.mousewheel;
+    if (!existingWheelInput) {
+        camera.inputs.add(new BABYLON.ArcRotateCameraMouseWheelInput());
+    }
+    
+    // Configuration de la sensibilité horizontale de la caméra
+    camera.angularSensibilityX = 1000; // Plus élevé = moins sensible
+    
+    // Configuration spécifique du zoom (sensibilité réduite de 50%)
+    camera.wheelPrecision = (config.camera.zoomSpeed || 1) * 0.5;
     camera.zoomSensitivity = config.camera.zoomSensitivity || 0.5;
     
     
@@ -410,7 +419,7 @@ const createScene = async function() {
         }
     });
     
-    // Variables pour les contrôles personnalisés
+    // Variables pour la rotation des objets seulement
     let isMouseDown = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
@@ -425,19 +434,20 @@ const createScene = async function() {
     let targetObjectRotationX = 0; // Rotation cible (toujours 0°)
     let objectRotationElasticityEnabled = true; // Activer l'élasticité par défaut
     
-    // Contrôles personnalisés de la caméra
+    // Contrôles pour la rotation des objets seulement
     scene.onPointerObservable.add((evt) => {
         if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
             isMouseDown = true;
             lastMouseX = evt.event.clientX;
             lastMouseY = evt.event.clientY;
             isRightClick = evt.event.button === 2; // Clic droit
+            // Désactiver l'élasticité pendant le mouvement
+            objectRotationElasticityEnabled = false;
         }
         
         if (evt.type === BABYLON.PointerEventTypes.POINTERUP) {
             isMouseDown = false;
             isRightClick = false;
-            
             // Réactiver l'élasticité quand l'utilisateur relâche la souris
             objectRotationElasticityEnabled = true;
         }
@@ -452,13 +462,13 @@ const createScene = async function() {
                 return;
             }
             
-            // Mouvement horizontal : contrôler alpha (rotation horizontale de la caméra) - inversé pour plus naturel
+            // Mouvement horizontal : contrôler la rotation horizontale de la caméra
             if (Math.abs(deltaX) > 0) {
-                const alphaSensitivity = 0.006;
-                camera.alpha -= deltaX * alphaSensitivity; // Inversé avec le signe négatif
+                const cameraSensitivity = 0.006;
+                const rotationDelta = -deltaX * cameraSensitivity; // Inversé pour un comportement naturel
                 
-                // Mettre à jour la config
-                config.camera.alpha = camera.alpha;
+                // Appliquer la rotation horizontale à la caméra
+                camera.alpha += rotationDelta;
             }
             
             // Mouvement vertical : contrôler la rotation X des objets avec limites (inversé pour plus naturel)
@@ -485,6 +495,9 @@ const createScene = async function() {
             // Beta reste fixe - ne pas modifier config.camera.beta
             // La rotation des objets est indépendante de la caméra
             }
+            
+            // S'assurer que la caméra ne peut pas tourner verticalement (beta fixe)
+            camera.beta = config.camera.beta;
             
             lastMouseX = evt.event.clientX;
             lastMouseY = evt.event.clientY;

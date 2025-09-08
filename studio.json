@@ -5,7 +5,7 @@
     "orientation": 0
   },
   "camera": {
-    "alpha": -0.7853981633974483,
+    "alpha": -0.896110845211214,
     "beta": 1.2158707636692831,
     "radius": 22.807543416243938,
     "fov": 82,
@@ -13,7 +13,7 @@
     "maxDistance": 30,
     "zoomSpeed": 2,
     "zoomSensitivity": 0.7000000000000001,
-    "inertia": 0.5,
+    "inertia": 0.85,
     "zoomSmoothness": 0.1,
     "targetX": 0,
     "targetY": 0,
