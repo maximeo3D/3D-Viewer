@@ -118,12 +118,12 @@ async function loadMaterialsConfig() {
 async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
     
-    // Charger le modèle cubes.glb pour tous les modèles SKU
-    const modelFile = "cubes.glb";
+    // Charger le modèle depuis la configuration asset.js
+    const modelFile = assetConfig.models.main_model.file;
     
     try {
         
-        // Load the GLB file
+        // Load the GLB file from asset configuration
         const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
         
         if (result.meshes.length > 0) {
