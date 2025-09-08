@@ -1,48 +1,47 @@
-// Configuration des modèles 3D - Données techniques
+// Configuration des modèles 3D - Données techniques avec système de tags
 // Ce fichier définit les modèles à charger et leurs paramètres techniques
-// Les configurations SKU sont gérées par SKUconfigs.json
+// Les configurations de tags sont générées automatiquement depuis ce fichier
 
+
+//Declaration des modèles
 const assetConfiguration = {
   models: {
-    "model1": {
-      name: "Cube 1",
+    "main_model": {
+      name: "Modèle Principal",
       file: "cubes.glb",
       meshes: {
         "cube1": {
-          materialSlots: ["slot1", "slot2"]
+          materialSlots: ["slot1", "slot2"],
+          tags: ["option1", "option3"]
         },
         "cube2": {
-          materialSlots: ["slot1", "slot2"]
+          materialSlots: ["slot1", "slot2"],
+          tags: ["option2", "option3"]
         }
-      },
-      position: [0, 0, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1]
-    },
-    "model2": {
-      name: "Cube 2", 
-      file: "cubes.glb",
-      meshes: {
-        "cube1": {
-          materialSlots: ["slot1", "slot2"]
-        },
-        "cube2": {
-          materialSlots: ["slot1", "slot2"]
-        }
-      },
-      position: [0, 0, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1]
+      }
     }
   },
-  defaultMaterials: {
-    "cube1": {
-      "slot1": "red",
-      "slot2": "red"
+  // Configuration des matériaux par objet (définie manuellement)
+  materialConfigs: {
+    "object1": {
+      "config1": {
+        "slot1": "red",
+        "slot2": "blue"
+      },
+      "config2": {
+        "slot1": "blue",
+        "slot2": "red"
+      }
     },
-    "cube2": {
-      "slot1": "green", 
-      "slot2": "blue"
+    "object2": {
+      "config1": {
+        "slot1": "yellow",
+        "slot2": "green"
+      },
+      "config2": {
+        "slot1": "blue",
+        "slot2": "red"
+      }
     }
   }
 };

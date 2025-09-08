@@ -13,6 +13,12 @@
     <script>
         // Contrôle de visibilité de la sidebar
         const showSidebar = true; // Changez true/false pour afficher/cacher la sidebar
+        
+        // Configuration par défaut
+        const defaultConfig = {
+            options: 'option1',
+            materials: 'config1'
+        };
     </script>
 </head>
 <body>
@@ -20,18 +26,19 @@
         <div class="sidebar">
             <div class="sidebar-content">
                 <div class="category">
-                    <h3>Models</h3>
+                    <h3>Options</h3>
                     <div class="buttons">
-                        <button class="sidebar-btn" id="model1-btn">Model 1</button>
-                        <button class="sidebar-btn" id="model2-btn">Model 2</button>
+                        <button class="sidebar-btn" id="option1-btn">Option 1</button>
+                        <button class="sidebar-btn" id="option2-btn">Option 2</button>
+                        <button class="sidebar-btn" id="option3-btn">Option 3</button>
                     </div>
                 </div>
                 
                 <div class="category">
-                    <h3>Colors</h3>
+                    <h3>Material Configs</h3>
                     <div class="buttons">
-                        <button class="sidebar-btn" id="color1-btn">Red</button>
-                        <button class="sidebar-btn" id="color2-btn">Green</button>
+                        <button class="sidebar-btn" id="config1-btn">Config 1 (Red/Blue)</button>
+                        <button class="sidebar-btn" id="config2-btn">Config 2 (Blue/Red)</button>
                     </div>
                 </div>
             </div>
@@ -42,32 +49,41 @@
     </div>
     <script src="scene.js"></script>
     <script>
-        // Connecter les boutons HTML au système SKU
+        // Connecter les boutons HTML au système de tags
         document.addEventListener('DOMContentLoaded', function() {
-            // Attendre que le SKUManager soit initialisé
+            // Attendre que le TagManager soit initialisé
             setTimeout(() => {
-                if (window.skuManager) {
-                    // Boutons Model
-                    document.getElementById('model1-btn').addEventListener('click', () => {
-                        window.skuManager.setModel('model1');
+                if (window.tagManager) {
+                    // Boutons de tags (toggle individuel)
+                    document.getElementById('option1-btn').addEventListener('click', () => {
+                        window.tagManager.toggleTag('option1');
                         updateButtonStates();
                     });
                     
-                    document.getElementById('model2-btn').addEventListener('click', () => {
-                        window.skuManager.setModel('model2');
+                    document.getElementById('option2-btn').addEventListener('click', () => {
+                        window.tagManager.toggleTag('option2');
                         updateButtonStates();
                     });
                     
-                    // Boutons Color
-                    document.getElementById('color1-btn').addEventListener('click', () => {
-                        window.skuManager.setColorScheme('color1');
+                    document.getElementById('option3-btn').addEventListener('click', () => {
+                        window.tagManager.toggleTag('option3');
                         updateButtonStates();
                     });
                     
-                    document.getElementById('color2-btn').addEventListener('click', () => {
-                        window.skuManager.setColorScheme('color2');
+                    // Boutons de configuration de matériaux
+                    document.getElementById('config1-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('object1', 'config1');
                         updateButtonStates();
                     });
+                    
+                    document.getElementById('config2-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('object1', 'config2');
+                        updateButtonStates();
+                    });
+                    
+                    // Appliquer la configuration par défaut
+                    window.tagManager.toggleTag(defaultConfig.options);
+                    window.tagManager.applyMaterialConfig('object1', defaultConfig.materials);
                     
                     // Mettre à jour l'état initial des boutons
                     updateButtonStates();
@@ -75,27 +91,29 @@
             }, 1000);
             
             function updateButtonStates() {
-                if (!window.skuManager) return;
+                if (!window.tagManager) return;
                 
-                const currentModel = window.skuManager.currentModel;
-                const currentColorScheme = window.skuManager.currentColorScheme;
+                const activeTags = window.tagManager.getActiveTags();
                 
                 // Reset all buttons
                 document.querySelectorAll('.sidebar-btn').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 
-                // Activate current selections
-                if (currentModel === 'model1') {
-                    document.getElementById('model1-btn').classList.add('active');
-                } else if (currentModel === 'model2') {
-                    document.getElementById('model2-btn').classList.add('active');
-                }
+                // Activate tag buttons
+                activeTags.activeTags.forEach(tag => {
+                    const btn = document.getElementById(`${tag}-btn`);
+                    if (btn) {
+                        btn.classList.add('active');
+                    }
+                });
                 
-                if (currentColorScheme === 'color1') {
-                    document.getElementById('color1-btn').classList.add('active');
-                } else if (currentColorScheme === 'color2') {
-                    document.getElementById('color2-btn').classList.add('active');
+                // Activate material config button
+                if (activeTags.material) {
+                    const btn = document.getElementById(`${activeTags.material.configName}-btn`);
+                    if (btn) {
+                        btn.classList.add('active');
+                    }
                 }
             }
         });

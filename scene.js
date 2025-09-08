@@ -571,101 +571,110 @@ const createScene = async function() {
     return scene;
 };
 
-// Classe SKUManager pour gérer le système SKU
-class SKUManager {
+// Classe TagManager pour gérer le système de tags
+class TagManager {
     constructor(scene, materialsConfig) {
         this.scene = scene;
         this.materialsConfig = materialsConfig;
-        this.skuConfig = null;
-        this.currentSKU = null;
-        this.currentModel = 'model1';
-        this.currentColorScheme = 'color1';
+        this.tagConfig = null;
+        this.activeMaterialConfig = null;
+        this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
     }
     
-    // Charger la configuration SKU depuis le fichier JSON
-    async loadSKUConfiguration() {
-        try {
-            const response = await fetch('SKUconfigs.json');
-            this.skuConfig = await response.json();
-            this.updateSKUFromSelection();
-        } catch (error) {
-            console.error('❌ Erreur lors du chargement de SKUconfigs.json:', error);
+    // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
+    loadTagConfiguration() {
+        if (assetConfig && assetConfig.materialConfigs) {
+            this.tagConfig = {
+                materials: assetConfig.materialConfigs
+            };
+            console.log('✅ Configuration des tags chargée depuis assetConfig:', this.tagConfig);
+        } else {
+            console.warn('⚠️ assetConfig.materialConfigs non trouvé');
         }
     }
     
-    // Définir le modèle
-    setModel(model) {
-        this.currentModel = model;
-        this.updateSKUFromSelection();
+    
+    // Activer/désactiver un tag individuel (pour les boutons on/off)
+    toggleTag(tagName) {
+        if (this.activeTags.has(tagName)) {
+            this.activeTags.delete(tagName);
+        } else {
+            this.activeTags.add(tagName);
+        }
+        this.applyActiveTags();
     }
     
-    // Définir le schéma de couleurs
-    setColorScheme(colorScheme) {
-        this.currentColorScheme = colorScheme;
-        this.updateSKUFromSelection();
-    }
-    
-    // Mettre à jour le SKU basé sur la sélection actuelle
-    updateSKUFromSelection() {
-        if (!this.skuConfig) return;
+    // Appliquer les tags actifs
+    applyActiveTags() {
+        if (!assetConfig) return;
         
-        // Trouver le SKU correspondant
-        const skuKey = Object.keys(this.skuConfig.skus).find(skuKey => {
-            const sku = this.skuConfig.skus[skuKey];
-            return sku.model === this.currentModel && sku.colorScheme === this.currentColorScheme;
+        // Parcourir tous les modèles et leurs meshes
+        Object.keys(assetConfig.models).forEach(modelKey => {
+            const model = assetConfig.models[modelKey];
+            
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshConfig = model.meshes[meshName];
+                const meshTags = meshConfig.tags || [];
+                
+                // Un mesh est visible si au moins un de ses tags est actif
+                const shouldBeVisible = meshTags.some(tag => this.activeTags.has(tag));
+                
+                // Appliquer la visibilité aux meshes primitifs
+                const meshes = this.scene.meshes.filter(mesh => 
+                    mesh.name.startsWith(meshName + '_primitive')
+                );
+                
+                meshes.forEach(mesh => {
+                    mesh.setEnabled(shouldBeVisible);
+                });
+            });
         });
         
-        if (skuKey) {
-            this.currentSKU = skuKey;
-            this.applySKUConfiguration(skuKey);
-        }
+        console.log(`🎯 Tags actifs appliqués:`, Array.from(this.activeTags));
     }
     
-    // Appliquer la configuration SKU
-    applySKUConfiguration(skuKey) {
-        if (!this.skuConfig || !this.skuConfig.skus[skuKey]) return;
+    
+    // Appliquer une configuration de matériaux
+    applyMaterialConfig(objectName, configName) {
+        if (!this.tagConfig || !this.tagConfig.materials[objectName] || !this.tagConfig.materials[objectName][configName]) {
+            console.warn(`Configuration ${configName} non trouvée pour ${objectName}`);
+            return;
+        }
         
-        const skuConfig = this.skuConfig.skus[skuKey];
-        const configuration = skuConfig.configuration;
+        const materialConfig = this.tagConfig.materials[objectName][configName];
+        this.activeMaterialConfig = { objectName, configName };
         
-        // Appliquer la configuration à chaque mesh
-        Object.keys(configuration).forEach(meshName => {
-            const meshConfig = configuration[meshName];
+        // Trouver les meshes correspondants et appliquer les matériaux
+        Object.keys(assetConfig.models).forEach(modelKey => {
+            const model = assetConfig.models[modelKey];
             
-            // Chercher tous les meshes qui correspondent au nom de base (ex: cube1 -> cube1_primitive0, cube1_primitive1)
-            const meshes = this.scene.meshes.filter(mesh => 
-                mesh.name.startsWith(meshName + '_primitive')
-            );
-            
-            meshes.forEach(mesh => {
-                // Gérer la visibilité
-                mesh.setEnabled(meshConfig.visible);
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshConfig = model.meshes[meshName];
+                const meshTags = meshConfig.tags || [];
                 
-                // Gérer les matériaux si le mesh est visible
-                if (meshConfig.visible && meshConfig.materialSlots) {
-                    // Déterminer quel matériau appliquer selon le nom du mesh
-                    let materialName = null;
-                    
-                    // Si c'est un mesh primitif, déterminer le slot selon le nom
-                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                    if (primitiveMatch) {
-                        const baseMeshName = primitiveMatch[1];
-                        const primitiveIndex = parseInt(primitiveMatch[2]);
-                        const slotName = `slot${primitiveIndex + 1}`;
+                // Vérifier si ce mesh appartient à l'objet concerné
+                if (meshTags.some(tag => tag.includes(objectName))) {
+                    // Appliquer les matériaux aux slots
+                    Object.keys(materialConfig).forEach(slotName => {
+                        const materialName = materialConfig[slotName];
+                        const slotIndex = this.getSlotIndex(slotName);
                         
-                        if (meshConfig.materialSlots[slotName]) {
-                            materialName = meshConfig.materialSlots[slotName];
+                        if (slotIndex >= 0 && this.materialsConfig.materials[materialName]) {
+                            // Trouver le mesh primitif correspondant au slot
+                            const meshes = this.scene.meshes.filter(mesh => 
+                                mesh.name === `${meshName}_primitive${slotIndex}`
+                            );
+                            
+                            meshes.forEach(mesh => {
+                                applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                            });
                         }
-                    }
-                    
-                    // Appliquer le matériau si trouvé
-                    if (materialName && this.materialsConfig.materials[materialName]) {
-                        applyMaterial(mesh, this.materialsConfig.materials[materialName]);
-                    }
+                    });
                 }
             });
         });
         
+        console.log(`🎨 Configuration ${configName} appliquée à ${objectName}:`, materialConfig);
     }
     
     // Obtenir l'index du slot de matériau
@@ -679,85 +688,35 @@ class SKUManager {
         return slotMap[slotName] || -1;
     }
     
-    // Créer un matériau PBR
-    createPBRMaterial(materialConfig, scene) {
-        let finalMaterialConfig = materialConfig;
-        if (materialConfig.parent && materialConfig.parent !== 'none' && this.materialsConfig && this.materialsConfig.materials[materialConfig.parent]) {
-            const parentMaterial = this.materialsConfig.materials[materialConfig.parent];
-            finalMaterialConfig = { ...parentMaterial, ...materialConfig };
-        }
-        
-        const pbr = new BABYLON.PBRMaterial(`${finalMaterialConfig.name || "pbr"}_material`, scene);
-        
-        // Appliquer les propriétés de base
-        if (finalMaterialConfig.baseColor) {
-            pbr.baseColor = BABYLON.Color3.FromHexString(finalMaterialConfig.baseColor);
-        }
-        if (finalMaterialConfig.metallic !== undefined) {
-            pbr.metallic = finalMaterialConfig.metallic;
-        }
-        if (finalMaterialConfig.roughness !== undefined) {
-            pbr.roughness = finalMaterialConfig.roughness;
-        }
-        if (finalMaterialConfig.alpha !== undefined) {
-            pbr.alpha = finalMaterialConfig.alpha;
-        }
-        
-        // Appliquer les textures
-        if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture !== 'None') {
-            pbr.baseTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
-        }
-        if (finalMaterialConfig.metallicTexture && finalMaterialConfig.metallicTexture !== 'None') {
-            pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
-        }
-        if (finalMaterialConfig.microSurfaceTexture && finalMaterialConfig.microSurfaceTexture !== 'None') {
-            pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
-        }
-        if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture !== 'None') {
-            pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
-        }
-        if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture !== 'None') {
-            pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
-        }
-        if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture !== 'None') {
-            pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
-            if (finalMaterialConfig.bumpTextureIntensity !== undefined) {
-                pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity;
-            }
-        }
-        if (finalMaterialConfig.lightmapTexture && finalMaterialConfig.lightmapTexture !== 'None') {
-            pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
-            pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
-        }
-        
-        // Propriétés supplémentaires
-        if (finalMaterialConfig.backFaceCulling !== undefined) {
-            pbr.backFaceCulling = finalMaterialConfig.backFaceCulling;
-        }
-        
-        // Appliquer les transformations de texture
-        this.applyTextureTransformations(pbr, finalMaterialConfig);
-        
-        return pbr;
+    // Obtenir les tags actifs
+    getActiveTags() {
+        return {
+            activeTags: Array.from(this.activeTags),
+            material: this.activeMaterialConfig
+        };
     }
     
-    // Appliquer les transformations de texture
-    applyTextureTransformations(pbr, finalMaterialConfig) {
-        if (finalMaterialConfig.uOffset !== undefined || finalMaterialConfig.vOffset !== undefined || 
-            finalMaterialConfig.uScale !== undefined || finalMaterialConfig.vScale !== undefined || 
-            finalMaterialConfig.wRotation !== undefined) {
-            
-            const texture = pbr.baseTexture || pbr.metallicTexture || pbr.microSurfaceTexture || 
-                           pbr.ambientTexture || pbr.opacityTexture || pbr.bumpTexture || pbr.lightmapTexture;
-            
-            if (texture) {
-                if (finalMaterialConfig.uOffset !== undefined) texture.uOffset = finalMaterialConfig.uOffset;
-                if (finalMaterialConfig.vOffset !== undefined) texture.vOffset = finalMaterialConfig.vOffset;
-                if (finalMaterialConfig.uScale !== undefined) texture.uScale = finalMaterialConfig.uScale;
-                if (finalMaterialConfig.vScale !== undefined) texture.vScale = finalMaterialConfig.vScale;
-                if (finalMaterialConfig.wRotation !== undefined) texture.wAng = BABYLON.Tools.ToRadians(finalMaterialConfig.wRotation);
-            }
-        }
+    // Générer automatiquement les configurations de matériaux disponibles
+    getAvailableMaterialConfigs() {
+        if (!assetConfig || !assetConfig.materialConfigs) return {};
+        return assetConfig.materialConfigs;
+    }
+    
+    // Générer automatiquement les tags de visibilité disponibles
+    getAvailableVisibilityTags() {
+        if (!assetConfig) return [];
+        
+        const allTags = new Set();
+        Object.keys(assetConfig.models).forEach(modelKey => {
+            const model = assetConfig.models[modelKey];
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshConfig = model.meshes[meshName];
+                const meshTags = meshConfig.tags || [];
+                meshTags.forEach(tag => allTags.add(tag));
+            });
+        });
+        
+        return Array.from(allTags);
     }
 }
 
@@ -766,13 +725,13 @@ createScene().then(async createdScene => {
     // Initialiser l'interface dat.GUI complète avec la classe DatGUIManager
     const datGUIManager = new DatGUIManager(scene, materialsConfig, config);
     
-    // Initialiser le système SKU
-    const skuManager = new SKUManager(scene, materialsConfig);
-    await skuManager.loadSKUConfiguration();
+    // Initialiser le système de tags
+    const tagManager = new TagManager(scene, materialsConfig);
+    tagManager.loadTagConfiguration();
     
     // Exposer les managers globalement pour les boutons HTML
     window.datGUIManager = datGUIManager;
-    window.skuManager = skuManager;
+    window.tagManager = tagManager;
     
     // Configurer les callbacks pour les changements de matériaux
     datGUIManager.onMaterialChange = (type, data) => {
