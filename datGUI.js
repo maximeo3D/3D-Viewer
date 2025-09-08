@@ -335,12 +335,12 @@ class DatGUIManager {
             }
         });
         
-        // Camera Angular Sensitivity X control
-        const cameraAngularSensitivityX = { angularSensitivityX: this.scene.activeCamera.angularSensibilityX };
-        this.cameraFolder.add(cameraAngularSensitivityX, 'angularSensitivityX', 100, 2000).step(50).name('Angular Sensitivity X').onChange((value) => {
-            this.scene.activeCamera.angularSensibilityX = value;
+        // Camera Horizontal Sensitivity control
+        const cameraHorizontalSensitivity = { horizontalSensitivity: window.cameraHorizontalSensitivity || 1000 };
+        this.cameraFolder.add(cameraHorizontalSensitivity, 'horizontalSensitivity', 100, 10000).step(100).name('Horizontal Sensitivity').onChange((value) => {
+            window.cameraHorizontalSensitivity = value;
             if (this.onCameraChange) {
-                this.onCameraChange('angularSensibilityX', value);
+                this.onCameraChange('horizontalSensitivity', value);
             }
         });
         
