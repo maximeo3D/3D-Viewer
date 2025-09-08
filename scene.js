@@ -346,61 +346,12 @@ const createScene = async function() {
     if (config.camera.targetY !== undefined) camera.target.y = config.camera.targetY;
     if (config.camera.targetZ !== undefined) camera.target.z = config.camera.targetZ;
     
-    // Configure zoom controls with smoothing
-    if (config.camera.zoomSpeed !== undefined) {
-        camera.wheelPrecision = config.camera.zoomSpeed;
-    } else {
-        camera.wheelPrecision = 1; // Default zoom speed (lower = faster zoom)
-    }
-    
-    // Enable zoom smoothing for smoother transitions
-    camera.zoomSensitivity = config.camera.zoomSensitivity !== undefined ? config.camera.zoomSensitivity : 0.5;
-    
     // Enable inertia for smoother camera movements
     camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
     
-    // Add smooth zoom interpolation for better zoom experience
-    let targetRadius = camera.radius;
-    let currentRadius = camera.radius;
-    let zoomLerpFactor = config.camera.zoomSmoothness !== undefined ? config.camera.zoomSmoothness : 0.1; // Controls zoom smoothness (0.1 = smooth, 0.9 = instant)
     
-    // Make zoomLerpFactor accessible globally for dat.GUI control
-    window.zoomLerpFactor = zoomLerpFactor;
-    
-    // Override the default zoom behavior with smooth interpolation
-    // Use scene's pointer observable to detect mouse wheel events
-    scene.onPointerObservable.add((evt) => {
-        // Only handle mouse wheel events
-        if (evt.type === BABYLON.PointerEventTypes.POINTERWHEEL) {
-            // Calculate the target radius based on wheel delta
-            const delta = evt.event.deltaY;
-            const zoomFactor = 1 + (delta * camera.wheelPrecision / 1000);
-            targetRadius = Math.max(camera.lowerRadiusLimit, Math.min(camera.upperRadiusLimit, targetRadius * zoomFactor));
-            
-            // Store the target for smooth interpolation
-            // Note: We don't prevent default here as we want the camera to still respond
-        }
-    });
-    
-    // Add smooth zoom interpolation and object rotation elasticity in the render loop
+    // Add object rotation elasticity in the render loop
     scene.onBeforeRenderObservable.add(() => {
-        // Zoom interpolation
-        if (Math.abs(currentRadius - targetRadius) > 0.01) {
-            // Use smooth easing function for more natural zoom feel
-            const delta = targetRadius - currentRadius;
-            const easing = 0.1; // Base easing factor
-            
-            // Apply exponential smoothing for more natural movement
-            currentRadius += delta * easing;
-            
-            // Ensure we don't overshoot
-            if ((delta > 0 && currentRadius > targetRadius) || 
-                (delta < 0 && currentRadius < targetRadius)) {
-                currentRadius = targetRadius;
-            }
-            
-            camera.radius = currentRadius;
-        }
         
         // Object rotation elasticity - retour à 0° quand la souris est relâchée
         if (objectRotationElasticityEnabled && !isMouseDown && Math.abs(currentObjectRotationX - targetObjectRotationX) > 0.001) {
@@ -418,17 +369,46 @@ const createScene = async function() {
         }
     });
     
-    // Désactiver complètement les contrôles par défaut de la caméra
-    camera.attachControl(canvas, false);
+    // Test: utiliser les contrôles par défaut sans modification
+    camera.attachControl(canvas, true);
     
-    // Désactiver explicitement tous les contrôles de caméra
-    camera.inputs.clear();
+    // Configuration spécifique du zoom
+    camera.wheelPrecision = config.camera.zoomSpeed || 1;
+    camera.zoomSensitivity = config.camera.zoomSensitivity || 0.5;
     
-    // Désactiver le pan, zoom et rotation par défaut
-    camera.inertia = 0;
-    camera.angularSensibilityX = 0;
-    camera.angularSensibilityY = 0;
-    camera.panningSensibility = 0;
+    
+    // Variables pour le zoom fluide
+    let targetRadius = camera.radius;
+    let currentRadius = camera.radius;
+    const zoomSmoothness = 0.15; // Plus élevé = plus fluide (0.1 = très fluide, 0.9 = instant)
+    
+    // Listener de zoom fluide
+    canvas.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        
+        const delta = event.deltaY;
+        const zoomFactor = 1 + (delta * camera.wheelPrecision / 1000);
+        const newTargetRadius = Math.max(camera.lowerRadiusLimit, Math.min(camera.upperRadiusLimit, targetRadius * zoomFactor));
+        
+        targetRadius = newTargetRadius;
+    });
+    
+    // Interpolation fluide du zoom dans la boucle de rendu
+    scene.onBeforeRenderObservable.add(() => {
+        // Zoom interpolation
+        if (Math.abs(currentRadius - targetRadius) > 0.01) {
+            const delta = targetRadius - currentRadius;
+            currentRadius += delta * zoomSmoothness;
+            
+            // Éviter les dépassements
+            if ((delta > 0 && currentRadius > targetRadius) || 
+                (delta < 0 && currentRadius < targetRadius)) {
+                currentRadius = targetRadius;
+            }
+            
+            camera.radius = currentRadius;
+        }
+    });
     
     // Variables pour les contrôles personnalisés
     let isMouseDown = false;
@@ -678,11 +658,11 @@ class TagManager {
                         }
                         
                         meshes.forEach(mesh => {
-                            applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                        applyMaterial(mesh, this.materialsConfig.materials[materialName]);
                         });
                     }
                 });
-            }
+                }
         });
         
         // Configuration de matériaux appliquée

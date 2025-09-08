@@ -132,7 +132,9 @@ class DatGUIManager {
             }
             
             const data = await response.json();
-            this.availableImages = ['None', ...data.images];
+            // Trier les images par ordre alphabétique (sauf 'None' qui reste en premier)
+            const sortedImages = data.images.sort((a, b) => a.localeCompare(b));
+            this.availableImages = ['None', ...sortedImages];
             return this.availableImages;
         } catch (error) {
             console.error('Error loading available images:', error);
