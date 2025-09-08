@@ -54,19 +54,19 @@
             // Attendre que le TagManager soit initialisé
             setTimeout(() => {
                 if (window.tagManager) {
-                    // Boutons de tags (toggle individuel)
+                    // Boutons d'options (sélection exclusive)
                     document.getElementById('option1-btn').addEventListener('click', () => {
-                        window.tagManager.toggleTag('option1');
+                        window.tagManager.setOption('option1');
                         updateButtonStates();
                     });
                     
                     document.getElementById('option2-btn').addEventListener('click', () => {
-                        window.tagManager.toggleTag('option2');
+                        window.tagManager.setOption('option2');
                         updateButtonStates();
                     });
                     
                     document.getElementById('option3-btn').addEventListener('click', () => {
-                        window.tagManager.toggleTag('option3');
+                        window.tagManager.setOption('option3');
                         updateButtonStates();
                     });
                     
@@ -82,7 +82,7 @@
                     });
                     
                     // Appliquer la configuration par défaut
-                    window.tagManager.toggleTag(defaultConfig.options);
+                    window.tagManager.setOption(defaultConfig.options);
                     window.tagManager.applyMaterialConfig('object1', defaultConfig.materials);
                     
                     // Mettre à jour l'état initial des boutons

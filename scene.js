@@ -594,13 +594,12 @@ class TagManager {
     }
     
     
-    // Activer/désactiver un tag individuel (pour les boutons on/off)
-    toggleTag(tagName) {
-        if (this.activeTags.has(tagName)) {
-            this.activeTags.delete(tagName);
-        } else {
-            this.activeTags.add(tagName);
-        }
+    // Définir une option unique (sélection exclusive)
+    setOption(optionName) {
+        // Vider tous les tags actifs
+        this.activeTags.clear();
+        // Ajouter seulement le tag sélectionné
+        this.activeTags.add(optionName);
         this.applyActiveTags();
     }
     
