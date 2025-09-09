@@ -1,14 +1,14 @@
 # 3D Viewer - Documentation Principale
 
-Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion des SKUs.
+Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion par tags.
 
 ## 🎯 **Fonctionnalités Principales**
 
-### **Système SKU (Stock Keeping Unit)**
-- Gestion des configurations de produits via `SKUconfigs.json`
-- Boutons HTML pour sélection de modèles et schémas de couleurs
-- Contrôle de visibilité des meshes par configuration
-- Assignation automatique de matériaux selon les slots
+### **Système de Tags**
+- Gestion flexible des configurations de produits via tags de visibilité et matériaux
+- Boutons HTML pour contrôle de visibilité des meshes
+- Assignation automatique de matériaux selon les configurations
+- Système modulaire et extensible
 
 ### **Système de Matériaux Avancé**
 - Éditeur PBR complet avec textures et transformations
@@ -16,25 +16,27 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion de
 - Interface dat.GUI avec paramètres grisés pour les propriétés héritées
 - Toggle d'indépendance par clic sur le nom du paramètre
 - Création de matériaux depuis l'interface
+- Synchronisation temps réel des paramètres de texture
 
 ### **Contrôles de Caméra Personnalisés**
-- Mouvement horizontal : contrôle uniquement l'alpha (yaw) de la caméra
+- Mouvement horizontal : contrôle de l'alpha (yaw) de la caméra avec sensibilité ajustable
 - Mouvement vertical : rotation des objets 3D sur l'axe X
 - Limites de rotation des objets (-90° à +90°)
 - Élasticité de rotation des objets (retour à 0° au relâchement)
+- Zoom fluide avec interpolation
+- Pan désactivé (clic droit)
 
 ## 📁 **Structure du Projet**
 
 ```
 3D-Viewer/
-├── index.html                 # Interface HTML avec boutons SKU
-├── scene.js                   # Logique 3D, contrôles, SKUManager
+├── index.html                 # Interface HTML avec boutons de contrôle
+├── scene.js                   # Logique 3D, contrôles, TagManager
 ├── datGUI.js                  # Interface utilisateur dat.GUI
-├── SKUconfigs.json            # Configuration des SKUs
 ├── studio.json                # Configuration environnement/caméra
 ├── Assets/
-│   ├── asset.js              # Données techniques des modèles
-│   └── cubes.glb             # Modèle de test
+│   ├── asset.js              # Configuration des modèles et tags
+│   └── part.glb              # Modèle de test
 └── Textures/
     ├── materials.json         # Matériaux PBR avec héritage
     └── [textures]            # Textures PBR
@@ -43,27 +45,26 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion de
 ## 🔧 **Configuration des Assets**
 
 ### **Assets/asset.js**
-Fichier de données techniques définissant :
+Fichier de configuration centralisé définissant :
 - **Models**: Fichiers de modèles 3D et leurs propriétés
-- **Meshes**: Noms des meshes individuels avec slots de matériaux
-- **Material Slots**: Définition des slots de matériaux pour chaque mesh
-- **Transform**: Position, rotation, échelle
+- **Meshes**: Noms des meshes individuels avec tags de visibilité et slots de matériaux
+- **Tags**: Système de tags pour la visibilité et les configurations de matériaux
+- **Material Configs**: Configurations de matériaux par mesh
 
-### **SKUconfigs.json**
-Configuration métier des produits :
-- **Models**: Correspondance entre identifiants techniques et noms d'affichage
-- **ColorSchemes**: Schémas de couleurs disponibles
-- **SKUs**: Configurations complètes des produits (visibilité, matériaux)
+### **Système de Tags**
+- **Tags de visibilité**: Contrôlent l'affichage des meshes (ex: "base", "flag", "engraving")
+- **Tags de matériaux**: Définissent les configurations de matériaux par mesh
+- **Flexibilité**: Système modulaire permettant d'ajouter facilement de nouveaux tags
 
-**Note**: Les matériaux sont définis séparément dans `Textures/materials.json`
+**Note**: Les matériaux PBR sont définis dans `Textures/materials.json`
 
 ## Adding Models
 
-1. Place your `.glb` file in this folder
+1. Place your `.glb` file in the `Assets/` folder
 2. Update `asset.js` with model information
-3. Define mesh names and material slot assignments
-4. Set individual mesh visibility with the `visible` property
-5. Configure materials in the materials section
+3. Define mesh names and assign tags for visibility and materials
+4. Configure material assignments in the `materialConfigs` section
+5. Test the configuration with the HTML interface
 
 ## Supported Formats
 
@@ -82,20 +83,25 @@ Materials are defined with PBR properties:
 - `normalMap`: Normal map texture
 - `emissive`: Emissive color and intensity
 
-## Mesh Visibility Control
+## Tag-Based Visibility Control
 
-Each mesh can be individually controlled for visibility:
+Each mesh can be controlled using tags for visibility and materials:
 
 ```javascript
-{
-    name: "Cube",
-    visible: true,  // Show this mesh
-    materialSlot1: "red"
-},
-{
-    name: "Sphere", 
-    visible: false, // Hide this mesh
-    materialSlot1: "blue"
+// Dans Assets/asset.js
+meshes: {
+    "bloc": { 
+        materialSlots: ["slot1"], 
+        tags: ["base"] 
+    },
+    "flag": { 
+        materialSlots: ["slot1"], 
+        tags: ["flag"] 
+    },
+    "engraving": { 
+        materialSlots: ["slot1"], 
+        tags: ["engraving"] 
+    }
 }
 ```
 

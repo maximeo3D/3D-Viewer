@@ -1,22 +1,21 @@
 # 3D Viewer - Guide de Développement
 
-Documentation technique complète du projet 3D Viewer avec éditeur de matériaux PBR.
+Documentation technique complète du projet 3D Viewer avec éditeur de matériaux PBR et système de tags.
 
 ## 🏗️ **Architecture du Projet**
 
 ### **Structure des Fichiers**
 ```
 3D-Viewer/
-├── index.html                 # Interface HTML principale avec boutons SKU
-├── scene.js                   # Logique 3D, contrôles personnalisés, SKUManager
+├── index.html                 # Interface HTML principale avec contrôles de tags
+├── scene.js                   # Logique 3D, contrôles personnalisés, TagManager
 ├── datGUI.js                  # Interface utilisateur dat.GUI complète
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
 ├── studio.json                # Configuration environnement/caméra
-├── SKUconfigs.json            # Configuration des SKUs (produits/couleurs)
 ├── Assets/
-│   ├── asset.js              # Données techniques des modèles 3D
-│   └── cubes.glb             # Modèle de test avec meshes primitifs
+│   ├── asset.js              # Configuration des modèles 3D et tags
+│   └── part.glb              # Modèle de test avec meshes
 └── Textures/
     ├── materials.json         # Configuration des matériaux PBR avec héritage
     ├── HDR/
@@ -33,11 +32,11 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ### **Architecture Modulaire**
 
 #### **Séparation des Responsabilités**
-- **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles, classe SKUManager
+- **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles, classe TagManager
 - **`datGUI.js`** : Interface utilisateur complète, gestion des matériaux avec héritage, contrôles d'environnement
 - **`studio.json`** : Configuration persistante de la caméra et de l'environnement
-- **`Assets/asset.js`** : Données techniques des modèles 3D (fichiers, slots de matériaux)
-- **`SKUconfigs.json`** : Configuration métier des produits (visibilité, assignation de matériaux)
+- **`Assets/asset.js`** : Configuration centralisée des modèles 3D, tags de visibilité et configurations de matériaux
+- **`index.html`** : Interface utilisateur pour le contrôle des tags et configurations
 
 #### **Classe DatGUIManager**
 ```javascript
@@ -579,149 +578,140 @@ if (materialConfig.opacityTexture && materialConfig.opacityTexture.trim() !== ''
 }
 ```
 
-## 🎯 **Système SKU (Stock Keeping Unit)**
+## 🎯 **Système de Tags**
 
-### **Classe SKUManager**
+### **Classe TagManager**
 ```javascript
-class SKUManager {
-    constructor(scene, materialsConfig) {
+class TagManager {
+    constructor(scene, assetConfig) {
         this.scene = scene;
-        this.materialsConfig = materialsConfig;
-        this.skuConfig = null;
-        this.currentSKU = null;
-        this.currentModel = 'model1';
-        this.currentColorScheme = 'color1';
+        this.assetConfig = assetConfig;
+        this.activeTags = new Set();
+        this.activeMaterialConfigs = new Map();
     }
     
-    async loadSKUConfiguration() {
-        try {
-            const response = await fetch('SKUconfigs.json');
-            this.skuConfig = await response.json();
-            this.updateSKUFromSelection();
-        } catch (error) {
-            console.error('❌ Erreur lors du chargement de SKUconfigs.json:', error);
-        }
+    setOption(tag) {
+        // Définir l'option active (ex: "base")
+        this.activeTags.clear();
+        this.activeTags.add(tag);
+        this.applyActiveTags();
     }
     
-    setModel(model) {
-        this.currentModel = model;
-        this.updateSKUFromSelection();
+    applyMaterialConfig(objectName, configName) {
+        // Appliquer une configuration de matériau à un objet spécifique
+        this.activeMaterialConfigs.set(objectName, configName);
+        this.applyActiveTags();
     }
     
-    setColorScheme(colorScheme) {
-        this.currentColorScheme = colorScheme;
-        this.updateSKUFromSelection();
+    applyActiveTags() {
+        // Appliquer tous les tags actifs à la scène
+        // Gestion de la visibilité et des matériaux
     }
     
-    updateSKUFromSelection() {
-        if (!this.skuConfig) return;
-        
-        const skuKey = Object.keys(this.skuConfig.skus).find(skuKey => {
-            const sku = this.skuConfig.skus[skuKey];
-            return sku.model === this.currentModel && 
-                   sku.colorScheme === this.currentColorScheme;
-        });
-        
-        if (skuKey) {
-            this.currentSKU = skuKey;
-            this.applySKUConfiguration(skuKey);
-        }
-    }
-    
-    applySKUConfiguration(skuKey) {
-        const skuConfig = this.skuConfig.skus[skuKey];
-        const configuration = skuConfig.configuration;
-        
-        Object.keys(configuration).forEach(meshName => {
-            const meshConfig = configuration[meshName];
-            
-            // Trouver les meshes primitifs correspondants
-            const meshes = this.scene.meshes.filter(mesh => 
-                mesh.name.startsWith(meshName + '_primitive')
-            );
-            
-            meshes.forEach(mesh => {
-                // Gérer la visibilité
-                mesh.setEnabled(meshConfig.visible);
-                
-                // Gérer les matériaux
-                if (meshConfig.visible && meshConfig.materialSlots) {
-                    const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                    if (primitiveMatch) {
-                        const primitiveIndex = parseInt(primitiveMatch[2]);
-                        const slotName = `slot${primitiveIndex + 1}`;
-                        
-                        if (meshConfig.materialSlots[slotName]) {
-                            const materialName = meshConfig.materialSlots[slotName];
-                            applyMaterial(mesh, this.materialsConfig.materials[materialName]);
-                        }
-                    }
-                }
-            });
-        });
-        
-        console.log(`✅ Configuration SKU ${skuKey} appliquée`);
+    getActiveTags() {
+        // Retourner l'état actuel des tags et configurations
+        return {
+            activeTags: Array.from(this.activeTags),
+            materials: Object.fromEntries(this.activeMaterialConfigs)
+        };
     }
 }
 ```
 
-### **Configuration SKU**
-```json
-{
-  "models": {
-    "model1": "Cube 1",
-    "model2": "Cube 2"
-  },
-  "colorSchemes": {
-    "color1": "Red",
-    "color2": "Green/Blue"
-  },
-  "skus": {
-    "001-001-001": {
-      "model": "model1",
-      "colorScheme": "color1",
-      "configuration": {
-        "cube1": {
-          "visible": true,
-          "materialSlots": {
-            "slot1": "red",
-            "slot2": "red"
-          }
-        },
-        "cube2": {
-          "visible": false
+### **Configuration des Tags**
+```javascript
+// Dans Assets/asset.js
+const assetConfiguration = {
+    models: {
+        "part_model": {
+            name: "Modèle Part",
+            file: "part.glb",
+            meshes: {
+                "bloc": { 
+                    materialSlots: ["slot1"], 
+                    tags: ["base"] 
+                },
+                "flag": { 
+                    materialSlots: ["slot1"], 
+                    tags: ["flag"] 
+                },
+                "engraving": { 
+                    materialSlots: ["slot1"], 
+                    tags: ["engraving"] 
+                }
+            }
         }
-      }
+    },
+    materialConfigs: {
+        "bloc": { 
+            "red": { "slot1": "red" }, 
+            "blue": { "slot1": "blue" }, 
+            "green": { "slot1": "green" } 
+        },
+        "flag": { 
+            "none": { "slot1": "red" }, 
+            "red": { "slot1": "red" }, 
+            "blue": { "slot1": "blue" }, 
+            "green": { "slot1": "green" } 
+        }
     }
-  }
-}
+};
 ```
 
 ### **Interface HTML**
 ```html
 <div class="sidebar">
-    <h3>Models</h3>
-    <button id="model1-btn" class="sidebar-btn">Model 1</button>
-    <button id="model2-btn" class="sidebar-btn">Model 2</button>
+    <div class="category">
+        <h3>Options</h3>
+        <div class="buttons">
+            <button class="sidebar-btn" id="option1-btn">Option 1</button>
+        </div>
+    </div>
     
-    <h3>Colors</h3>
-    <button id="color1-btn" class="sidebar-btn">Red</button>
-    <button id="color2-btn" class="sidebar-btn">Green</button>
+    <div class="category">
+        <h3>Bloc Material</h3>
+        <div class="buttons">
+            <button class="sidebar-btn" id="bloc-red-btn">Red</button>
+            <button class="sidebar-btn" id="bloc-blue-btn">Blue</button>
+            <button class="sidebar-btn" id="bloc-green-btn">Green</button>
+        </div>
+    </div>
+    
+    <div class="category">
+        <h3>Flag</h3>
+        <div class="buttons">
+            <button class="sidebar-btn" id="flag-none-btn">None</button>
+            <button class="sidebar-btn" id="flag-red-btn">Red</button>
+            <button class="sidebar-btn" id="flag-blue-btn">Blue</button>
+            <button class="sidebar-btn" id="flag-green-btn">Green</button>
+        </div>
+    </div>
+    
+    <div class="category">
+        <h3>Engraving</h3>
+        <div class="checkbox-container">
+            <input type="checkbox" id="engraving-checkbox">
+            <label for="engraving-checkbox">Enable</label>
+        </div>
+        <div class="text-container" id="engraving-text" style="display: none;">
+            <input type="text" id="engraving-text-input" placeholder="Enter text...">
+        </div>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        if (window.skuManager) {
-            // Boutons de modèles
-            document.getElementById('model1-btn').addEventListener('click', () => {
-                window.skuManager.setModel('model1');
+        if (window.tagManager) {
+            // Boutons de contrôle des tags
+            document.getElementById('option1-btn').addEventListener('click', () => {
+                window.tagManager.setOption('base');
                 updateButtonStates();
             });
             
-            // Boutons de couleurs
-            document.getElementById('color1-btn').addEventListener('click', () => {
-                window.skuManager.setColorScheme('color1');
+            // Boutons de matériaux
+            document.getElementById('bloc-red-btn').addEventListener('click', () => {
+                window.tagManager.applyMaterialConfig('bloc', 'red');
                 updateButtonStates();
             });
             

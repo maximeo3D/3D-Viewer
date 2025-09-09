@@ -1,6 +1,6 @@
 # Système de Gestion des Assets 3D
 
-Documentation du système de chargement et de gestion des modèles 3D avec support SKU.
+Documentation du système de chargement et de gestion des modèles 3D avec système de tags.
 
 ## 🚀 **Vue d'Ensemble du Système**
 
@@ -8,7 +8,7 @@ Le système d'assets permet de :
 - **Charger des modèles 3D** au format GLB
 - **Configurer les modèles** avec position, rotation, échelle et visibilité
 - **Assigner des matériaux** à des noms de meshes spécifiques
-- **Gérer les SKUs** avec configurations de produits
+- **Gérer les tags** pour la visibilité et les configurations de matériaux
 - **Exporter/importer** les configurations d'assets
 - **Gérer les matériaux** avec propriétés PBR et héritage
 
@@ -24,8 +24,7 @@ Le système d'assets permet de :
 │   ├── materials.json        ← Configuration des matériaux PBR avec héritage
 │   ├── HDR/                  ← Textures d'environnement HDR
 │   └── ...                   ← Autres fichiers de textures
-├── SKUconfigs.json           ← Configuration métier des SKUs
-├── scene.js                   ← Scène principale avec chargement d'assets et SKUManager
+├── scene.js                   ← Scène principale avec chargement d'assets et TagManager
 ├── serve.ps1                  ← Serveur avec support GLB
 └── studio.json                ← Paramètres de caméra et d'environnement
 ```

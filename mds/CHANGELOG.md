@@ -5,15 +5,16 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [2.3.0] - 2024-12-XX - Système SKU et Matériaux Avancés
+## [2.4.0] - 2024-12-XX - Système de Tags et Contrôles Avancés
 
 ### 🎉 Ajouté
-- **Système SKU (Stock Keeping Unit)**
-  - Gestion des configurations de produits via `SKUconfigs.json`
-  - Boutons HTML pour sélection de modèles et schémas de couleurs
-  - Contrôle de visibilité des meshes par configuration
-  - Assignation automatique de matériaux selon les slots
-  - Classe `SKUManager` pour la gestion centralisée
+- **Système de Tags**
+  - Remplacement du système SKU par un système de tags plus flexible
+  - Gestion des configurations de produits via tags de visibilité et matériaux
+  - Boutons HTML pour contrôle de visibilité des meshes
+  - Assignation automatique de matériaux selon les configurations
+  - Classe `TagManager` pour la gestion centralisée
+  - Support des meshes avec un seul slot de matériau (fallback vers slot1)
 
 - **Système de Matériaux Parent-Enfant**
   - Héritage de propriétés entre matériaux
@@ -31,27 +32,38 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 - **Gestion des Meshes Primitifs**
   - Support automatique des meshes `*_primitive0`, `*_primitive1`
+  - Support des meshes avec un seul slot de matériau (fallback vers slot1)
   - Mapping intelligent des slots de matériaux
   - Application sélective des matériaux par slot
   - Gestion de la visibilité par mesh individuel
 
+- **Contrôles de Caméra Avancés**
+  - Sensibilité horizontale ajustable via dat.GUI
+  - Zoom fluide avec interpolation
+  - Pan désactivé (clic droit)
+  - Contrôles personnalisés pour rotation des objets
+
 ### 🔧 Modifié
 - **Architecture des Assets**
-  - Séparation entre `asset.js` (données techniques) et `SKUconfigs.json` (configuration métier)
+  - Configuration centralisée dans `asset.js` (modèles, tags, configurations de matériaux)
+  - Suppression du système SKU et de `SKUconfigs.json`
   - Simplification de la structure des modèles
-  - Chargement unique des modèles GLB pour tous les SKUs
+  - Chargement unique des modèles GLB
   - Optimisation des performances de chargement
 
 - **Interface dat.GUI**
   - Ajout du contrôle "Parent" dans le menu Materials
+  - Ajout du contrôle "Horizontal Sensitivity" pour la caméra
   - Réorganisation des contrôles de matériaux
   - Amélioration de la gestion des textures
   - Interface plus intuitive pour la création de matériaux
+  - Synchronisation temps réel des paramètres de texture
 
 - **Système de Rotation**
   - Correction de la référence aux groupes de modèles
-  - Utilisation du groupe `SKU_Models` pour la rotation
+  - Utilisation du groupe `part_model_group` pour la rotation
   - Maintien de l'élasticité et des limites de rotation
+  - Sensibilité ajustable pour les contrôles horizontaux
 
 ### 🐛 Corrigé
 - **Gestion des Matériaux**
@@ -59,24 +71,40 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Résolution des problèmes de chargement des textures
   - Gestion sécurisée des observables de texture
   - Correction des erreurs de référence aux meshes
+  - Synchronisation temps réel des paramètres de texture (bumpTextureIntensity, uOffset, vOffset, etc.)
 
-- **Système SKU**
+- **Système de Tags**
   - Résolution des conflits de noms de variables
   - Correction de la logique de recherche des meshes primitifs
   - Gestion des erreurs de configuration
   - Optimisation des performances
+  - Support des meshes avec un seul slot de matériau
+
+- **Contrôles de Caméra**
+  - Correction de la sensibilité horizontale de la caméra
+  - Résolution des problèmes de pan (clic droit désactivé)
+  - Amélioration du zoom fluide
+  - Correction des variables manquantes (isMouseDown, isRightClick)
 
 - **Interface Utilisateur**
   - Correction des logs de débogage
   - Amélioration de la stabilité de l'interface
   - Résolution des problèmes de réorganisation des contrôles
+  - Tri alphabétique des listes de textures
 
 ### 🗑️ Supprimé
+- **Système SKU Obsolète**
+  - Suppression complète du système SKU et de `SKUconfigs.json`
+  - Suppression de la classe `SKUManager`
+  - Nettoyage des références aux SKUs dans le code
+  - Suppression des boutons HTML liés aux SKUs
+
 - **Code Obsolète**
   - Suppression de la boucle de chargement redondante des modèles
   - Nettoyage des références à `window.loadedModels`
   - Suppression des logs de débogage temporaires
   - Code de compatibilité obsolète
+  - Suppression des contrôles de pan de la caméra
 
 ## [2.2.0] - 2024-12-XX - Refactoring et Contrôles Avancés
 

@@ -12,7 +12,8 @@ Documentation des contrôles personnalisés de caméra et d'objets 3D dans le 3D
 ### **Mouvement Horizontal (X)**
 - **Action** : Contrôle l'angle horizontal de la caméra (Yaw/Alpha)
 - **Comportement** : Rotation de la caméra autour de l'axe vertical
-- **Sensibilité** : Ajustable via `alphaSensitivity = 0.006`
+- **Sensibilité** : Ajustable via `window.cameraHorizontalSensitivity` (100-10000)
+- **Contrôle dat.GUI** : "Horizontal Sensitivity" dans le menu Camera
 - **Direction** : Inversée pour un comportement naturel
 
 ### **Mouvement Vertical (Y)**
@@ -23,8 +24,10 @@ Documentation des contrôles personnalisés de caméra et d'objets 3D dans le 3D
 
 ### **Zoom**
 - **Action** : Contrôle de la distance de la caméra
-- **Comportement** : Zoom fluide avec inertie et lissage
+- **Comportement** : Zoom fluide avec interpolation et lissage
 - **Limites** : Définies dans `studio.json` (minDistance/maxDistance)
+- **Sensibilité** : Réduite de 50% par défaut
+- **Interpolation** : Zoom fluide avec `zoomSmoothness = 0.15`
 
 ## 🎯 **Contrôle "Initial Pitch"**
 
@@ -66,26 +69,31 @@ let targetObjectRotationX = 0;            // Rotation cible (toujours 0°)
 let objectRotationElasticityEnabled = true; // État de l'élasticité
 ```
 
-## 🎨 **Système de Visibilité par Mesh**
+## 🎨 **Système de Tags**
 
 ### **Configuration dans asset.js**
 ```javascript
-{
-    name: "Cube",
-    visible: true,   // Mesh visible
-    materialSlot1: "red"
-},
-{
-    name: "Sphere",
-    visible: false,  // Mesh caché
-    materialSlot1: "blue"
+meshes: {
+    "bloc": { 
+        materialSlots: ["slot1"], 
+        tags: ["base"] 
+    },
+    "flag": { 
+        materialSlots: ["slot1"], 
+        tags: ["flag"] 
+    },
+    "engraving": { 
+        materialSlots: ["slot1"], 
+        tags: ["engraving"] 
+    }
 }
 ```
 
 ### **Application Automatique**
-- **Au chargement** : La visibilité est appliquée selon la configuration
+- **Au chargement** : Les tags sont appliqués selon la configuration
 - **En temps réel** : Les changements sont immédiatement visibles
-- **Persistance** : La configuration est sauvegardée dans `asset.js`
+- **Persistance** : La configuration est centralisée dans `asset.js`
+- **Flexibilité** : Système modulaire permettant d'ajouter facilement de nouveaux tags
 
 ## 🎛️ **Contrôle de Visibilité de dat.GUI**
 
@@ -110,7 +118,9 @@ let datGUIVisible = true;
 
 ### **Caméra Alpha (Yaw)**
 ```javascript
-const alphaSensitivity = 0.006; // Sensibilité de rotation horizontale
+// Sensibilité horizontale ajustable via dat.GUI
+window.cameraHorizontalSensitivity = 1000; // Plus élevé = moins sensible
+const cameraSensitivity = 5 / window.cameraHorizontalSensitivity;
 ```
 
 ### **Rotation des Objets**
@@ -125,7 +135,7 @@ const elasticityFactor = 0.1; // Vitesse de retour à 0°
 
 ### **Zoom**
 ```javascript
-const easing = 0.1; // Facteur de lissage du zoom
+const zoomSmoothness = 0.15; // Facteur de lissage du zoom (plus élevé = plus fluide)
 ```
 
 ## 🎯 **Limites et Contraintes**
@@ -143,6 +153,7 @@ const easing = 0.1; // Facteur de lissage du zoom
 ### **Pan de Caméra**
 - **Clic droit** : Complètement désactivé
 - **Menu contextuel** : Désactivé pour éviter les conflits
+- **Contrôles par défaut** : Désactivés avec `camera.detachControl(canvas)`
 
 ## 🚀 **Optimisations de Performance**
 
@@ -169,6 +180,6 @@ const easing = 0.1; // Facteur de lissage du zoom
 
 ---
 
-**Version** : 2.2.0  
+**Version** : 2.4.0  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅

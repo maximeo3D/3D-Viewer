@@ -384,10 +384,6 @@ const createScene = async function() {
     // Variable pour contrôler la sensibilité horizontale personnalisée
     window.cameraHorizontalSensitivity = 1000; // Plus élevé = moins sensible
     
-    // Console log pour debug de la sensibilité
-    console.log('🔧 Camera angularSensibilityX:', camera.angularSensibilityX);
-    console.log('🔧 Camera horizontal sensitivity:', window.cameraHorizontalSensitivity);
-    
     // Configuration spécifique du zoom (sensibilité réduite de 50%)
     camera.wheelPrecision = (config.camera.zoomSpeed || 1) * 0.5;
     camera.zoomSensitivity = config.camera.zoomSensitivity || 0.5;
@@ -476,7 +472,6 @@ const createScene = async function() {
                 const rotationDelta = -deltaX * cameraSensitivity; // Inversé pour un comportement naturel
                 
                 // Debug de la sensibilité
-                console.log('🎯 Camera sensitivity:', cameraSensitivity, 'horizontalSensitivity:', window.cameraHorizontalSensitivity);
                 
                 // Appliquer la rotation horizontale à la caméra
                 camera.alpha += rotationDelta;
