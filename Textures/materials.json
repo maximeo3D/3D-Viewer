@@ -40,6 +40,29 @@
       "parent": "blue",
       "useLightmapAsShadowmap": true,
       "baseColor": "#b5b536"
+    },
+    "grid": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#ffffff",
+      "metallic": 0,
+      "roughness": 0.5,
+      "alpha": 1,
+      "albedoTexture": "color_grid.png",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "None",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0,
+      "useLightmapAsShadowmap": true
     }
   }
 }

@@ -127,26 +127,68 @@ async function loadModels() {
         const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
         
         if (result.meshes.length > 0) {
-            // Créer un groupe pour tous les meshes
-            const modelGroup = new BABYLON.TransformNode("Main_Models", scene);
+            // Trouver le mesh __root__ qui doit être le parent principal
+            const rootMesh = result.meshes.find(mesh => mesh.name === "__root__");
+            let modelGroup = null;
             
-            // Appliquer les transformations par défaut
-            modelGroup.position = new BABYLON.Vector3(0, 0, 0);
-            modelGroup.rotation = new BABYLON.Vector3(0, 0, 0);
-            modelGroup.scaling = new BABYLON.Vector3(1, 1, 1);
+            if (rootMesh) {
+                // Appliquer les transformations par défaut au root
+                rootMesh.position = new BABYLON.Vector3(0, 0, 0);
+                rootMesh.rotation = new BABYLON.Vector3(0, 0, 0);
+                rootMesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                
+                // Attacher tous les autres meshes au root
+                result.meshes.forEach(mesh => {
+                    if (mesh !== rootMesh && mesh.name !== "__root__") {
+                        mesh.parent = rootMesh;
+                    }
+                });
+            } else {
+                // Fallback si pas de __root__ trouvé
+                modelGroup = new BABYLON.TransformNode("Main_Models", scene);
+                modelGroup.position = new BABYLON.Vector3(0, 0, 0);
+                modelGroup.rotation = new BABYLON.Vector3(0, 0, 0);
+                modelGroup.scaling = new BABYLON.Vector3(1, 1, 1);
+                
+                result.meshes.forEach(mesh => {
+                    if (mesh !== modelGroup) {
+                        mesh.parent = modelGroup;
+                    }
+                });
+            }
             
-            // Attacher tous les meshes au groupe
+            // Appliquer les corrections recommandées par la documentation Babylon.js/Blender
             result.meshes.forEach(mesh => {
-                if (mesh !== modelGroup) {
-                    mesh.parent = modelGroup;
+                if (mesh.name && mesh.name !== "Main_Models" && mesh.name !== "__root__") {
+                    // Correction des transformations non appliquées dans Blender (documentation officielle)
+                    if (mesh.scaling.x === -1 || mesh.scaling.y === -1 || mesh.scaling.z === -1) {
+                        mesh.scaling = new BABYLON.Vector3(
+                            Math.abs(mesh.scaling.x),
+                            Math.abs(mesh.scaling.y), 
+                            Math.abs(mesh.scaling.z)
+                        );
+                    }
+                    
+                    // Correction des UVs (inversion axe V)
+                    if (mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)) {
+                        const uvs = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind);
+                        const correctedUVs = [...uvs];
+                        for (let i = 0; i < correctedUVs.length; i += 2) {
+                            correctedUVs[i + 1] = 1.0 - correctedUVs[i + 1]; // Inverser axe V
+                        }
+                        mesh.setVerticesData(BABYLON.VertexBuffer.UVKind, correctedUVs);
+                    }
                 }
             });
             
-            
             // Stocker les références des meshes pour le système de tags
             result.meshes.forEach(mesh => {
-                if (mesh.name && mesh.name !== "Main_Models") {
-                    // Meshes chargés pour le système de tags
+                if (mesh.name && mesh.name !== "Main_Models" && mesh.name !== "__root__") {
+                    // Stocker les meshes pour le système de tags
+                    window.loadedModels.set(mesh.name, {
+                        mesh: mesh,
+                        group: rootMesh || modelGroup
+                    });
                 }
             });
         }
@@ -183,6 +225,8 @@ function createPBRMaterial(materialConfig, scene) {
     // Albedo texture (base color)
     if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
         pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
+        
+        
         if (pbr.albedoTexture.onErrorObservable) {
             pbr.albedoTexture.onErrorObservable.add(() => {
                 console.error(`❌ Failed to load albedo texture: ${finalMaterialConfig.albedoTexture}`);
@@ -196,6 +240,7 @@ function createPBRMaterial(materialConfig, scene) {
     if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None') {
         pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
         pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity !== undefined ? finalMaterialConfig.bumpTextureIntensity : 1.0;
+        pbr.bumpTexture.vFlip = false; // Corriger l'effet miroir
         if (pbr.bumpTexture.onErrorObservable) {
             pbr.bumpTexture.onErrorObservable.add(() => {
                 console.error(`❌ Failed to load bump texture: ${finalMaterialConfig.bumpTexture}`);
@@ -207,22 +252,26 @@ function createPBRMaterial(materialConfig, scene) {
     // Metallic texture
     if (finalMaterialConfig.metallicTexture && finalMaterialConfig.metallicTexture.trim() !== '' && finalMaterialConfig.metallicTexture !== 'None') {
         pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
+        pbr.metallicTexture.vFlip = false; // Corriger l'effet miroir
     }
     
     // Microsurface (roughness) texture
     if (finalMaterialConfig.microSurfaceTexture && finalMaterialConfig.microSurfaceTexture.trim() !== '' && finalMaterialConfig.microSurfaceTexture !== 'None') {
         pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
+        pbr.microSurfaceTexture.vFlip = false; // Corriger l'effet miroir
     }
     
     // Ambient occlusion texture
     if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture.trim() !== '' && finalMaterialConfig.ambientTexture !== 'None') {
         pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
+        pbr.ambientTexture.vFlip = false; // Corriger l'effet miroir
     }
     
     // Opacity texture for local transparency control
     if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None') {
         pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
         pbr.opacityTexture.getAlphaFromRGB = true; // CRUCIAL pour que l'opacityTexture fonctionne
+        pbr.opacityTexture.vFlip = false; // Corriger l'effet miroir
         
         // When opacity texture is present, DON'T set pbr.opacity - let the texture handle it
         // The alpha slider will control the overall transparency of the visible parts
@@ -235,6 +284,7 @@ function createPBRMaterial(materialConfig, scene) {
     // Lightmap texture for baked lighting
     if (finalMaterialConfig.lightmapTexture && finalMaterialConfig.lightmapTexture.trim() !== '' && finalMaterialConfig.lightmapTexture !== 'None') {
         pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
+        pbr.lightmapTexture.vFlip = false; // Corriger l'effet miroir
         
         // Enable lightmap as shadowmap by default for better performance
         pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
@@ -274,6 +324,7 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
     
     textures.forEach(texture => {
         if (texture) {
+            
             // Apply U/V Offset
             if (finalMaterialConfig.uOffset !== undefined) {
                 texture.uOffset = finalMaterialConfig.uOffset;
@@ -294,6 +345,7 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
             if (finalMaterialConfig.wRotation !== undefined) {
                 texture.wAng = BABYLON.Tools.ToRadians(finalMaterialConfig.wRotation);
             }
+            
         }
     });
 }
@@ -319,6 +371,7 @@ const createScene = async function() {
     
     // Create the scene
     scene = new BABYLON.Scene(engine);
+    scene.useRightHandedSystem = true; // Mode right-handed pour compatibilité Blender
     
     // Create a camera with config values
     camera = new BABYLON.ArcRotateCamera("camera", config.camera.alpha, config.camera.beta, config.camera.radius, BABYLON.Vector3.Zero(), scene);
@@ -361,10 +414,10 @@ const createScene = async function() {
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
             
-            // Appliquer la rotation au groupe Main_Models
-            const mainModelsGroup = scene.getTransformNodeByName("Main_Models");
-            if (mainModelsGroup) {
-                mainModelsGroup.rotation.x = currentObjectRotationX;
+            // Appliquer la rotation au groupe __root__
+            const rootGroup = scene.getMeshByName("__root__");
+            if (rootGroup) {
+                rootGroup.rotation.x = currentObjectRotationX;
             }
         }
     });
@@ -469,9 +522,7 @@ const createScene = async function() {
             if (Math.abs(deltaX) > 0) {
                 // Utiliser notre variable personnalisée pour la sensibilité (plus élevé = moins sensible)
                 const cameraSensitivity = 5 / window.cameraHorizontalSensitivity;
-                const rotationDelta = -deltaX * cameraSensitivity; // Inversé pour un comportement naturel
-                
-                // Debug de la sensibilité
+                const rotationDelta = deltaX * cameraSensitivity; // Corrigé pour le mode right-handed
                 
                 // Appliquer la rotation horizontale à la caméra
                 camera.alpha += rotationDelta;
@@ -486,10 +537,10 @@ const createScene = async function() {
                 const newRotationX = currentObjectRotationX + rotationDelta;
                 const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
                 
-                // Appliquer la rotation limitée au groupe Main_Models
-                const mainModelsGroup = scene.getTransformNodeByName("Main_Models");
-                if (mainModelsGroup) {
-                    mainModelsGroup.rotation.x = clampedRotationX;
+                // Appliquer la rotation limitée au groupe __root__
+                const rootGroup = scene.getMeshByName("__root__");
+                if (rootGroup) {
+                    rootGroup.rotation.x = clampedRotationX;
                 }
                 
                             // Mettre à jour la rotation actuelle
