@@ -104,6 +104,36 @@ try {
                 Write-Host "Error updating materials.json: $($_.Exception.Message)"
             }
         }
+        # Handle GET request for listing Textures images
+        elseif ($request.HttpMethod -eq 'GET' -and $path -eq 'api/textures') {
+            try {
+                $texturesPath = Join-Path $PSScriptRoot "Textures"
+                $imageFiles = Get-ChildItem -Path $texturesPath -File | Where-Object { 
+                    $_.Extension -match '\.(png|jpg|jpeg|gif|bmp|tga)$' 
+                } | ForEach-Object { $_.Name }
+                
+                $responseData = @{
+                    images = @('None') + $imageFiles
+                } | ConvertTo-Json
+                
+                $response.StatusCode = 200
+                $response.ContentType = "application/json"
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($responseData)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "Textures list sent: $($imageFiles -join ', ')"
+            } catch {
+                $response.StatusCode = 500
+                $response.ContentType = "application/json"
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message + '"}' 
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "Error listing textures: $($_.Exception.Message)"
+            }
+        }
         
         # Handle POST requests for asset.json
         elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'Assets/asset.json') {

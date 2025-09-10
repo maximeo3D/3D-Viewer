@@ -33,14 +33,14 @@ class TweakpaneManager {
             metallic: 0.0,
             roughness: 0.5,
             alpha: 1.0,
-            albedoTexture: '',
-            metallicTexture: '',
-            microSurfaceTexture: '',
-            ambientTexture: '',
-            opacityTexture: '',
-            bumpTexture: '',
+            albedoTexture: 'None',
+            metallicTexture: 'None',
+            microSurfaceTexture: 'None',
+            ambientTexture: 'None',
+            opacityTexture: 'None',
+            bumpTexture: 'None',
             bumpTextureIntensity: 1.0,
-            lightmapTexture: '',
+            lightmapTexture: 'None',
             useLightmapAsShadowmap: true,
             backFaceCulling: true,
             // Texture transformation parameters
@@ -92,8 +92,7 @@ class TweakpaneManager {
         this.createGUI();
         this.createEnvironmentFolder();
         this.createCameraFolder();
-        this.createMaterialsFolder();
-        this.createTargetFolder();
+        await this.createMaterialsFolder();
         this.createInspectorControls();
         
         // Charger les propriétés du premier matériau après l'initialisation
@@ -249,9 +248,12 @@ class TweakpaneManager {
         }).on('change', (ev) => {
             this.updateCameraHorizontalSensitivity(ev.value);
         });
+        
+        // Target controls (sous-menu de Camera)
+        this.createTargetFolder();
     }
     
-    createMaterialsFolder() {
+    async createMaterialsFolder() {
         this.materialsFolder = this.pane.addFolder({
             title: 'Materials',
             expanded: true
@@ -279,14 +281,21 @@ class TweakpaneManager {
             this.onParentChange(ev.value);
         });
         
-        // Material properties
-        this.createMaterialControls();
-        
-        // Create material section
+        // Create material section (en premier)
         this.createNewMaterialControls();
+        
+        // Material properties
+        await this.createMaterialControls();
+        
+        // Bouton Export Material à la fin
+        this.materialsFolder.addButton({
+            title: 'Export Material'
+        }).on('click', () => {
+            this.exportMaterial();
+        });
     }
     
-    createMaterialControls() {
+    async createMaterialControls() {
         // Base Color avec color picker (format RGB)
         this.materialsFolder.addInput(this.materialProperties, 'baseColor', {
             view: 'color',
@@ -331,69 +340,69 @@ class TweakpaneManager {
             this.applyMaterialChanges();
         });
         
-        // Texture controls
-        this.createTextureControls();
+        // Texture controls (async)
+        await this.createTextureControls();
         
         // Texture transformation controls
         this.createTextureTransformationControls();
     }
     
-    createTextureControls() {
+    async createTextureControls() {
         const textureFolder = this.materialsFolder.addFolder({
             title: 'Textures',
-            expanded: false
+            expanded: true
         });
         
         // Get available images
-        const availableImages = this.getAvailableImages();
+        const availableImages = await this.getAvailableImages();
         
         // Albedo Texture
-        textureFolder.addInput(this.materialProperties, 'albedoTexture', {
+        this.materialControls.set('albedoTexture', textureFolder.addInput(this.materialProperties, 'albedoTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.albedoTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Metallic Texture
-        textureFolder.addInput(this.materialProperties, 'metallicTexture', {
+        this.materialControls.set('metallicTexture', textureFolder.addInput(this.materialProperties, 'metallicTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.metallicTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Micro Surface Texture
-        textureFolder.addInput(this.materialProperties, 'microSurfaceTexture', {
+        this.materialControls.set('microSurfaceTexture', textureFolder.addInput(this.materialProperties, 'microSurfaceTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.microSurfaceTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Ambient Texture
-        textureFolder.addInput(this.materialProperties, 'ambientTexture', {
+        this.materialControls.set('ambientTexture', textureFolder.addInput(this.materialProperties, 'ambientTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.ambientTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Opacity Texture
-        textureFolder.addInput(this.materialProperties, 'opacityTexture', {
+        this.materialControls.set('opacityTexture', textureFolder.addInput(this.materialProperties, 'opacityTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.opacityTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Bump Texture
-        textureFolder.addInput(this.materialProperties, 'bumpTexture', {
+        this.materialControls.set('bumpTexture', textureFolder.addInput(this.materialProperties, 'bumpTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.bumpTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Bump Texture Intensity
         textureFolder.addInput(this.materialProperties, 'bumpTextureIntensity', {
@@ -406,12 +415,12 @@ class TweakpaneManager {
         });
         
         // Lightmap Texture
-        textureFolder.addInput(this.materialProperties, 'lightmapTexture', {
+        this.materialControls.set('lightmapTexture', textureFolder.addInput(this.materialProperties, 'lightmapTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.lightmapTexture = ev.value;
             this.applyMaterialChanges();
-        });
+        }));
         
         // Use Lightmap as Shadowmap
         textureFolder.addInput(this.materialProperties, 'useLightmapAsShadowmap').on('change', (ev) => {
@@ -425,12 +434,6 @@ class TweakpaneManager {
             this.applyMaterialChanges();
         });
         
-        // Bouton Export Material
-        this.materialsFolder.addButton({
-            title: 'Export Material'
-        }).on('click', () => {
-            this.exportMaterial();
-        });
     }
     
     createTextureTransformationControls() {
@@ -510,7 +513,7 @@ class TweakpaneManager {
     }
     
     createTargetFolder() {
-        this.targetFolder = this.pane.addFolder({
+        this.targetFolder = this.cameraFolder.addFolder({
             title: 'Target',
             expanded: false
         });
@@ -590,14 +593,14 @@ class TweakpaneManager {
         this.materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
         this.materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
         this.materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
-        this.materialProperties.albedoTexture = material.albedoTexture || '';
-        this.materialProperties.metallicTexture = material.metallicTexture || '';
-        this.materialProperties.microSurfaceTexture = material.microSurfaceTexture || '';
-        this.materialProperties.ambientTexture = material.ambientTexture || '';
-        this.materialProperties.opacityTexture = material.opacityTexture || '';
-        this.materialProperties.bumpTexture = material.bumpTexture || '';
+        this.materialProperties.albedoTexture = material.albedoTexture || 'None';
+        this.materialProperties.metallicTexture = material.metallicTexture || 'None';
+        this.materialProperties.microSurfaceTexture = material.microSurfaceTexture || 'None';
+        this.materialProperties.ambientTexture = material.ambientTexture || 'None';
+        this.materialProperties.opacityTexture = material.opacityTexture || 'None';
+        this.materialProperties.bumpTexture = material.bumpTexture || 'None';
         this.materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
-        this.materialProperties.lightmapTexture = material.lightmapTexture || '';
+        this.materialProperties.lightmapTexture = material.lightmapTexture || 'None';
         this.materialProperties.useLightmapAsShadowmap = material.useLightmapAsShadowmap !== undefined ? material.useLightmapAsShadowmap : true;
         this.materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
         this.materialProperties.uOffset = material.uOffset !== undefined ? material.uOffset : 0.0;
@@ -611,14 +614,20 @@ class TweakpaneManager {
             baseColor: this.materialProperties.baseColor,
             metallic: this.materialProperties.metallic,
             roughness: this.materialProperties.roughness,
-            alpha: this.materialProperties.alpha
+            alpha: this.materialProperties.alpha,
+            albedoTexture: this.materialProperties.albedoTexture,
+            metallicTexture: this.materialProperties.metallicTexture,
+            microSurfaceTexture: this.materialProperties.microSurfaceTexture
         });
+        
+        // Les contrôles de texture se mettront à jour automatiquement
         
         // Forcer la mise à jour des contrôles Tweakpane
         if (this.pane) {
             this.pane.refresh();
         }
     }
+    
     
     updateParentChildDisplay() {
         // Clear independent properties
@@ -996,8 +1005,33 @@ class TweakpaneManager {
     }
     
     // Utility methods
-    getAvailableImages() {
-        const images = {
+    async getAvailableImages() {
+        try {
+            const response = await fetch('http://localhost:8080/api/textures');
+            if (response.ok) {
+                const data = await response.json();
+                const images = {};
+                // S'assurer que "None" est toujours en premier
+                images['None'] = 'None';
+                data.images.forEach(imageName => {
+                    if (imageName !== 'None') {
+                        images[imageName] = imageName;
+                    }
+                });
+                return images;
+            } else {
+                console.warn('⚠️ Impossible de charger la liste des textures, utilisation de la liste par défaut');
+                return this.getDefaultImages();
+            }
+        } catch (error) {
+            console.warn('⚠️ Erreur lors du chargement des textures:', error);
+            return this.getDefaultImages();
+        }
+    }
+    
+    getDefaultImages() {
+        // Liste de fallback en cas d'erreur
+        return {
             'None': 'None',
             'color_grid.png': 'color_grid.png',
             'filament_albedo.png': 'filament_albedo.png',
@@ -1005,7 +1039,6 @@ class TweakpaneManager {
             'alpha.png': 'alpha.png',
             'RGB.png': 'RGB.png'
         };
-        return images;
     }
     
     toggleInspector(show) {
