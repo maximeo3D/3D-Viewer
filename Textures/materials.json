@@ -3,9 +3,9 @@
     "red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#e00000",
+      "baseColor": "#e01400",
       "metallic": 0,
-      "roughness": 0.19,
+      "roughness": 0.18999999999999997,
       "alpha": 1,
       "albedoTexture": "filament_albedo.png",
       "metallicTexture": "None",
@@ -34,35 +34,6 @@
       "parent": "red",
       "useLightmapAsShadowmap": true,
       "baseColor": "#003883"
-    },
-    "yellow": {
-      "type": "pbr",
-      "parent": "blue",
-      "useLightmapAsShadowmap": true,
-      "baseColor": "#b5b536"
-    },
-    "grid": {
-      "type": "pbr",
-      "parent": "none",
-      "baseColor": "#ffffff",
-      "metallic": 0,
-      "roughness": 0.5,
-      "alpha": 1,
-      "albedoTexture": "color_grid.png",
-      "metallicTexture": "None",
-      "microSurfaceTexture": "None",
-      "ambientTexture": "None",
-      "opacityTexture": "None",
-      "bumpTexture": "None",
-      "bumpTextureIntensity": 1,
-      "lightmapTexture": "None",
-      "backFaceCulling": true,
-      "uOffset": 0,
-      "vOffset": 0,
-      "uScale": 1,
-      "vScale": 1,
-      "wRotation": 0,
-      "useLightmapAsShadowmap": true
     },
     "flag_fr": {
       "type": "pbr",
@@ -104,6 +75,10 @@
       "vScale": 1,
       "wRotation": 0,
       "useLightmapAsShadowmap": true
+    },
+    "engraving": {
+      "type": "pbr",
+      "parent": "none"
     }
   }
 }

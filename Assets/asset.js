@@ -51,6 +51,11 @@ const assetConfiguration = {
       "germany": {
         "slot1": "flag_ger"
       }
+    },
+    "engraving": {
+      "base": {
+        "slot1": "engraving"
+      },
     }
   }
 };

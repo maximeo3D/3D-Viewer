@@ -64,12 +64,44 @@ try {
             } catch {
                 $response.StatusCode = 400
                 $response.ContentType = "application/json"
-                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message + '"}'
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message + '"}' 
                 $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
                 $response.ContentLength64 = $responseBuffer.Length
                 $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
                 
                 Write-Host "Error updating studio.json: $($_.Exception.Message)"
+            }
+        }
+        # Handle POST save for materials.json
+        elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'materials.json') {
+            try {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, $request.ContentEncoding)
+                $content = $reader.ReadToEnd()
+                $reader.Close()
+                
+                # Validate JSON
+                $null = $content | ConvertFrom-Json
+                
+                # Write file directly to Textures/materials.json
+                $materialsPath = Join-Path $PSScriptRoot "Textures\materials.json"
+                [System.IO.File]::WriteAllText($materialsPath, $content, [System.Text.Encoding]::UTF8)
+                
+                $response.StatusCode = 200
+                $response.ContentType = "application/json"
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes('{"status":"success","message":"materials.json updated successfully"}')
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "materials.json updated successfully"
+            } catch {
+                $response.StatusCode = 400
+                $response.ContentType = "application/json"
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message + '"}' 
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                
+                Write-Host "Error updating materials.json: $($_.Exception.Message)"
             }
         }
         

@@ -35,12 +35,12 @@ let config = {
 let scene;
 let camera;
 let loadedModels = new Map(); // Store loaded models
-window.loadedModels = loadedModels; // Rendre accessible globalement pour datGUI.js
+window.loadedModels = loadedModels; // Rendre accessible globalement pour tweakpaneManager.js
 let assetConfig = null; // Asset configuration
 let materialsConfig = null; // Materials configuration
 
-// Contrôle de visibilité de dat.GUI - Changez true/false ici
-let datGUIVisible = true;
+// Contrôle de visibilité de Tweakpane - Changez true/false ici
+let tweakpaneVisible = true;
 
 
 
@@ -357,6 +357,7 @@ function applyMaterial(mesh, materialConfig) {
         mesh.material = pbr;
     }
 }
+
 
 // Generate the BABYLON 3D scene
 const createScene = async function() {
@@ -800,83 +801,47 @@ class TagManager {
 
 // Call the createScene function
 createScene().then(async createdScene => {
-    // Initialiser l'interface dat.GUI complète avec la classe DatGUIManager
-    const datGUIManager = new DatGUIManager(scene, materialsConfig, config);
+    // Initialiser l'interface Tweakpane complète avec la classe TweakpaneManager
+    const tweakpaneManager = new TweakpaneManager(scene, materialsConfig, config);
     
     // Initialiser le système de tags
     const tagManager = new TagManager(scene, materialsConfig);
     tagManager.loadTagConfiguration();
     
+    // Appliquer une configuration de matériaux par défaut pour que Tweakpane fonctionne
+    // Appliquer les configurations par défaut pour chaque mesh
+    if (assetConfig && assetConfig.materialConfigs) {
+        Object.keys(assetConfig.materialConfigs).forEach(meshName => {
+            const meshConfigs = assetConfig.materialConfigs[meshName];
+            const firstConfig = Object.keys(meshConfigs)[0]; // Prendre la première configuration
+            if (firstConfig) {
+                tagManager.applyMaterialConfig(meshName, firstConfig);
+            }
+        });
+    }
+    
     // Exposer les managers globalement pour les boutons HTML
-    window.datGUIManager = datGUIManager;
+    window.tweakpaneManager = tweakpaneManager;
     window.tagManager = tagManager;
     
     // Configurer les callbacks pour les changements de matériaux
-    datGUIManager.onMaterialChange = (type, data) => {
+    tweakpaneManager.onMaterialChange = (type, data) => {
         if (type === 'properties') {
-            // Appliquer les changements de matériau à la scène
-            const selectedMaterial = datGUIManager.materialList.selected;
-            if (selectedMaterial && materialsConfig.materials[selectedMaterial]) {
-                // Find all meshes that currently use this material and update their material properties
-                loadedModels.forEach((modelData, modelName) => {
-                    // Vérifier si modelData a une propriété mesh (nouvelle structure)
-                    if (modelData.mesh) {
-                        // Nouvelle structure : modelData = {mesh: mesh, group: group}
-                        const mesh = modelData.mesh;
-                        
-                        // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
-                        const primitiveMatch = mesh.name.match(/_primitive(\d+)$/);
-                        if (primitiveMatch) {
-                            const baseMeshName = mesh.name.split('_primitive')[0];
-                            const primitiveIndex = parseInt(primitiveMatch[1], 10); // 0 for primitive0, 1 for primitive1
-                            
-                            // Trouver la configuration du mesh dans assetConfig
-                            if (assetConfig && assetConfig.models && assetConfig.models.part_model && assetConfig.models.part_model.meshes) {
-                                const meshConfig = assetConfig.models.part_model.meshes[baseMeshName];
-                                if (meshConfig) {
-                                    const materialSlotKey = `materialSlot${primitiveIndex + 1}`; // materialSlot1 for primitive0
-                                    const materialName = meshConfig[materialSlotKey];
-                                    
-                                    // Only update if this specific primitive uses the selected material
-                                    if (materialName === selectedMaterial && mesh.material) {
-                                        // Create completely new PBR material with updated properties
-                                        const updatedMaterial = createPBRMaterial(data, scene);
-                                        mesh.material = updatedMaterial;
-                                    }
-                                }
-                            }
-                        } else {
-                            // Mesh normal (pas de primitive)
-                            if (assetConfig && assetConfig.models && assetConfig.models.part_model && assetConfig.models.part_model.meshes) {
-                                const meshConfig = assetConfig.models.part_model.meshes[mesh.name];
-                                if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
-                                    // Create completely new PBR material with updated properties
-                                    const updatedMaterial = createPBRMaterial(data, scene);
-                                    mesh.material = updatedMaterial;
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                // Force scene update to ensure changes are visible
-                if (scene) {
-                    scene.markAllMaterialsAsDirty(BABYLON.Material.TextureDirtyFlag);
-                }
-            }
+            // Mettre à jour les matériaux appliqués en temps réel
+            tweakpaneManager.updateAppliedMaterials();
         }
     };
     
     // Initialiser l'interface
-    await datGUIManager.init();
+    await tweakpaneManager.init();
     
-    // Appliquer la visibilité selon la variable datGUIVisible
-    if (!datGUIVisible) {
-        datGUIManager.setDatGUIVisibility(false);
+    // Appliquer la visibilité selon la variable tweakpaneVisible
+    if (!tweakpaneVisible) {
+        tweakpaneManager.setTweakpaneVisibility(false);
     }
     
     // Rendre le gestionnaire accessible globalement pour la sélection par clic
-    window.datGUIManager = datGUIManager;
+    window.tweakpaneManager = tweakpaneManager;
 });
 
 // Register a render loop to repeatedly render the scene

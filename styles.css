@@ -6,6 +6,18 @@ html, body {
     overflow: hidden;
 }
 
+/* Amélioration simple de l'interface Tweakpane */
+.tp-dfwv {
+    font-family: Arial, sans-serif !important;
+    font-size: 12px !important;
+    color: white !important;
+}
+
+.tp-dfwv * {
+    font-family: Arial, sans-serif !important;
+    color: white !important;
+}
+
 .container {
     display: flex;
     width: 100%;
