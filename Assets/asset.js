@@ -42,14 +42,14 @@ const assetConfiguration = {
       "none": {
         "slot1": "red" // Matériau par défaut, mais sera caché
       },
-      "red": {
-        "slot1": "red"
+      "france": {
+        "slot1": "flag_base"
       },
-      "blue": {
-        "slot1": "blue"
+      "unitedstates": {
+        "slot1": "flag_us"
       },
-      "green": {
-        "slot1": "green"
+      "germany": {
+        "slot1": "flag_ger"
       }
     }
   }

@@ -3,9 +3,9 @@
     "red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#d60202",
+      "baseColor": "#e00000",
       "metallic": 0,
-      "roughness": 0.36,
+      "roughness": 0.19,
       "alpha": 1,
       "albedoTexture": "filament_albedo.png",
       "metallicTexture": "None",
@@ -26,14 +26,14 @@
     "green": {
       "type": "pbr",
       "parent": "red",
-      "baseColor": "#60c759",
+      "baseColor": "#157200",
       "useLightmapAsShadowmap": true
     },
     "blue": {
       "type": "pbr",
       "parent": "red",
       "useLightmapAsShadowmap": true,
-      "baseColor": "#0cadff"
+      "baseColor": "#003883"
     },
     "yellow": {
       "type": "pbr",
@@ -49,6 +49,47 @@
       "roughness": 0.5,
       "alpha": 1,
       "albedoTexture": "color_grid.png",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "None",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0,
+      "useLightmapAsShadowmap": true
+    },
+    "flag_fr": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_fr.jpg",
+      "useLightmapAsShadowmap": true
+    },
+    "flag_us": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_us.png",
+      "useLightmapAsShadowmap": true
+    },
+    "flag_ger": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_ger.png",
+      "useLightmapAsShadowmap": true
+    },
+    "flag_base": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#ffffff",
+      "metallic": 0.22,
+      "roughness": 0.58,
+      "alpha": 1,
+      "albedoTexture": "flag_fr.jpg",
       "metallicTexture": "None",
       "microSurfaceTexture": "None",
       "ambientTexture": "None",

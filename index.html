@@ -48,9 +48,9 @@
                     <h3>Flag</h3>
                     <div class="buttons">
                         <button class="sidebar-btn" id="flag-none-btn">None</button>
-                        <button class="sidebar-btn" id="flag-red-btn">Red</button>
-                        <button class="sidebar-btn" id="flag-blue-btn">Blue</button>
-                        <button class="sidebar-btn" id="flag-green-btn">Green</button>
+                        <button class="sidebar-btn" id="flag-france-btn">France</button>
+                        <button class="sidebar-btn" id="flag-unitedstates-btn">United States</button>
+                        <button class="sidebar-btn" id="flag-germany-btn">Germany</button>
                     </div>
                 </div>
                 
@@ -109,24 +109,24 @@
                         updateButtonStates();
                     });
                     
-                    document.getElementById('flag-red-btn').addEventListener('click', () => {
-                        window.tagManager.applyMaterialConfig('flag', 'red');
+                    document.getElementById('flag-france-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'france');
                         // Afficher le flag en activant le tag
                         window.tagManager.activeTags.add('flag');
                         window.tagManager.applyActiveTags();
                         updateButtonStates();
                     });
                     
-                    document.getElementById('flag-blue-btn').addEventListener('click', () => {
-                        window.tagManager.applyMaterialConfig('flag', 'blue');
+                    document.getElementById('flag-unitedstates-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'unitedstates');
                         // Afficher le flag en activant le tag
                         window.tagManager.activeTags.add('flag');
                         window.tagManager.applyActiveTags();
                         updateButtonStates();
                     });
                     
-                    document.getElementById('flag-green-btn').addEventListener('click', () => {
-                        window.tagManager.applyMaterialConfig('flag', 'green');
+                    document.getElementById('flag-germany-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'germany');
                         // Afficher le flag en activant le tag
                         window.tagManager.activeTags.add('flag');
                         window.tagManager.applyActiveTags();
