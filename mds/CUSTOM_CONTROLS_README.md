@@ -13,7 +13,7 @@ Documentation des contrôles personnalisés de caméra et d'objets 3D dans le 3D
 - **Action** : Contrôle l'angle horizontal de la caméra (Yaw/Alpha)
 - **Comportement** : Rotation de la caméra autour de l'axe vertical
 - **Sensibilité** : Ajustable via `window.cameraHorizontalSensitivity` (100-10000)
-- **Contrôle dat.GUI** : "Horizontal Sensitivity" dans le menu Camera
+- **Contrôle Tweakpane** : "Horizontal Sensitivity" dans le menu Camera
 - **Direction** : Inversée pour un comportement naturel
 
 ### **Mouvement Vertical (Y)**
@@ -37,7 +37,7 @@ Documentation des contrôles personnalisés de caméra et d'objets 3D dans le 3D
 - **Persistance** : Sauvegardé dans `studio.json`
 
 ### **Utilisation**
-1. **Ouvrir** le menu "Camera" dans dat.GUI
+1. **Ouvrir** le menu "Camera" dans Tweakpane
 2. **Ajuster** le slider "Initial Pitch" (-90 à +90)
 3. **Observer** la caméra se repositionner automatiquement
 4. **Vérifier** que les limites beta sont synchronisées
@@ -95,30 +95,30 @@ meshes: {
 - **Persistance** : La configuration est centralisée dans `asset.js`
 - **Flexibilité** : Système modulaire permettant d'ajouter facilement de nouveaux tags
 
-## 🎛️ **Contrôle de Visibilité de dat.GUI**
+## 🎛️ **Contrôle de Visibilité de Tweakpane**
 
 ### **Variable de Contrôle**
 Dans `scene.js`, ligne ~35 :
 ```javascript
-// Contrôle de visibilité de dat.GUI - Changez true/false ici
-let datGUIVisible = true;
+// Contrôle de visibilité de Tweakpane - Changez true/false ici
+let tweakpaneVisible = true;
 ```
 
 ### **Utilisation**
-- **`true`** : dat.GUI est visible
-- **`false`** : dat.GUI est caché
+- **`true`** : Tweakpane est visible
+- **`false`** : Tweakpane est caché
 - **Application** : Au démarrage de l'application
 
 ### **Cas d'Usage**
-- **Développement** : `datGUIVisible = true` pour accéder aux contrôles
-- **Production** : `datGUIVisible = false` pour une interface propre
-- **Intégration** : Cacher dat.GUI lors de l'intégration dans d'autres applications
+- **Développement** : `tweakpaneVisible = true` pour accéder aux contrôles
+- **Production** : `tweakpaneVisible = false` pour une interface propre
+- **Intégration** : Cacher Tweakpane lors de l'intégration dans d'autres applications
 
 ## 🔧 **Paramètres de Sensibilité**
 
 ### **Caméra Alpha (Yaw)**
 ```javascript
-// Sensibilité horizontale ajustable via dat.GUI
+// Sensibilité horizontale ajustable via Tweakpane
 window.cameraHorizontalSensitivity = 1000; // Plus élevé = moins sensible
 const cameraSensitivity = 5 / window.cameraHorizontalSensitivity;
 ```
@@ -146,7 +146,7 @@ const zoomSmoothness = 0.15; // Facteur de lissage du zoom (plus élevé = plus 
 - **Démarrage** : Toujours à 0°
 
 ### **Caméra Beta (Pitch)**
-- **Contrôle** : Uniquement via "Initial Pitch" dans dat.GUI
+- **Contrôle** : Uniquement via "Initial Pitch" dans Tweakpane
 - **Limites** : Synchronisées avec la valeur d'Initial Pitch
 - **Mouvement** : Désactivé via les contrôles souris
 
@@ -180,6 +180,6 @@ const zoomSmoothness = 0.15; // Facteur de lissage du zoom (plus élevé = plus 
 
 ---
 
-**Version** : 2.4.0  
+**Version** : 2.5.0  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅

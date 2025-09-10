@@ -5,6 +5,85 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [2.5.0] - 2024-12-XX - Migration vers Tweakpane et Interface Moderne
+
+### 🎉 Ajouté
+- **Migration vers Tweakpane v4**
+  - Remplacement complet de dat.GUI par Tweakpane moderne
+  - Interface utilisateur plus moderne et responsive
+  - Support des color pickers avec valeurs hexadécimales
+  - Chargement dynamique des textures depuis le serveur
+  - Interface personnalisable avec CSS (police Arial, couleur blanche)
+
+- **Système d'Export Amélioré**
+  - Export direct vers `materials.json` via serveur PowerShell
+  - Suppression des dialogues de téléchargement navigateur
+  - Formatage JSON avec indentation pour lisibilité
+  - Synchronisation temps réel des modifications
+
+- **Gestion des Matériaux Optimisée**
+  - Mise à jour temps réel uniquement des matériaux concernés
+  - Système de tracking des instances de matériaux
+  - Prévention des applications globales non désirées
+  - Support complet des transformations de texture (UV offset, scale, rotation)
+
+- **Interface Utilisateur Réorganisée**
+  - Menu "Create Material" en première position
+  - Menu "Export Material" en dernière position
+  - Menu "Target" intégré dans "Camera"
+  - Menu "Textures" ouvert par défaut
+  - Chargement automatique des images depuis le dossier Textures
+
+### 🔧 Modifié
+- **Architecture de l'Interface**
+  - Classe `TweakpaneManager` remplace `DatGUIManager`
+  - Chargement asynchrone des configurations de matériaux
+  - Gestion des erreurs améliorée avec flags de chargement
+  - Support des modules ES6 et IIFE pour compatibilité CDN
+
+- **Système de Matériaux**
+  - Noms de matériaux cohérents entre configuration et instances Babylon.js
+  - Tracking des instances via `window.materialInstances`
+  - Mise à jour sélective par nom de matériau
+  - Support des valeurs hexadécimales pour les couleurs
+
+- **Serveur PowerShell**
+  - Nouvelle route `/api/textures` pour listing dynamique des images
+  - Support POST pour `/materials.json` avec écriture directe
+  - Gestion des erreurs HTTP améliorée
+
+### 🐛 Corrigé
+- **Synchronisation des Données**
+  - Résolution des problèmes de chargement des valeurs depuis `materials.json`
+  - Correction de l'affichage des textures "None" dans les dropdowns
+  - Synchronisation temps réel des modifications de matériaux
+  - Prévention des mises à jour pendant le chargement des propriétés
+
+- **Interface Utilisateur**
+  - Correction des erreurs de référence Tweakpane non défini
+  - Résolution des problèmes de syntaxe ES6 vs IIFE
+  - Amélioration de la lisibilité avec police Arial et couleur blanche
+  - Correction des contrôles de texture dynamiques
+
+- **Gestion des Matériaux**
+  - Résolution des applications globales non désirées
+  - Correction du système de mise à jour temps réel
+  - Amélioration de la stabilité des modifications de propriétés
+  - Support correct des transformations de texture
+
+### 🗑️ Supprimé
+- **Système dat.GUI Obsolète**
+  - Suppression complète de `datGUI.js`
+  - Suppression des références à dat.GUI dans `scene.js`
+  - Nettoyage des imports et dépendances dat.GUI
+  - Suppression des contrôles obsolètes
+
+- **Fonctionnalités Obsolètes**
+  - Ancien système de téléchargement de fichiers
+  - Notifications navigateur lors de l'export
+  - Liste hardcodée des textures
+  - Système de synchronisation dat.GUI
+
 ## [2.4.0] - 2024-12-XX - Système de Tags et Contrôles Avancés
 
 ### 🎉 Ajouté

@@ -24,7 +24,7 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ```
 
 ### **Technologies Utilisées**
-- **Frontend** : Babylon.js 6.x, dat.GUI, HTML5/CSS3
+- **Frontend** : Babylon.js 8.x, Tweakpane v4, HTML5/CSS3
 - **Backend** : PowerShell (serveur HTTP personnalisé)
 - **Formats** : GLB/glTF, HDR, PNG/JPG
 - **Architecture** : Client-Serveur avec API REST
@@ -33,29 +33,38 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 
 #### **Séparation des Responsabilités**
 - **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles, classe TagManager
-- **`datGUI.js`** : Interface utilisateur complète, gestion des matériaux avec héritage, contrôles d'environnement
+- **`tweakpaneManager.js`** : Interface utilisateur Tweakpane moderne, gestion des matériaux avec héritage, contrôles d'environnement
 - **`studio.json`** : Configuration persistante de la caméra et de l'environnement
 - **`Assets/asset.js`** : Configuration centralisée des modèles 3D, tags de visibilité et configurations de matériaux
 - **`index.html`** : Interface utilisateur pour le contrôle des tags et configurations
+- **`serve.ps1`** : Serveur PowerShell HTTP avec API REST pour export et gestion des textures
 
-#### **Classe DatGUIManager**
+#### **Classe TweakpaneManager**
 ```javascript
-class DatGUIManager {
+class TweakpaneManager {
     constructor(scene, config) {
         this.scene = scene;
         this.config = config;
-        this.gui = null;
+        this.pane = null;
         this.materialsFolder = null;
         this.cameraFolder = null;
         this.environmentFolder = null;
+        this.materialsConfig = null;
+        this.isLoading = false;
+        this.materialInstances = {};
     }
     
     async init() {
-        // Initialisation complète de l'interface
+        // Initialisation complète de l'interface Tweakpane
+        await this.loadMaterialsConfig();
+        this.createGUI();
+        await this.createMaterialsFolder();
+        this.createCameraFolder();
+        this.createEnvironmentFolder();
     }
     
-    createMaterialControls() {
-        // Contrôles des matériaux PBR
+    async createMaterialControls() {
+        // Contrôles des matériaux PBR avec color picker
     }
     
     createCameraControls() {
@@ -64,6 +73,10 @@ class DatGUIManager {
     
     createEnvironmentControls() {
         // Contrôles d'environnement
+    }
+    
+    async updateAppliedMaterials() {
+        // Mise à jour temps réel des matériaux concernés uniquement
     }
 }
 ```
@@ -305,47 +318,47 @@ async function loadModels() {
 }
 ```
 
-### **4. Contrôle de Visibilité de dat.GUI**
+### **4. Contrôle de Visibilité de Tweakpane**
 
 #### **Variable de Contrôle dans scene.js**
 ```javascript
-// Contrôle de visibilité de dat.GUI - Changez true/false ici
-let datGUIVisible = true;
+// Contrôle de visibilité de Tweakpane - Changez true/false ici
+let tweakpaneVisible = true;
 ```
 
 #### **Application lors de l'Initialisation**
 ```javascript
 // Initialiser l'interface
-await datGUIManager.init();
+await tweakpaneManager.init();
 
-// Appliquer la visibilité selon la variable datGUIVisible
-if (!datGUIVisible) {
-    datGUIManager.setDatGUIVisibility(false);
+// Appliquer la visibilité selon la variable tweakpaneVisible
+if (!tweakpaneVisible) {
+    tweakpaneManager.setTweakpaneVisibility(false);
 }
 
 // Rendre le gestionnaire accessible globalement
-window.datGUIManager = datGUIManager;
+window.tweakpaneManager = tweakpaneManager;
 ```
 
-#### **Méthodes Publiques dans datGUI.js**
+#### **Méthodes Publiques dans tweakpaneManager.js**
 ```javascript
-// Méthode publique pour activer/désactiver dat.GUI depuis l'extérieur
-setDatGUIVisibility(show) {
-    this.toggleDatGUIVisibility(show);
+// Méthode publique pour activer/désactiver Tweakpane depuis l'extérieur
+setTweakpaneVisibility(show) {
+    this.toggleTweakpaneVisibility(show);
 }
 
-// Méthode publique pour obtenir l'état de visibilité de dat.GUI
-isDatGUIVisible() {
-    return this.gui && this.gui.domElement && this.gui.domElement.style.display !== 'none';
+// Méthode publique pour obtenir l'état de visibilité de Tweakpane
+isTweakpaneVisible() {
+    return this.pane && this.pane.element && this.pane.element.style.display !== 'none';
 }
 
-// Fonction pour activer/désactiver la visibilité de dat.GUI
-toggleDatGUIVisibility(show) {
-    if (this.gui && this.gui.domElement) {
+// Fonction pour activer/désactiver la visibilité de Tweakpane
+toggleTweakpaneVisibility(show) {
+    if (this.pane && this.pane.element) {
         if (show) {
-            this.gui.domElement.style.display = 'block';
+            this.pane.element.style.display = 'block';
         } else {
-            this.gui.domElement.style.display = 'none';
+            this.pane.element.style.display = 'none';
         }
     }
 }
@@ -402,55 +415,96 @@ function createPBRMaterial(materialConfig, scene) {
 - **`bumpTexture`** : Texture de relief (normal map)
 - **`bumpTextureIntensity`** : Intensité du relief (0.0 - 5.0)
 
-### **2. Interface dat.GUI**
+### **2. Interface Tweakpane**
 
 #### **Structure des Contrôles**
 ```javascript
 // Dossier principal des matériaux
-const materialsFolder = gui.addFolder('Materials');
+const materialsFolder = pane.addFolder({ title: 'Materials', expanded: true });
 
-// Contrôles de base
-baseColorControl = materialsFolder.add(materialProperties, 'baseColor').name('Albedo Color');
-metallicControl = materialsFolder.add(materialProperties, 'metallic', 0, 1).step(0.01).name('Metallic');
-roughnessControl = materialsFolder.add(materialProperties, 'roughness', 0, 1).step(0.01).name('Roughness');
-alphaControl = materialsFolder.add(materialProperties, 'alpha', 0, 1).step(0.01).name('Alpha');
+// Contrôles de base avec color picker
+this.baseColorDisplay = { hex: '#ffffff' };
+materialsFolder.addInput(this.baseColorDisplay, 'hex', {
+    label: 'Base Color',
+    color: { type: 'float' }
+}).on('change', (ev) => {
+    this.updateRGBFromHex(ev.value);
+    this.applyMaterialChanges();
+});
 
-// Contrôles de textures
-albedoTextureControl = materialsFolder.add(materialProperties, 'albedoTexture', availableImages).name('Albedo Texture');
-metallicTextureControl = materialsFolder.add(materialProperties, 'metallicTexture', availableImages).name('Metallic Texture');
-microSurfaceTextureControl = materialsFolder.add(materialProperties, 'microSurfaceTexture', availableImages).name('MicroSurface Texture');
-ambientTextureControl = materialsFolder.add(materialProperties, 'ambientTexture', availableImages).name('Ambient Texture');
-opacityTextureControl = materialsFolder.add(materialProperties, 'opacityTexture', availableImages).name('Opacity Texture');
+// Contrôles numériques
+materialsFolder.addInput(this.materialProperties, 'metallic', {
+    label: 'Metallic',
+    min: 0,
+    max: 1,
+    step: 0.01
+}).on('change', () => this.applyMaterialChanges());
+
+materialsFolder.addInput(this.materialProperties, 'roughness', {
+    label: 'Roughness',
+    min: 0,
+    max: 1,
+    step: 0.01
+}).on('change', () => this.applyMaterialChanges());
+
+// Contrôles de textures dynamiques
+const availableImages = await this.getAvailableImages();
+materialsFolder.addInput(this.materialProperties, 'albedoTexture', {
+    label: 'Albedo Texture',
+    options: availableImages
+}).on('change', () => this.applyMaterialChanges());
 
 // Contrôles avancés
-backFaceCullingControl = materialsFolder.add(materialProperties, 'backFaceCulling').name('Back Face Culling');
-inspectorControl = materialsFolder.add(inspectorToggle, 'showInspector').name('Show Inspector');
-refreshImagesControl = materialsFolder.add(refreshImages, 'refresh').name('Refresh Images');
+materialsFolder.addInput(this.materialProperties, 'backFaceCulling', {
+    label: 'Back Face Culling'
+}).on('change', () => this.applyMaterialChanges());
 ```
 
 #### **Synchronisation Temps Réel**
 ```javascript
-function applyMaterialChanges() {
-    const selectedMaterial = materialList.selected;
-    if (selectedMaterial && materialsConfig.materials[selectedMaterial]) {
+async applyMaterialChanges() {
+    if (this.isLoading) return; // Prévenir les mises à jour pendant le chargement
+    
+    const selectedMaterial = this.materialList.selected;
+    if (selectedMaterial && this.materialsConfig.materials[selectedMaterial]) {
         // Mise à jour de la configuration
-        materialsConfig.materials[selectedMaterial].baseColor = materialProperties.baseColor;
-        materialsConfig.materials[selectedMaterial].metallic = materialProperties.metallic;
+        this.materialsConfig.materials[selectedMaterial].baseColor = this.materialProperties.baseColor;
+        this.materialsConfig.materials[selectedMaterial].metallic = this.materialProperties.metallic;
         // ... autres propriétés
         
-        // Application aux meshes
-        loadedModels.forEach((modelData, modelName) => {
-            modelData.meshes.forEach(mesh => {
-                // Vérification des primitives et slots de matériaux
-                const primitiveMatch = mesh.name.match(/_primitive(\d+)$/);
-                if (primitiveMatch) {
-                    // Logique d'application des matériaux
-                    const updatedMaterial = createPBRMaterial(materialProperties, scene);
-                    mesh.material = updatedMaterial;
-                }
+        // Déclencher la mise à jour temps réel
+        if (this.onMaterialChange) {
+            this.onMaterialChange('properties', {
+                materialName: selectedMaterial,
+                properties: this.materialProperties
             });
-        });
+        }
     }
+}
+
+async updateAppliedMaterials() {
+    if (this.isLoading) return;
+    
+    const selectedMaterial = this.materialList.selected;
+    const scene = window.tagManager?.scene;
+    if (!scene) return;
+    
+    // Trouver les instances de matériaux par nom
+    const candidates = (window.materialInstances && window.materialInstances[selectedMaterial])
+        ? window.materialInstances[selectedMaterial]
+        : scene.materials.filter(m => m && m.name === selectedMaterial);
+    
+    // Mettre à jour uniquement les matériaux concernés
+    candidates.forEach(mat => {
+        if (this.materialProperties.baseColor) {
+            mat.albedoColor = new BABYLON.Color3(
+                this.materialProperties.baseColor.r,
+                this.materialProperties.baseColor.g,
+                this.materialProperties.baseColor.b
+            );
+        }
+        // ... autres propriétés
+    });
 }
 ```
 
@@ -526,15 +580,23 @@ $server.Prefixes.Add("http://localhost:$port/")
 # Gestion des routes
 switch ($request.Url.LocalPath) {
     "/api/textures" { 
-        # Listing des textures disponibles
+        # Listing dynamique des textures disponibles
         $textures = Get-ChildItem "Textures" -Filter "*.png" | ForEach-Object { $_.Name }
+        $textures += Get-ChildItem "Textures" -Filter "*.jpg" | ForEach-Object { $_.Name }
+        $textures += Get-ChildItem "Textures" -Filter "*.jpeg" | ForEach-Object { $_.Name }
         $response = @{ count = $textures.Count; images = $textures } | ConvertTo-Json
     }
     "/materials.json" { 
-        # Sauvegarde des matériaux
-        $body = $reader.ReadToEnd()
-        Set-Content "Textures/materials.json" $body -Encoding UTF8
-        $response = "materials.json updated successfully in $rootPath\Textures\materials.json"
+        if ($request.HttpMethod -eq "POST") {
+            # Sauvegarde des matériaux via POST
+            $body = $reader.ReadToEnd()
+            Set-Content "Textures/materials.json" $body -Encoding UTF8
+            $response = "materials.json updated successfully in $rootPath\Textures\materials.json"
+        } else {
+            # Lecture des matériaux via GET
+            $content = Get-Content "Textures/materials.json" -Raw -Encoding UTF8
+            $response = $content
+        }
     }
     default { 
         # Fichiers statiques
@@ -742,7 +804,7 @@ function createPBRMaterial(materialConfig, scene) {
 }
 ```
 
-### **Interface dat.GUI avec Héritage**
+### **Interface Tweakpane avec Héritage**
 ```javascript
 updateParentChildDisplay() {
     // Clear independent properties
@@ -770,10 +832,10 @@ updateControlsAppearance() {
         const isIndependent = this.independentProperties.has(propertyName);
         
         // Set opacity for inherited properties
-        control.domElement.style.opacity = isIndependent ? '1' : '0.5';
+        control.element.style.opacity = isIndependent ? '1' : '0.5';
         
         // Set tooltip
-        control.domElement.title = isIndependent ? 
+        control.element.title = isIndependent ? 
             `Independent - Click to inherit from parent` : 
             `Inherited from parent - Click to make independent`;
         
@@ -919,6 +981,6 @@ $rootPath = Get-Location
 
 ---
 
-**Version de développement** : 2.1.0  
+**Version de développement** : 2.5.0  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅

@@ -13,10 +13,12 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion pa
 ### **Système de Matériaux Avancé**
 - Éditeur PBR complet avec textures et transformations
 - Système parent-enfant avec héritage de propriétés
-- Interface dat.GUI avec paramètres grisés pour les propriétés héritées
+- Interface Tweakpane moderne avec paramètres grisés pour les propriétés héritées
 - Toggle d'indépendance par clic sur le nom du paramètre
 - Création de matériaux depuis l'interface
 - Synchronisation temps réel des paramètres de texture
+- Color picker avec support hexadécimal pour les couleurs de base
+- Export direct vers `materials.json` via serveur PowerShell
 
 ### **Contrôles de Caméra Personnalisés**
 - Mouvement horizontal : contrôle de l'alpha (yaw) de la caméra avec sensibilité ajustable
@@ -32,8 +34,10 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion pa
 3D-Viewer/
 ├── index.html                 # Interface HTML avec boutons de contrôle
 ├── scene.js                   # Logique 3D, contrôles, TagManager
-├── datGUI.js                  # Interface utilisateur dat.GUI
+├── tweakpaneManager.js        # Interface utilisateur Tweakpane moderne
 ├── studio.json                # Configuration environnement/caméra
+├── serve.ps1                  # Serveur PowerShell HTTP
+├── start-server.bat           # Script de démarrage Windows
 ├── Assets/
 │   ├── asset.js              # Configuration des modèles et tags
 │   └── part.glb              # Modèle de test
@@ -76,12 +80,20 @@ Fichier de configuration centralisé définissant :
 ## Material System
 
 Materials are defined with PBR properties:
-- `baseColor`: Base color (hex or RGB)
+- `baseColor`: Base color (hex or RGB) with color picker support
 - `metallic`: Metallic factor (0.0 - 1.0)
 - `roughness`: Roughness factor (0.0 - 1.0)
 - `alpha`: Transparency (0.0 - 1.0)
-- `normalMap`: Normal map texture
-- `emissive`: Emissive color and intensity
+- `albedoTexture`: Base color texture
+- `metallicTexture`: Metallic texture
+- `microSurfaceTexture`: Roughness texture
+- `ambientTexture`: Ambient occlusion texture
+- `opacityTexture`: Opacity texture
+- `bumpTexture`: Normal map texture with intensity control
+- `lightmapTexture`: Lightmap texture with shadowmap option
+- `uOffset`, `vOffset`: Texture UV offset
+- `uScale`, `vScale`: Texture UV scale
+- `wRotation`: Texture rotation in degrees
 
 ## Tag-Based Visibility Control
 

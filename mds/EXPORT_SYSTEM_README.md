@@ -1,14 +1,14 @@
 # 3D Viewer Export System
 
-This project now includes a direct file export system that allows you to export datGUI parameters directly to `studio.json` without opening file explorer dialogs.
+This project now includes a direct file export system that allows you to export Tweakpane parameters directly to `studio.json` and `materials.json` without opening file explorer dialogs.
 
 ## How It Works
 
 The export system uses a **client-server architecture**:
 
-1. **Client-Side (JavaScript)**: datGUI controls send POST requests when export buttons are clicked
+1. **Client-Side (JavaScript)**: Tweakpane controls send POST requests when export buttons are clicked
 2. **Server-Side (PowerShell)**: A custom HTTP server intercepts POST requests and writes directly to files
-3. **Direct File Overwrite**: The `studio.json` file is updated in real-time without downloads
+3. **Direct File Overwrite**: The `studio.json` and `materials.json` files are updated in real-time without downloads
 
 ## Setup Instructions
 
@@ -48,14 +48,20 @@ http://localhost:8080
 - **Radius**: Distance from camera to target (1-20)
 - **Export Camera**: Save camera position to `studio.json`
 
+### Material Controls
+- **Base Color**: Color picker with hex support
+- **Metallic/Roughness**: PBR material properties
+- **Textures**: Dynamic texture loading from server
+- **Export Materials**: Save material configurations to `materials.json`
+
 ## Export Functionality
 
 When you click any export button:
 
-1. The current parameter values are collected from the GUI
+1. The current parameter values are collected from Tweakpane
 2. A POST request is sent to the server
-3. The server validates the JSON and writes it to `studio.json`
-4. The file is updated immediately
+3. The server validates the JSON and writes it to the appropriate file (`studio.json` or `materials.json`)
+4. The file is updated immediately with pretty-printed JSON
 5. A success message confirms the export
 
 ## File Structure
@@ -63,11 +69,14 @@ When you click any export button:
 ```
 3D-Viewer/
 ├── index.html          # Main HTML file
-├── scene.js            # 3D scene and GUI logic
-├── studio.json         # Configuration file (auto-updated)
+├── scene.js            # 3D scene and controls logic
+├── tweakpaneManager.js # Tweakpane interface logic
+├── studio.json         # Camera and environment config (auto-updated)
 ├── serve.ps1           # PowerShell HTTP server
 ├── start-server.bat    # Windows batch file to start server
-└── Textures/           # HDR textures directory
+└── Textures/           # Textures and materials directory
+    ├── materials.json  # Material configurations (auto-updated)
+    └── HDR/           # HDR environment textures
 ```
 
 ## Troubleshooting
@@ -89,9 +98,10 @@ When you click any export button:
 ## Technical Details
 
 The system works by:
-1. Intercepting POST requests to `studio.json`
+1. Intercepting POST requests to `studio.json` and `materials.json`
 2. Validating incoming JSON data
 3. Writing directly to the file system using PowerShell's `[System.IO.File]::WriteAllText()`
 4. Returning success/error responses to the client
+5. Providing dynamic texture listing via `/api/textures` endpoint
 
-This approach bypasses browser download mechanisms and provides direct file overwriting capability, perfect for development and testing workflows.
+This approach bypasses browser download mechanisms and provides direct file overwriting capability, perfect for development and testing workflows. The server also supports dynamic texture discovery, automatically listing available images in the Textures folder.

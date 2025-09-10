@@ -126,14 +126,16 @@ Le système d'assets permet de :
 
 ## 🎮 **User Interface**
 
-### **Assets Folder in datGUI**
+### **Assets Folder in Tweakpane**
 - **Status Display**: Shows number of loaded models
 - **Reload Models**: Refresh models and materials from files
 - **Export Assets**: Save current asset configuration
 
-### **Materials Folder in datGUI**
+### **Materials Folder in Tweakpane**
 - **Status Display**: Shows number of loaded materials
 - **Export Materials**: Save current materials configuration
+- **Color Picker**: Visual color selection with hex support
+- **Dynamic Textures**: Auto-loading texture lists from server
 
 ### **Console Logging**
 - **Loading Progress**: Model loading status
