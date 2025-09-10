@@ -819,35 +819,44 @@ createScene().then(async createdScene => {
             if (selectedMaterial && materialsConfig.materials[selectedMaterial]) {
                 // Find all meshes that currently use this material and update their material properties
                 loadedModels.forEach((modelData, modelName) => {
-                    modelData.meshes.forEach(mesh => {
+                    // Vérifier si modelData a une propriété mesh (nouvelle structure)
+                    if (modelData.mesh) {
+                        // Nouvelle structure : modelData = {mesh: mesh, group: group}
+                        const mesh = modelData.mesh;
+                        
                         // Check if this is a primitive submesh (e.g., Cube_primitive0, Cube_primitive1)
                         const primitiveMatch = mesh.name.match(/_primitive(\d+)$/);
                         if (primitiveMatch) {
                             const baseMeshName = mesh.name.split('_primitive')[0];
                             const primitiveIndex = parseInt(primitiveMatch[1], 10); // 0 for primitive0, 1 for primitive1
                             
-                            const meshConfig = modelData.config.meshes.find(m => m.name === baseMeshName);
-                            if (meshConfig) {
-                                const materialSlotKey = `materialSlot${primitiveIndex + 1}`; // materialSlot1 for primitive0
-                                const materialName = meshConfig[materialSlotKey];
-                                
-                                // Only update if this specific primitive uses the selected material
-                                if (materialName === selectedMaterial && mesh.material) {
+                            // Trouver la configuration du mesh dans assetConfig
+                            if (assetConfig && assetConfig.models && assetConfig.models.part_model && assetConfig.models.part_model.meshes) {
+                                const meshConfig = assetConfig.models.part_model.meshes[baseMeshName];
+                                if (meshConfig) {
+                                    const materialSlotKey = `materialSlot${primitiveIndex + 1}`; // materialSlot1 for primitive0
+                                    const materialName = meshConfig[materialSlotKey];
+                                    
+                                    // Only update if this specific primitive uses the selected material
+                                    if (materialName === selectedMaterial && mesh.material) {
+                                        // Create completely new PBR material with updated properties
+                                        const updatedMaterial = createPBRMaterial(data, scene);
+                                        mesh.material = updatedMaterial;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Mesh normal (pas de primitive)
+                            if (assetConfig && assetConfig.models && assetConfig.models.part_model && assetConfig.models.part_model.meshes) {
+                                const meshConfig = assetConfig.models.part_model.meshes[mesh.name];
+                                if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
                                     // Create completely new PBR material with updated properties
                                     const updatedMaterial = createPBRMaterial(data, scene);
                                     mesh.material = updatedMaterial;
                                 }
                             }
-                        } else {
-                            // Fallback for non-primitive meshes, if any
-                            const meshConfig = modelData.config.meshes.find(m => m.name === mesh.name);
-                            if (meshConfig && meshConfig.materialSlot1 === selectedMaterial && mesh.material) {
-                                // Create completely new PBR material with updated properties
-                                const updatedMaterial = createPBRMaterial(data, scene);
-                                mesh.material = updatedMaterial;
-                            }
                         }
-                    });
+                    }
                 });
                 
                 // Force scene update to ensure changes are visible

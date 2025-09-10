@@ -32,7 +32,7 @@ const assetConfiguration = {
         "slot1": "red"
       },
       "blue": {
-        "slot1": "grid"
+        "slot1": "blue"
       },
       "green": {
         "slot1": "green"
