@@ -827,8 +827,9 @@ createScene().then(async createdScene => {
     // Configurer les callbacks pour les changements de matériaux
     tweakpaneManager.onMaterialChange = (type, data) => {
         if (type === 'properties') {
-            // Mettre à jour les matériaux appliqués en temps réel
-            tweakpaneManager.updateAppliedMaterials();
+            // Ne pas appliquer automatiquement les matériaux sur les meshes.
+            // Les modifications ne doivent mettre à jour que les propriétés du matériau sélectionné.
+            // Si un rafraîchissement visuel est nécessaire, il sera géré ailleurs explicitement.
         }
     };
     

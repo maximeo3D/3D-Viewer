@@ -28,6 +28,7 @@ class TweakpaneManager {
         // Variables pour la création de matériaux
         this.createMaterialFolder = null;
         this.newMaterialData = { name: '' };
+        this.isLoading = false;
         this.materialProperties = {
             baseColor: { r: 1, g: 1, b: 1 },
             metallic: 0.0,
@@ -296,12 +297,12 @@ class TweakpaneManager {
     }
     
     async createMaterialControls() {
-        // Base Color avec color picker (format RGB)
-        this.materialsFolder.addInput(this.materialProperties, 'baseColor', {
-            view: 'color',
-            color: { type: 'float' }
+        // Base Color avec affichage hexadécimal
+        this.baseColorDisplay = { hex: '#ffffff' };
+        this.materialsFolder.addInput(this.baseColorDisplay, 'hex', {
+            label: 'Base Color'
         }).on('change', (ev) => {
-            this.materialProperties.baseColor = ev.value;
+            this.updateRGBFromHex(ev.value);
             // Marquer la propriété comme indépendante pour la sauvegarde/export
             this.independentProperties.add('baseColor');
             this.applyMaterialChanges();
@@ -577,6 +578,7 @@ class TweakpaneManager {
     loadMaterialProperties(materialName) {
         const material = this.materialsConfig.materials[materialName];
         if (!material) return;
+        this.isLoading = true;
         
         // Load properties from material config
         // Convertir la couleur hexadécimale en RGB
@@ -587,8 +589,15 @@ class TweakpaneManager {
                 g: parseInt(hex.substr(2, 2), 16) / 255,
                 b: parseInt(hex.substr(4, 2), 16) / 255
             };
+            // Mettre à jour l'affichage hexadécimal
+            if (this.baseColorDisplay) {
+                this.baseColorDisplay.hex = material.baseColor;
+            }
         } else {
             this.materialProperties.baseColor = { r: 1, g: 1, b: 1 };
+            if (this.baseColorDisplay) {
+                this.baseColorDisplay.hex = '#ffffff';
+            }
         }
         this.materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
         this.materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
@@ -626,8 +635,23 @@ class TweakpaneManager {
         if (this.pane) {
             this.pane.refresh();
         }
+        this.isLoading = false;
     }
     
+    updateRGBFromHex(hexValue) {
+        // Convertir Hex vers RGB
+        try {
+            const hex = hexValue.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16) / 255;
+                const g = parseInt(hex.substr(2, 2), 16) / 255;
+                const b = parseInt(hex.substr(4, 2), 16) / 255;
+                this.materialProperties.baseColor = { r, g, b };
+            }
+        } catch (error) {
+            console.warn('⚠️ Valeur hexadécimale invalide:', hexValue);
+        }
+    }
     
     updateParentChildDisplay() {
         // Clear independent properties
@@ -657,6 +681,9 @@ class TweakpaneManager {
     }
     
     applyMaterialChanges() {
+        if (this.isLoading) {
+            return;
+        }
         const currentMaterial = this.materialsConfig.materials[this.materialList.selected];
         if (!currentMaterial) return;
         
