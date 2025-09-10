@@ -200,7 +200,7 @@ async function loadModels() {
 }
 
 // Function to create PBR material according to Babylon.js documentation
-function createPBRMaterial(materialConfig, scene) {
+function createPBRMaterial(materialConfig, scene, materialName) {
     // Handle parent-child material inheritance
     let finalMaterialConfig = materialConfig;
     if (materialConfig.parent && materialConfig.parent !== 'none' && materialsConfig && materialsConfig.materials[materialConfig.parent]) {
@@ -209,7 +209,14 @@ function createPBRMaterial(materialConfig, scene) {
         finalMaterialConfig = { ...parentMaterial, ...materialConfig };
     }
     
-    const pbr = new BABYLON.PBRMaterial(`${finalMaterialConfig.name || "pbr"}_material`, scene);
+    const pbr = new BABYLON.PBRMaterial(materialName || `${finalMaterialConfig.name || "pbr"}_material`, scene);
+    try {
+        if (!window.materialInstances) window.materialInstances = {};
+        if (materialName) {
+            if (!window.materialInstances[materialName]) window.materialInstances[materialName] = [];
+            window.materialInstances[materialName].push(pbr);
+        }
+    } catch (_) {}
     
     // === BASE PBR PROPERTIES ===
     if (finalMaterialConfig.baseColor) {
@@ -353,7 +360,9 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
 // Function to apply material to mesh
 function applyMaterial(mesh, materialConfig) {
     if (materialConfig.type === 'pbr') {
-        const pbr = createPBRMaterial(materialConfig, scene);
+        // Ensure material instances are named consistently so Tweakpane can find/update by name
+        const materialName = materialConfig.name || Object.keys(materialsConfig.materials).find(k => materialsConfig.materials[k] === materialConfig) || 'pbr';
+        const pbr = createPBRMaterial(materialConfig, scene, materialName);
         mesh.material = pbr;
     }
 }
@@ -827,9 +836,8 @@ createScene().then(async createdScene => {
     // Configurer les callbacks pour les changements de matériaux
     tweakpaneManager.onMaterialChange = (type, data) => {
         if (type === 'properties') {
-            // Ne pas appliquer automatiquement les matériaux sur les meshes.
-            // Les modifications ne doivent mettre à jour que les propriétés du matériau sélectionné.
-            // Si un rafraîchissement visuel est nécessaire, il sera géré ailleurs explicitement.
+            // Appliquer en temps réel UNIQUEMENT aux meshes qui utilisent déjà ce matériau
+            tweakpaneManager.updateAppliedMaterials();
         }
     };
     

@@ -721,189 +721,78 @@ class TweakpaneManager {
         }
     }
     
-    // Mettre à jour seulement les matériaux déjà appliqués (temps réel)
+    // Mettre à jour en temps réel uniquement le matériau sélectionné
     updateAppliedMaterials() {
         const selectedMaterial = this.materialList.selected;
-        
         if (!selectedMaterial || !this.materialsConfig.materials[selectedMaterial]) {
             return;
         }
-        
-        // Trouver tous les meshes qui utilisent actuellement ce matériau
-        if (!window.tagManager || !window.tagManager.scene) {
-            return;
-        }
-        
-        const scene = window.tagManager.scene;
-        
-        // Utiliser les informations du TagManager pour trouver les bons meshes
-        if (window.tagManager.activeMaterialConfigs && window.tagManager.activeMaterialConfigs.size > 0) {
-            let updatedCount = 0;
-            
-            // Parcourir toutes les configurations actives
-            for (const [objectName, configName] of window.tagManager.activeMaterialConfigs) {
-                const materialConfig = window.tagManager.tagConfig.materials[objectName][configName];
-                
-                // Parcourir tous les meshes et vérifier s'ils utilisent le matériau sélectionné
-                scene.meshes.forEach(mesh => {
-                    if (mesh.isEnabled() && mesh.material) {
-                        let shouldUpdate = false;
-                        
-                        if (mesh.name.includes('_primitive')) {
-                            // Cas multi-matériaux : mesh primitif
-                            const primitiveMatch = mesh.name.match(/^(.+)_primitive(\d+)$/);
-                            if (primitiveMatch) {
-                                const baseMeshName = primitiveMatch[1];
-                                const primitiveIndex = parseInt(primitiveMatch[2]);
-                                const slotName = `slot${primitiveIndex + 1}`;
-                                
-                                // Vérifier si ce slot utilise le matériau sélectionné
-                                if (materialConfig[slotName] === selectedMaterial) {
-                                    shouldUpdate = true;
-                                }
-                            }
-                        } else {
-                            // Cas mono-matériau : mesh original (utilise slot1 par défaut)
-                            const baseMeshName = mesh.name;
-                            if (materialConfig['slot1'] === selectedMaterial) {
-                                shouldUpdate = true;
-                            }
-                        }
-                        
-                        if (shouldUpdate) {
-                            updatedCount++;
-                            
-                            // Mettre à jour les propriétés du matériau existant
-                            if (this.materialProperties.baseColor) {
-                                const color = new BABYLON.Color3(
-                                    this.materialProperties.baseColor.r,
-                                    this.materialProperties.baseColor.g,
-                                    this.materialProperties.baseColor.b
-                                );
-                                mesh.material.albedoColor = color;
-                            }
-                            
-                            if (this.materialProperties.metallic !== undefined) {
-                                mesh.material.metallic = this.materialProperties.metallic;
-                            }
-                            
-                            if (this.materialProperties.roughness !== undefined) {
-                                mesh.material.roughness = this.materialProperties.roughness;
-                            }
-                            
-                            if (this.materialProperties.alpha !== undefined) {
-                                mesh.material.alpha = this.materialProperties.alpha;
-                            }
-                            
-                            // Mettre à jour les textures
-                            if (this.materialProperties.albedoTexture && this.materialProperties.albedoTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.albedoTexture}`, scene);
-                                mesh.material.albedoTexture = texture;
-                            } else {
-                                mesh.material.albedoTexture = null;
-                            }
-                            
-                            if (this.materialProperties.metallicTexture && this.materialProperties.metallicTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.metallicTexture}`, scene);
-                                mesh.material.metallicTexture = texture;
-                            } else {
-                                mesh.material.metallicTexture = null;
-                            }
-                            
-                            if (this.materialProperties.microSurfaceTexture && this.materialProperties.microSurfaceTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.microSurfaceTexture}`, scene);
-                                mesh.material.microSurfaceTexture = texture;
-                            } else {
-                                mesh.material.microSurfaceTexture = null;
-                            }
-                            
-                            if (this.materialProperties.ambientTexture && this.materialProperties.ambientTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.ambientTexture}`, scene);
-                                mesh.material.ambientTexture = texture;
-                            } else {
-                                mesh.material.ambientTexture = null;
-                            }
-                            
-                            if (this.materialProperties.opacityTexture && this.materialProperties.opacityTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.opacityTexture}`, scene);
-                                mesh.material.opacityTexture = texture;
-                            } else {
-                                mesh.material.opacityTexture = null;
-                            }
-                            
-                            if (this.materialProperties.bumpTexture && this.materialProperties.bumpTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.bumpTexture}`, scene);
-                                mesh.material.bumpTexture = texture;
-                                mesh.material.bumpTextureIntensity = this.materialProperties.bumpTextureIntensity;
-                            } else {
-                                mesh.material.bumpTexture = null;
-                            }
-                            
-                            if (this.materialProperties.lightmapTexture && this.materialProperties.lightmapTexture !== 'None') {
-                                const texture = new BABYLON.Texture(`Textures/${this.materialProperties.lightmapTexture}`, scene);
-                                mesh.material.lightmapTexture = texture;
-                                mesh.material.useLightmapAsShadowmap = this.materialProperties.useLightmapAsShadowmap;
-                            } else {
-                                mesh.material.lightmapTexture = null;
-                            }
-                            
-                            // Mettre à jour les propriétés de transformation de texture
-                            if (this.materialProperties.uOffset !== undefined) {
-                                if (mesh.material.albedoTexture) mesh.material.albedoTexture.uOffset = this.materialProperties.uOffset;
-                                if (mesh.material.bumpTexture) mesh.material.bumpTexture.uOffset = this.materialProperties.uOffset;
-                                if (mesh.material.metallicTexture) mesh.material.metallicTexture.uOffset = this.materialProperties.uOffset;
-                                if (mesh.material.microSurfaceTexture) mesh.material.microSurfaceTexture.uOffset = this.materialProperties.uOffset;
-                                if (mesh.material.ambientTexture) mesh.material.ambientTexture.uOffset = this.materialProperties.uOffset;
-                                if (mesh.material.opacityTexture) mesh.material.opacityTexture.uOffset = this.materialProperties.uOffset;
-                            }
-                            
-                            if (this.materialProperties.vOffset !== undefined) {
-                                if (mesh.material.albedoTexture) mesh.material.albedoTexture.vOffset = this.materialProperties.vOffset;
-                                if (mesh.material.bumpTexture) mesh.material.bumpTexture.vOffset = this.materialProperties.vOffset;
-                                if (mesh.material.metallicTexture) mesh.material.metallicTexture.vOffset = this.materialProperties.vOffset;
-                                if (mesh.material.microSurfaceTexture) mesh.material.microSurfaceTexture.vOffset = this.materialProperties.vOffset;
-                                if (mesh.material.ambientTexture) mesh.material.ambientTexture.vOffset = this.materialProperties.vOffset;
-                                if (mesh.material.opacityTexture) mesh.material.opacityTexture.vOffset = this.materialProperties.vOffset;
-                            }
-                            
-                            if (this.materialProperties.uScale !== undefined) {
-                                if (mesh.material.albedoTexture) mesh.material.albedoTexture.uScale = this.materialProperties.uScale;
-                                if (mesh.material.bumpTexture) mesh.material.bumpTexture.uScale = this.materialProperties.uScale;
-                                if (mesh.material.metallicTexture) mesh.material.metallicTexture.uScale = this.materialProperties.uScale;
-                                if (mesh.material.microSurfaceTexture) mesh.material.microSurfaceTexture.uScale = this.materialProperties.uScale;
-                                if (mesh.material.ambientTexture) mesh.material.ambientTexture.uScale = this.materialProperties.uScale;
-                                if (mesh.material.opacityTexture) mesh.material.opacityTexture.uScale = this.materialProperties.uScale;
-                            }
-                            
-                            if (this.materialProperties.vScale !== undefined) {
-                                if (mesh.material.albedoTexture) mesh.material.albedoTexture.vScale = this.materialProperties.vScale;
-                                if (mesh.material.bumpTexture) mesh.material.bumpTexture.vScale = this.materialProperties.vScale;
-                                if (mesh.material.metallicTexture) mesh.material.metallicTexture.vScale = this.materialProperties.vScale;
-                                if (mesh.material.microSurfaceTexture) mesh.material.microSurfaceTexture.vScale = this.materialProperties.vScale;
-                                if (mesh.material.ambientTexture) mesh.material.ambientTexture.vScale = this.materialProperties.vScale;
-                                if (mesh.material.opacityTexture) mesh.material.opacityTexture.vScale = this.materialProperties.vScale;
-                            }
-                            
-                            if (this.materialProperties.wRotation !== undefined) {
-                                const rotationRadians = BABYLON.Tools.ToRadians(this.materialProperties.wRotation);
-                                if (mesh.material.albedoTexture) mesh.material.albedoTexture.wAng = rotationRadians;
-                                if (mesh.material.bumpTexture) mesh.material.bumpTexture.wAng = rotationRadians;
-                                if (mesh.material.metallicTexture) mesh.material.metallicTexture.wAng = rotationRadians;
-                                if (mesh.material.microSurfaceTexture) mesh.material.microSurfaceTexture.wAng = rotationRadians;
-                                if (mesh.material.ambientTexture) mesh.material.ambientTexture.wAng = rotationRadians;
-                                if (mesh.material.opacityTexture) mesh.material.opacityTexture.wAng = rotationRadians;
-                            }
-                            
-                            // Marquer le matériau comme modifié
-                            mesh.material.markAsDirty(BABYLON.Material.TextureDirtyFlag);
-                        }
-                    }
-                });
+        const scene = (window.tagManager && window.tagManager.scene) ? window.tagManager.scene : (this.scene || window.scene);
+        if (!scene) return;
+
+        let updatedCount = 0;
+        // Si des instances sont traquées, préférer celles-ci
+        const candidates = (window.materialInstances && window.materialInstances[selectedMaterial])
+            ? window.materialInstances[selectedMaterial]
+            : scene.materials.filter(m => m && m.name === selectedMaterial);
+
+        candidates.forEach(mat => {
+            if (mat) {
+                updatedCount++;
+                // Couleur de base
+                if (this.materialProperties.baseColor) {
+                    mat.albedoColor = new BABYLON.Color3(
+                        this.materialProperties.baseColor.r,
+                        this.materialProperties.baseColor.g,
+                        this.materialProperties.baseColor.b
+                    );
+                }
+                // Scalars
+                if (this.materialProperties.metallic !== undefined) mat.metallic = this.materialProperties.metallic;
+                if (this.materialProperties.roughness !== undefined) mat.roughness = this.materialProperties.roughness;
+                if (this.materialProperties.alpha !== undefined) mat.alpha = this.materialProperties.alpha;
+
+                // Textures
+                const texOrNull = (name) => (name && name !== 'None') ? new BABYLON.Texture(`Textures/${name}`, scene) : null;
+                mat.albedoTexture = texOrNull(this.materialProperties.albedoTexture);
+                mat.metallicTexture = texOrNull(this.materialProperties.metallicTexture);
+                mat.microSurfaceTexture = texOrNull(this.materialProperties.microSurfaceTexture);
+                mat.ambientTexture = texOrNull(this.materialProperties.ambientTexture);
+                mat.opacityTexture = texOrNull(this.materialProperties.opacityTexture);
+                mat.bumpTexture = texOrNull(this.materialProperties.bumpTexture);
+                if (mat.bumpTexture && this.materialProperties.bumpTextureIntensity !== undefined) {
+                    mat.bumpTexture.level = this.materialProperties.bumpTextureIntensity;
+                }
+                if (this.materialProperties.lightmapTexture && this.materialProperties.lightmapTexture !== 'None') {
+                    mat.lightmapTexture = new BABYLON.Texture(`Textures/${this.materialProperties.lightmapTexture}`, scene);
+                    mat.useLightmapAsShadowmap = !!this.materialProperties.useLightmapAsShadowmap;
+                } else {
+                    mat.lightmapTexture = null;
+                }
+
+                // Transformations de textures
+                const applyTransform = (t) => {
+                    if (!t) return;
+                    if (this.materialProperties.uOffset !== undefined) t.uOffset = this.materialProperties.uOffset;
+                    if (this.materialProperties.vOffset !== undefined) t.vOffset = this.materialProperties.vOffset;
+                    if (this.materialProperties.uScale !== undefined) t.uScale = this.materialProperties.uScale;
+                    if (this.materialProperties.vScale !== undefined) t.vScale = this.materialProperties.vScale;
+                    if (this.materialProperties.wRotation !== undefined) t.wAng = BABYLON.Tools.ToRadians(this.materialProperties.wRotation);
+                };
+                applyTransform(mat.albedoTexture);
+                applyTransform(mat.bumpTexture);
+                applyTransform(mat.metallicTexture);
+                applyTransform(mat.microSurfaceTexture);
+                applyTransform(mat.ambientTexture);
+                applyTransform(mat.opacityTexture);
+
+                mat.markAsDirty(BABYLON.Material.TextureDirtyFlag);
             }
-            
-            console.log(`✅ ${updatedCount} matériaux mis à jour pour ${selectedMaterial}`);
-        } else {
-            console.warn('⚠️ Aucune configuration de matériaux active trouvée');
+        });
+
+        if (updatedCount === 0) {
+            // Rien à mettre à jour: aucun matériau avec ce nom n'est présent sur la scène
+            // C'est attendu si le matériau sélectionné n'est pas actuellement utilisé par un mesh visible
         }
     }
     

@@ -5,7 +5,7 @@
       "parent": "none",
       "baseColor": "#c20100",
       "metallic": 0,
-      "roughness": 0.18999999999999997,
+      "roughness": 0.39,
       "alpha": 1,
       "albedoTexture": "None",
       "metallicTexture": "None",
@@ -27,7 +27,8 @@
       "type": "pbr",
       "parent": "red",
       "baseColor": "#157200",
-      "roughness": 0.5
+      "roughness": 0.13999999999999999,
+      "metallic": 1
     },
     "blue": {
       "type": "pbr",
@@ -39,7 +40,7 @@
       "type": "pbr",
       "parent": "flag_base",
       "albedoTexture": "flag_fr.jpg",
-      "useLightmapAsShadowmap": true
+      "roughness": 0
     },
     "flag_us": {
       "type": "pbr",
@@ -78,7 +79,26 @@
     },
     "engraving": {
       "type": "pbr",
-      "parent": "none"
+      "parent": "none",
+      "baseColor": "#fff000",
+      "metallic": 0,
+      "roughness": 0.5,
+      "alpha": 1,
+      "albedoTexture": "None",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "None",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "useLightmapAsShadowmap": true,
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
     }
   }
 }
