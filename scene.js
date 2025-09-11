@@ -679,10 +679,6 @@ class TagManager {
         this.activeMaterialConfigs = new Map(); // Map<objectName, configName>
         this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
         this.engravingText = '';
-        this.engravingTexture = null; // DynamicTexture partagée pour l'alpha
-        this.engravingTexWidth = 0;
-        this.engravingTexHeight = 0;
-        this.engravingAspectOverride = null; // Permettre un ratio manuel (largeur/hauteur)
     }
     
     // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
@@ -798,7 +794,7 @@ class TagManager {
         
         // Configuration de matériaux appliquée
         // Réappliquer l'alpha d'engraving si besoin
-        this.updateEngravingTextures();
+        if (window.engravingManager) window.engravingManager.update();
     }
     
     // Obtenir l'index du slot de matériau
@@ -830,8 +826,10 @@ class TagManager {
         } else {
             this.activeTags.delete('engraving');
         }
-        // Mettre à jour la DynamicTexture et l'appliquer comme opacityTexture
-        this.updateEngravingTextures();
+        // Délégué au EngravingManager si disponible
+        if (window.engravingManager) {
+            window.engravingManager.setText(this.engravingText);
+        }
     }
 
     // Définir manuellement le ratio largeur/hauteur (ex: 2 pour 2:1). Passer null pour revenir à l'auto.
@@ -885,70 +883,7 @@ class TagManager {
         };
     }
 
-    // Créer/mettre à jour la DynamicTexture d'engraving et l'appliquer
-    updateEngravingTextures() {
-        if (!assetConfig || !this.scene) return;
-        const text = (this.engravingText || '').toString();
-
-        // Si pas de texte, retirer l'opacityTexture
-        if (text.trim() === '') {
-            this.applyEngravingOpacity(null);
-            // Rafraîchir la visibilité pour masquer les meshes d'engraving sans texte
-            this.applyActiveTags();
-            return;
-        }
-
-        // Création/MAJ de la DynamicTexture avec ratio auto/manuel
-        const aspect = this.getEngravingAspectRatio(); // largeur/hauteur
-        const base = 1024;
-        const size = { width: Math.max(2, Math.round(base * aspect)), height: base };
-        if (!this.engravingTexture) {
-            this.engravingTexture = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
-            this.engravingTexture.hasAlpha = true;
-            try {
-                const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
-                this.engravingTexture.updateSamplingMode(anisotropicMode);
-                const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
-                this.engravingTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
-            } catch (_) {}
-        }
-
-        let ctx = this.engravingTexture.getContext();
-        if (!ctx) {
-            // Si la texture a été disposée par erreur, la recréer
-            const newDT = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
-            newDT.hasAlpha = true;
-            try {
-                const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
-                newDT.updateSamplingMode(anisotropicMode);
-                const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
-                newDT.anisotropicFilteringLevel = Math.min(16, maxAniso);
-            } catch (_) {}
-            this.engravingTexture = newDT;
-            ctx = this.engravingTexture.getContext();
-        }
-        // Fond noir (alpha 0 avec getAlphaFromRGB)
-        ctx.fillStyle = 'rgb(0,0,0)';
-        ctx.fillRect(0, 0, size.width, size.height);
-
-        // Calcul de la taille de police et rendu centré
-        let fontSize = Math.floor(size.height * 0.35);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgb(255,255,255)'; // blanc => alpha 1
-        do {
-            ctx.font = `bold ${fontSize}px Arial`;
-            const w = ctx.measureText(text).width;
-            if (w <= size.width * 0.9 || fontSize <= 32) break;
-            fontSize -= 8;
-        } while (fontSize > 32);
-        ctx.fillText(text, size.width / 2, size.height / 2);
-        this.engravingTexture.update(true);
-
-        this.applyEngravingOpacity(this.engravingTexture);
-        // Réafficher les meshes 'engraving' maintenant que le texte est présent
-        this.applyActiveTags();
-    }
+    // (logique d'engraving déportée dans EngravingManager)
 
     // Appliquer la texture d'alpha aux meshes taggés 'engraving'
     applyEngravingOpacity(textureOrNull) {
@@ -978,6 +913,123 @@ class TagManager {
                 });
             });
         });
+    }
+
+    // Appliquer/retirer la normal map d'engraving
+    applyEngravingNormal(textureOrNull) {
+        Object.keys(assetConfig.models).forEach(modelKey => {
+            const model = assetConfig.models[modelKey];
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshCfg = model.meshes[meshName];
+                const tags = meshCfg.tags || [];
+                if (!tags.includes('engraving')) return;
+
+                let meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
+                meshes.forEach(m => {
+                    const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
+                    if (!pbr) return;
+                    if (!textureOrNull) {
+                        pbr.bumpTexture = null;
+                    } else {
+                        pbr.bumpTexture = textureOrNull;
+                        try {
+                            const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+                            pbr.bumpTexture.updateSamplingMode(anisotropicMode);
+                            const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
+                            pbr.bumpTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
+                        } catch (_) {}
+                        pbr.bumpTexture.vFlip = false;
+                    }
+                    pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+                });
+            });
+        });
+    }
+
+    // Fabrique la normal map depuis la DynamicTexture d'alpha (texte)
+    updateEngravingNormalMap(width, height, invert) {
+        if (!this.engravingTexture) return;
+        // Préparer canvas source (alpha → height)
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = width;
+        srcCanvas.height = height;
+        const srcCtx = srcCanvas.getContext('2d');
+        srcCtx.drawImage(this.engravingTexture.getContext().canvas, 0, 0);
+
+        // Convertir en height (gris) et optionnellement inverser
+        const img = srcCtx.getImageData(0, 0, width, height);
+        const data = img.data;
+        for (let i = 0; i < data.length; i += 4) {
+            // Luminance simple (texture est déjà noir/blanc)
+            const gray = data[i]; // R
+            const h = invert ? (255 - gray) : gray;
+            data[i] = h; data[i+1] = h; data[i+2] = h; data[i+3] = 255;
+        }
+        srcCtx.putImageData(img, 0, 0);
+
+        // Flou gaussien approximé (via filter CSS canvas) ~10%
+        const blurCanvas = document.createElement('canvas');
+        blurCanvas.width = width;
+        blurCanvas.height = height;
+        const blurCtx = blurCanvas.getContext('2d');
+        const blurPx = Math.max(1, Math.round(Math.min(width, height) * 0.1));
+        try {
+            blurCtx.filter = `blur(${blurPx}px)`;
+            blurCtx.drawImage(srcCanvas, 0, 0);
+        } catch (_) {
+            // fallback sans blur
+            blurCtx.drawImage(srcCanvas, 0, 0);
+        }
+
+        // Extraire height flouté pour dériver les normales (dX/dY)
+        const blurred = blurCtx.getImageData(0, 0, width, height);
+        const bd = blurred.data;
+
+        // Préparer la DynamicTexture de normal si besoin
+        if (!this.engravingNormalTexture) {
+            this.engravingNormalTexture = new BABYLON.DynamicTexture('engravingNormalDT', { width, height }, this.scene, true);
+        } else {
+            // Si taille a changé: recréer
+            const sz = this.engravingNormalTexture.getSize();
+            if (sz.width !== width || sz.height !== height) {
+                this.engravingNormalTexture.dispose();
+                this.engravingNormalTexture = new BABYLON.DynamicTexture('engravingNormalDT', { width, height }, this.scene, true);
+            }
+        }
+        const nCtx = this.engravingNormalTexture.getContext();
+        const nImg = nCtx.createImageData(width, height);
+        const nd = nImg.data;
+
+        // Fonction util pour hauteur [0..1]
+        const heightAt = (x, y) => {
+            const xi = Math.min(width-1, Math.max(0, x));
+            const yi = Math.min(height-1, Math.max(0, y));
+            const idx = (yi*width + xi) * 4;
+            return bd[idx] / 255; // red channel
+        };
+
+        const strength = 2.0; // Intensité du relief
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const hL = heightAt(x-1, y);
+                const hR = heightAt(x+1, y);
+                const hU = heightAt(x, y-1);
+                const hD = heightAt(x, y+1);
+                const dx = (hR - hL) * strength;
+                const dy = (hD - hU) * strength;
+                // Normal
+                let nx = -dx, ny = -dy, nz = 1.0;
+                const len = Math.hypot(nx, ny, nz) || 1.0;
+                nx /= len; ny /= len; nz /= len;
+                const r = Math.round((nx * 0.5 + 0.5) * 255);
+                const g = Math.round((ny * 0.5 + 0.5) * 255);
+                const b = Math.round((nz * 0.5 + 0.5) * 255);
+                const idx = (y*width + x) * 4;
+                nd[idx] = r; nd[idx+1] = g; nd[idx+2] = b; nd[idx+3] = 255;
+            }
+        }
+        nCtx.putImageData(nImg, 0, 0);
+        this.engravingNormalTexture.update(true);
     }
     
     // Générer automatiquement les configurations de matériaux disponibles
@@ -1012,6 +1064,13 @@ createScene().then(async createdScene => {
     // Initialiser le système de tags
     const tagManager = new TagManager(scene, materialsConfig);
     tagManager.loadTagConfiguration();
+
+    // Initialiser l'EngravingManager
+    try {
+        if (window.EngravingManager) {
+            window.engravingManager = new window.EngravingManager(scene, assetConfig);
+        }
+    } catch (_) {}
     
     // Appliquer une configuration de matériaux par défaut pour que Tweakpane fonctionne
     // Appliquer les configurations par défaut pour chaque mesh

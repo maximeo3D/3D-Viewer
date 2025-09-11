@@ -10,6 +10,7 @@
     <script src="https://cdn.babylonjs.com/hdr/babylonjs.hdr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js"></script>
     <script src="tweakpaneManager.js"></script>
+    <script src="engravingManager.js"></script>
     <script>
         // Contrôle de visibilité de la sidebar
         const showSidebar = true; // Changez true/false pour afficher/cacher la sidebar
@@ -130,7 +131,11 @@
                     
                     // Champ de texte pour l'engraving
                     document.getElementById('engraving-text').addEventListener('input', (e) => {
-                        window.tagManager.setEngravingText(e.target.value);
+                        if (window.engravingManager) {
+                            window.engravingManager.setText(e.target.value);
+                        } else if (window.tagManager && window.tagManager.setEngravingText) {
+                            window.tagManager.setEngravingText(e.target.value);
+                        }
                     });
                     
                     // Appliquer la configuration par défaut
@@ -147,8 +152,12 @@
                     // Mettre à jour l'état initial des boutons
                     updateButtonStates();
                     
-                    // Initialiser le champ texte
-                    document.getElementById('engraving-text').value = defaultConfig.engravingText || '';
+                    // Initialiser le champ texte et l'état engraving
+                    const initialText = defaultConfig.engravingText || '';
+                    document.getElementById('engraving-text').value = initialText;
+                    if (initialText && window.engravingManager) {
+                        window.engravingManager.setText(initialText);
+                    }
                 }
             }, 1000);
             
