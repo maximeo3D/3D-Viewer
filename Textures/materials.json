@@ -27,8 +27,7 @@
       "type": "pbr",
       "parent": "red",
       "baseColor": "#157200",
-      "roughness": 0.13999999999999999,
-      "metallic": 0
+      "roughness": 0.13999999999999999
     },
     "blue": {
       "type": "pbr",

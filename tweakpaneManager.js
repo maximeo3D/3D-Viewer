@@ -608,43 +608,46 @@ class TweakpaneManager {
         if (!material) return;
         this.isLoading = true;
         
-        // Load properties from material config
-        // Convertir la couleur hexadécimale en RGB
-        if (material.baseColor) {
-            const hex = material.baseColor.replace('#', '');
+        // Déterminer la source effective (enfant -> parent -> défaut)
+        const parentName = material.parent || 'none';
+        const parent = parentName !== 'none' ? this.materialsConfig.materials[parentName] : null;
+
+        const getEffective = (prop, defVal) => {
+            if (material[prop] !== undefined && material[prop] !== null) return material[prop];
+            if (parent && parent[prop] !== undefined && parent[prop] !== null) return parent[prop];
+            return defVal;
+        };
+
+        // baseColor (hex → RGB pour l'affichage interne)
+        const effBaseColor = getEffective('baseColor', '#ffffff');
+        {
+            const hex = effBaseColor.replace('#', '');
             this.materialProperties.baseColor = {
                 r: parseInt(hex.substr(0, 2), 16) / 255,
                 g: parseInt(hex.substr(2, 2), 16) / 255,
                 b: parseInt(hex.substr(4, 2), 16) / 255
             };
-            // Mettre à jour l'affichage hexadécimal
-            if (this.baseColorDisplay) {
-                this.baseColorDisplay.hex = material.baseColor;
-            }
-        } else {
-            this.materialProperties.baseColor = { r: 1, g: 1, b: 1 };
-            if (this.baseColorDisplay) {
-                this.baseColorDisplay.hex = '#ffffff';
-            }
+            if (this.baseColorDisplay) this.baseColorDisplay.hex = effBaseColor;
         }
-        this.materialProperties.metallic = material.metallic !== undefined ? material.metallic : 0.0;
-        this.materialProperties.roughness = material.roughness !== undefined ? material.roughness : 0.5;
-        this.materialProperties.alpha = material.alpha !== undefined ? material.alpha : 1.0;
-        this.materialProperties.albedoTexture = material.albedoTexture || 'None';
-        this.materialProperties.metallicTexture = material.metallicTexture || 'None';
-        this.materialProperties.microSurfaceTexture = material.microSurfaceTexture || 'None';
-        this.materialProperties.ambientTexture = material.ambientTexture || 'None';
-        this.materialProperties.opacityTexture = material.opacityTexture || 'None';
-        this.materialProperties.bumpTexture = material.bumpTexture || 'None';
-        this.materialProperties.bumpTextureIntensity = material.bumpTextureIntensity !== undefined ? material.bumpTextureIntensity : 1.0;
-        this.materialProperties.lightmapTexture = material.lightmapTexture || 'None';
-        this.materialProperties.useLightmapAsShadowmap = material.useLightmapAsShadowmap !== undefined ? material.useLightmapAsShadowmap : true;
-        this.materialProperties.backFaceCulling = material.backFaceCulling !== undefined ? material.backFaceCulling : true;
-        this.materialProperties.uOffset = material.uOffset !== undefined ? material.uOffset : 0.0;
-        this.materialProperties.vOffset = material.vOffset !== undefined ? material.vOffset : 0.0;
-        this.materialProperties.uScale = material.uScale !== undefined ? material.uScale : 1.0;
-        this.materialProperties.vScale = material.vScale !== undefined ? material.vScale : 1.0;
-        this.materialProperties.wRotation = material.wRotation !== undefined ? material.wRotation : 0.0;
+
+        this.materialProperties.metallic = getEffective('metallic', 0.0);
+        this.materialProperties.roughness = getEffective('roughness', 0.5);
+        this.materialProperties.alpha = getEffective('alpha', 1.0);
+        this.materialProperties.albedoTexture = getEffective('albedoTexture', 'None') || 'None';
+        this.materialProperties.metallicTexture = getEffective('metallicTexture', 'None') || 'None';
+        this.materialProperties.microSurfaceTexture = getEffective('microSurfaceTexture', 'None') || 'None';
+        this.materialProperties.ambientTexture = getEffective('ambientTexture', 'None') || 'None';
+        this.materialProperties.opacityTexture = getEffective('opacityTexture', 'None') || 'None';
+        this.materialProperties.bumpTexture = getEffective('bumpTexture', 'None') || 'None';
+        this.materialProperties.bumpTextureIntensity = getEffective('bumpTextureIntensity', 1.0);
+        this.materialProperties.lightmapTexture = getEffective('lightmapTexture', 'None') || 'None';
+        this.materialProperties.useLightmapAsShadowmap = getEffective('useLightmapAsShadowmap', true);
+        this.materialProperties.backFaceCulling = getEffective('backFaceCulling', true);
+        this.materialProperties.uOffset = getEffective('uOffset', 0.0);
+        this.materialProperties.vOffset = getEffective('vOffset', 0.0);
+        this.materialProperties.uScale = getEffective('uScale', 1.0);
+        this.materialProperties.vScale = getEffective('vScale', 1.0);
+        this.materialProperties.wRotation = getEffective('wRotation', 0.0);
         
         // Debug: Afficher les valeurs chargées
         console.log('📊 Propriétés chargées pour', materialName, ':', {
@@ -665,6 +668,31 @@ class TweakpaneManager {
             this.pane.refresh();
         }
         this.isLoading = false;
+    }
+
+    getDefaultValue(propertyName) {
+        switch (propertyName) {
+            case 'baseColor': return '#ffffff';
+            case 'metallic': return 0.0;
+            case 'roughness': return 0.5;
+            case 'alpha': return 1.0;
+            case 'albedoTexture':
+            case 'metallicTexture':
+            case 'microSurfaceTexture':
+            case 'ambientTexture':
+            case 'opacityTexture':
+            case 'bumpTexture':
+            case 'lightmapTexture': return 'None';
+            case 'bumpTextureIntensity': return 1.0;
+            case 'useLightmapAsShadowmap': return true;
+            case 'backFaceCulling': return true;
+            case 'uOffset':
+            case 'vOffset': return 0.0;
+            case 'uScale':
+            case 'vScale': return 1.0;
+            case 'wRotation': return 0.0;
+            default: return undefined;
+        }
     }
     
     updateRGBFromHex(hexValue) {
@@ -720,7 +748,20 @@ class TweakpaneManager {
 
             // Grisage des valeurs héritées
             rowEl.style.opacity = isIndependent ? '1' : '0.5';
-            rowEl.style.pointerEvents = 'auto';
+            // Désactiver les interactions si hérité
+            const inputEl = el.querySelector('input, select, textarea, .tp-rotv, .tp-cp-') || null;
+            if (!isIndependent) {
+                // Empêcher l'édition directe quand hérité
+                rowEl.classList.add('inherited');
+                if (inputEl) {
+                    inputEl.setAttribute('disabled', 'true');
+                }
+            } else {
+                rowEl.classList.remove('inherited');
+                if (inputEl) {
+                    inputEl.removeAttribute('disabled');
+                }
+            }
 
             // Cursor + title sur le label pour indiquer le toggle
             if (labelEl) {
