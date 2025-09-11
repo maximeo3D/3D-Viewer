@@ -1,5 +1,4 @@
 // tweakpaneManager.js - Gestion complète de l'interface utilisateur Tweakpane
-// Migration depuis datGUI vers Tweakpane pour une meilleure stabilité
 
 class TweakpaneManager {
     constructor(scene, materialsConfig, config) {

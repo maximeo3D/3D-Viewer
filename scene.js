@@ -680,6 +680,9 @@ class TagManager {
         this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
         this.engravingText = '';
         this.engravingTexture = null; // DynamicTexture partagée pour l'alpha
+        this.engravingTexWidth = 0;
+        this.engravingTexHeight = 0;
+        this.engravingAspectOverride = null; // Permettre un ratio manuel (largeur/hauteur)
     }
     
     // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
@@ -717,7 +720,13 @@ class TagManager {
                 const meshTags = meshConfig.tags || [];
                 
                 // Un mesh est visible si au moins un de ses tags est actif
-                const shouldBeVisible = meshTags.some(tag => this.activeTags.has(tag));
+                let shouldBeVisible = meshTags.some(tag => this.activeTags.has(tag));
+                // Cas particulier: les meshes 'engraving' sont invisibles tant que le texte est vide
+                if (meshTags.includes('engraving')) {
+                    if (!this.engravingText || this.engravingText.trim() === '') {
+                        shouldBeVisible = false;
+                    }
+                }
                 
                 // Appliquer la visibilité aux meshes primitifs (cas multi-matériaux)
                 let meshes = this.scene.meshes.filter(mesh => 
@@ -818,6 +827,48 @@ class TagManager {
         // Mettre à jour la DynamicTexture et l'appliquer comme opacityTexture
         this.updateEngravingTextures();
     }
+
+    // Définir manuellement le ratio largeur/hauteur (ex: 2 pour 2:1). Passer null pour revenir à l'auto.
+    setEngravingAspect(aspectOrNull) {
+        if (aspectOrNull === null || aspectOrNull === undefined) {
+            this.engravingAspectOverride = null;
+        } else {
+            const a = Number(aspectOrNull);
+            if (!isNaN(a) && a > 0) this.engravingAspectOverride = a;
+        }
+        this.updateEngravingTextures();
+    }
+
+    // Calcul automatique du ratio à partir des dimensions du mesh taggé 'engraving'
+    getEngravingAspectRatio() {
+        if (this.engravingAspectOverride && this.engravingAspectOverride > 0) return this.engravingAspectOverride;
+
+        // Trouver un mesh avec le tag 'engraving'
+        let targetMesh = null;
+        if (assetConfig && assetConfig.models) {
+            outer: for (const modelKey of Object.keys(assetConfig.models)) {
+                const model = assetConfig.models[modelKey];
+                for (const meshName of Object.keys(model.meshes)) {
+                    const tags = model.meshes[meshName].tags || [];
+                    if (tags.includes('engraving')) {
+                        const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
+                        if (meshes.length > 0) { targetMesh = meshes[0]; break outer; }
+                    }
+                }
+            }
+        }
+        if (!targetMesh) return 1; // fallback carré
+
+        const ext = targetMesh.getBoundingInfo().boundingBox.extendSize; // demi-tailles
+        const size = new BABYLON.Vector3(ext.x * 2, ext.y * 2, ext.z * 2);
+        // Prendre les deux plus grandes dimensions comme plan
+        const dims = [size.x, size.y, size.z].sort((a,b) => b - a);
+        const width = Math.max(0.0001, dims[0]);
+        const height = Math.max(0.0001, dims[1]);
+        const aspect = width / height;
+        // Clamping raisonnable
+        return Math.max(0.1, Math.min(10, aspect));
+    }
     
     // Obtenir les tags actifs
     getActiveTags() {
@@ -836,13 +887,17 @@ class TagManager {
         // Si pas de texte, retirer l'opacityTexture
         if (text.trim() === '') {
             this.applyEngravingOpacity(null);
+            // Rafraîchir la visibilité pour masquer les meshes d'engraving sans texte
+            this.applyActiveTags();
             return;
         }
 
-        // Création/MAJ de la DynamicTexture
-        const size = 1024;
+        // Création/MAJ de la DynamicTexture avec ratio auto/manuel
+        const aspect = this.getEngravingAspectRatio(); // largeur/hauteur
+        const base = 1024;
+        const size = { width: Math.max(2, Math.round(base * aspect)), height: base };
         if (!this.engravingTexture) {
-            this.engravingTexture = new BABYLON.DynamicTexture('engravingDT', { width: size, height: size }, this.scene, true);
+            this.engravingTexture = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
             this.engravingTexture.hasAlpha = true;
             try {
                 const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
@@ -855,7 +910,7 @@ class TagManager {
         let ctx = this.engravingTexture.getContext();
         if (!ctx) {
             // Si la texture a été disposée par erreur, la recréer
-            const newDT = new BABYLON.DynamicTexture('engravingDT', { width: size, height: size }, this.scene, true);
+            const newDT = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
             newDT.hasAlpha = true;
             try {
                 const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
@@ -868,23 +923,25 @@ class TagManager {
         }
         // Fond noir (alpha 0 avec getAlphaFromRGB)
         ctx.fillStyle = 'rgb(0,0,0)';
-        ctx.fillRect(0, 0, size, size);
+        ctx.fillRect(0, 0, size.width, size.height);
 
         // Calcul de la taille de police et rendu centré
-        let fontSize = Math.floor(size * 0.35);
+        let fontSize = Math.floor(size.height * 0.35);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'rgb(255,255,255)'; // blanc => alpha 1
         do {
             ctx.font = `bold ${fontSize}px Arial`;
             const w = ctx.measureText(text).width;
-            if (w <= size * 0.9 || fontSize <= 32) break;
+            if (w <= size.width * 0.9 || fontSize <= 32) break;
             fontSize -= 8;
         } while (fontSize > 32);
-        ctx.fillText(text, size / 2, size / 2);
+        ctx.fillText(text, size.width / 2, size.height / 2);
         this.engravingTexture.update(true);
 
         this.applyEngravingOpacity(this.engravingTexture);
+        // Réafficher les meshes 'engraving' maintenant que le texte est présent
+        this.applyActiveTags();
     }
 
     // Appliquer la texture d'alpha aux meshes taggés 'engraving'
