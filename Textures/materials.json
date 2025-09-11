@@ -76,10 +76,10 @@
       "wRotation": 0,
       "useLightmapAsShadowmap": true
     },
-    "engraving": {
+    "engraving_red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#fff000",
+      "baseColor": "#ff0000",
       "metallic": 0,
       "roughness": 0.5,
       "alpha": 1,

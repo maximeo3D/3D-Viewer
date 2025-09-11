@@ -18,7 +18,7 @@
         const defaultConfig = {
             option: 'base',
             blocMaterial: 'red',
-            flagOption: 'none',
+            flagOption: 'france',
             engravingEnabled: true,
             engravingText: ''
         };
@@ -215,8 +215,8 @@
                     }
                 });
                 
-                // Flag material buttons
-                const flagMaterials = ['none', 'red', 'blue', 'green'];
+                // Flag material buttons (align with real ids)
+                const flagMaterials = ['none', 'france', 'unitedstates', 'germany'];
                 flagMaterials.forEach(material => {
                     const btn = document.getElementById(`flag-${material}-btn`);
                     if (btn) {
