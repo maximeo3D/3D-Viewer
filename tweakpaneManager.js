@@ -20,6 +20,7 @@ class TweakpaneManager {
         this.materialList = { selected: Object.keys(materialsConfig.materials)[0] || 'red' };
         this.materialSelectControl = null;
         this.materialParentControl = null;
+        this.materialParentData = { parent: 'none' };
         
         // Système de logique parent-enfant
         this.independentProperties = new Set();
@@ -274,7 +275,8 @@ class TweakpaneManager {
         // Parent selection
         const parentOptions = ['none', ...Object.keys(this.materialsConfig.materials)];
         const currentParent = this.materialsConfig.materials[this.materialList.selected]?.parent || 'none';
-        this.materialParentControl = this.materialsFolder.addInput({ parent: currentParent }, 'parent', {
+        this.materialParentData.parent = currentParent;
+        this.materialParentControl = this.materialsFolder.addInput(this.materialParentData, 'parent', {
             options: parentOptions.reduce((acc, key) => {
                 acc[key] = key;
                 return acc;
@@ -580,13 +582,6 @@ class TweakpaneManager {
         this.pane.addInput(this.inspectorToggle, 'showInspector').on('change', (ev) => {
             this.toggleInspector(ev.value);
         });
-        
-        // Refresh images
-        this.pane.addButton({
-            title: 'Refresh Images'
-        }).on('click', () => {
-            this.refreshImageList();
-        });
     }
     
     // Material change handlers
@@ -594,12 +589,19 @@ class TweakpaneManager {
         this.materialList.selected = materialName;
         this.loadMaterialProperties(materialName);
         this.updateParentChildDisplay();
+        // Synchroniser le sélecteur de parent avec la config
+        const parent = this.materialsConfig.materials[materialName]?.parent || 'none';
+        this.materialParentData.parent = parent;
+        if (this.pane) this.pane.refresh();
     }
     
     onParentChange(parentName) {
         if (this.materialsConfig.materials[this.materialList.selected]) {
             this.materialsConfig.materials[this.materialList.selected].parent = parentName;
+            // Mettre à jour l'état local pour garder l'UI en phase
+            this.materialParentData.parent = parentName;
             this.updateParentChildDisplay();
+            if (this.pane) this.pane.refresh();
         }
     }
     
@@ -910,22 +912,33 @@ class TweakpaneManager {
                 if (this.materialProperties.roughness !== undefined) mat.roughness = this.materialProperties.roughness;
                 if (this.materialProperties.alpha !== undefined) mat.alpha = this.materialProperties.alpha;
 
-                // Textures
-                const texOrNull = (name) => (name && name !== 'None') ? new BABYLON.Texture(`Textures/${name}`, scene) : null;
-                mat.albedoTexture = texOrNull(this.materialProperties.albedoTexture);
-                mat.metallicTexture = texOrNull(this.materialProperties.metallicTexture);
-                mat.microSurfaceTexture = texOrNull(this.materialProperties.microSurfaceTexture);
-                mat.ambientTexture = texOrNull(this.materialProperties.ambientTexture);
-                mat.opacityTexture = texOrNull(this.materialProperties.opacityTexture);
-                mat.bumpTexture = texOrNull(this.materialProperties.bumpTexture);
+                // Textures (réutiliser si même nom, sinon remplacer proprement)
+                const setTexture = (current, desiredName) => {
+                    if (!desiredName || desiredName === 'None') {
+                        if (current) { try { current.dispose(); } catch(_){} }
+                        return null;
+                    }
+                    if (!current || current.name !== desiredName) {
+                        if (current) { try { current.dispose(); } catch(_){} }
+                        const t = new BABYLON.Texture(`Textures/${desiredName}`, scene);
+                        t.name = desiredName;
+                        return t;
+                    }
+                    return current;
+                };
+
+                mat.albedoTexture = setTexture(mat.albedoTexture, this.materialProperties.albedoTexture);
+                mat.metallicTexture = setTexture(mat.metallicTexture, this.materialProperties.metallicTexture);
+                mat.microSurfaceTexture = setTexture(mat.microSurfaceTexture, this.materialProperties.microSurfaceTexture);
+                mat.ambientTexture = setTexture(mat.ambientTexture, this.materialProperties.ambientTexture);
+                mat.opacityTexture = setTexture(mat.opacityTexture, this.materialProperties.opacityTexture);
+                mat.bumpTexture = setTexture(mat.bumpTexture, this.materialProperties.bumpTexture);
                 if (mat.bumpTexture && this.materialProperties.bumpTextureIntensity !== undefined) {
                     mat.bumpTexture.level = this.materialProperties.bumpTextureIntensity;
                 }
-                if (this.materialProperties.lightmapTexture && this.materialProperties.lightmapTexture !== 'None') {
-                    mat.lightmapTexture = new BABYLON.Texture(`Textures/${this.materialProperties.lightmapTexture}`, scene);
+                mat.lightmapTexture = setTexture(mat.lightmapTexture, this.materialProperties.lightmapTexture);
+                if (mat.lightmapTexture) {
                     mat.useLightmapAsShadowmap = !!this.materialProperties.useLightmapAsShadowmap;
-                } else {
-                    mat.lightmapTexture = null;
                 }
 
                 // Transformations de textures

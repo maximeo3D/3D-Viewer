@@ -32,7 +32,6 @@
     "blue": {
       "type": "pbr",
       "parent": "red",
-      "useLightmapAsShadowmap": true,
       "baseColor": "#003883"
     },
     "flag_fr": {

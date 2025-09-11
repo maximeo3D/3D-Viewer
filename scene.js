@@ -209,13 +209,16 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         finalMaterialConfig = { ...parentMaterial, ...materialConfig };
     }
     
-    const pbr = new BABYLON.PBRMaterial(materialName || `${finalMaterialConfig.name || "pbr"}_material`, scene);
+    const name = materialName || `${finalMaterialConfig.name || "pbr"}_material`;
+    // Reuse existing material instance if available
+    let pbr = scene.materials.find(m => m && m.name === name && m instanceof BABYLON.PBRMaterial);
+    if (!pbr) {
+        pbr = new BABYLON.PBRMaterial(name, scene);
+    }
+    // Track single instance per material name
     try {
         if (!window.materialInstances) window.materialInstances = {};
-        if (materialName) {
-            if (!window.materialInstances[materialName]) window.materialInstances[materialName] = [];
-            window.materialInstances[materialName].push(pbr);
-        }
+        window.materialInstances[name] = [pbr];
     } catch (_) {}
     
     // === BASE PBR PROPERTIES ===
@@ -231,21 +234,28 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     // === TEXTURES ===
     // Albedo texture (base color)
     if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
-        pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
-        
-        
+        if (!pbr.albedoTexture || pbr.albedoTexture.name !== finalMaterialConfig.albedoTexture) {
+            if (pbr.albedoTexture) { try { pbr.albedoTexture.dispose(); } catch(_){} }
+            pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);
+            pbr.albedoTexture.name = finalMaterialConfig.albedoTexture;
+        }
         if (pbr.albedoTexture.onErrorObservable) {
             pbr.albedoTexture.onErrorObservable.add(() => {
                 console.error(`❌ Failed to load albedo texture: ${finalMaterialConfig.albedoTexture}`);
             });
         }
     } else {
+        if (pbr.albedoTexture) { try { pbr.albedoTexture.dispose(); } catch(_){} }
         pbr.albedoTexture = null;
     }
     
     // Normal/Bump texture
     if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None') {
-        pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
+        if (!pbr.bumpTexture || pbr.bumpTexture.name !== finalMaterialConfig.bumpTexture) {
+            if (pbr.bumpTexture) { try { pbr.bumpTexture.dispose(); } catch(_){} }
+            pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
+            pbr.bumpTexture.name = finalMaterialConfig.bumpTexture;
+        }
         pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity !== undefined ? finalMaterialConfig.bumpTextureIntensity : 1.0;
         pbr.bumpTexture.vFlip = false; // Corriger l'effet miroir
         if (pbr.bumpTexture.onErrorObservable) {
@@ -253,36 +263,54 @@ function createPBRMaterial(materialConfig, scene, materialName) {
                 console.error(`❌ Failed to load bump texture: ${finalMaterialConfig.bumpTexture}`);
             });
         }
-    }
+    } else if (pbr.bumpTexture) { try { pbr.bumpTexture.dispose(); } catch(_){} pbr.bumpTexture = null; }
     
     // === SEPARATE TEXTURES ===
     // Metallic texture
     if (finalMaterialConfig.metallicTexture && finalMaterialConfig.metallicTexture.trim() !== '' && finalMaterialConfig.metallicTexture !== 'None') {
-        pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
+        if (!pbr.metallicTexture || pbr.metallicTexture.name !== finalMaterialConfig.metallicTexture) {
+            if (pbr.metallicTexture) { try { pbr.metallicTexture.dispose(); } catch(_){} }
+            pbr.metallicTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.metallicTexture}`, scene);
+            pbr.metallicTexture.name = finalMaterialConfig.metallicTexture;
+        }
         pbr.metallicTexture.vFlip = false; // Corriger l'effet miroir
-    }
+    } else if (pbr.metallicTexture) { try { pbr.metallicTexture.dispose(); } catch(_){} pbr.metallicTexture = null; }
     
     // Microsurface (roughness) texture
     if (finalMaterialConfig.microSurfaceTexture && finalMaterialConfig.microSurfaceTexture.trim() !== '' && finalMaterialConfig.microSurfaceTexture !== 'None') {
-        pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
+        if (!pbr.microSurfaceTexture || pbr.microSurfaceTexture.name !== finalMaterialConfig.microSurfaceTexture) {
+            if (pbr.microSurfaceTexture) { try { pbr.microSurfaceTexture.dispose(); } catch(_){} }
+            pbr.microSurfaceTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.microSurfaceTexture}`, scene);
+            pbr.microSurfaceTexture.name = finalMaterialConfig.microSurfaceTexture;
+        }
         pbr.microSurfaceTexture.vFlip = false; // Corriger l'effet miroir
-    }
+    } else if (pbr.microSurfaceTexture) { try { pbr.microSurfaceTexture.dispose(); } catch(_){} pbr.microSurfaceTexture = null; }
     
     // Ambient occlusion texture
     if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture.trim() !== '' && finalMaterialConfig.ambientTexture !== 'None') {
-        pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
+        if (!pbr.ambientTexture || pbr.ambientTexture.name !== finalMaterialConfig.ambientTexture) {
+            if (pbr.ambientTexture) { try { pbr.ambientTexture.dispose(); } catch(_){} }
+            pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
+            pbr.ambientTexture.name = finalMaterialConfig.ambientTexture;
+        }
         pbr.ambientTexture.vFlip = false; // Corriger l'effet miroir
-    }
+    } else if (pbr.ambientTexture) { try { pbr.ambientTexture.dispose(); } catch(_){} pbr.ambientTexture = null; }
     
     // Opacity texture for local transparency control
     if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None') {
-        pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
+        if (!pbr.opacityTexture || pbr.opacityTexture.name !== finalMaterialConfig.opacityTexture) {
+            if (pbr.opacityTexture) { try { pbr.opacityTexture.dispose(); } catch(_){} }
+            pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
+            pbr.opacityTexture.name = finalMaterialConfig.opacityTexture;
+        }
         pbr.opacityTexture.getAlphaFromRGB = true; // CRUCIAL pour que l'opacityTexture fonctionne
         pbr.opacityTexture.vFlip = false; // Corriger l'effet miroir
         
         // When opacity texture is present, DON'T set pbr.opacity - let the texture handle it
         // The alpha slider will control the overall transparency of the visible parts
     } else {
+        if (pbr.opacityTexture) { try { pbr.opacityTexture.dispose(); } catch(_){} }
+        pbr.opacityTexture = null;
         // When no opacity texture, use alpha for global transparency
         pbr.alpha = finalMaterialConfig.alpha !== undefined ? finalMaterialConfig.alpha : 1.0;
     }
@@ -290,12 +318,16 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     // === LIGHTMAP ===
     // Lightmap texture for baked lighting
     if (finalMaterialConfig.lightmapTexture && finalMaterialConfig.lightmapTexture.trim() !== '' && finalMaterialConfig.lightmapTexture !== 'None') {
-        pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
+        if (!pbr.lightmapTexture || pbr.lightmapTexture.name !== finalMaterialConfig.lightmapTexture) {
+            if (pbr.lightmapTexture) { try { pbr.lightmapTexture.dispose(); } catch(_){} }
+            pbr.lightmapTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.lightmapTexture}`, scene);
+            pbr.lightmapTexture.name = finalMaterialConfig.lightmapTexture;
+        }
         pbr.lightmapTexture.vFlip = false; // Corriger l'effet miroir
         
         // Enable lightmap as shadowmap by default for better performance
         pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
-    }
+    } else if (pbr.lightmapTexture) { try { pbr.lightmapTexture.dispose(); } catch(_){} pbr.lightmapTexture = null; }
     
     // === TEXTURE TRANSFORMATIONS ===
     // Apply transformations to all textures except lightmap
@@ -738,7 +770,9 @@ class TagManager {
                         }
                         
                         meshes.forEach(mesh => {
-                        applyMaterial(mesh, this.materialsConfig.materials[materialName]);
+                            // Appliquer un matériau réutilisable (évite la duplication)
+                            const mat = createPBRMaterial(this.materialsConfig.materials[materialName], this.scene, materialName);
+                            mesh.material = mat;
                         });
                     }
                 });
