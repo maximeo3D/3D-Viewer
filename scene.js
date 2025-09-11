@@ -258,6 +258,13 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         }
         pbr.bumpTexture.level = finalMaterialConfig.bumpTextureIntensity !== undefined ? finalMaterialConfig.bumpTextureIntensity : 1.0;
         pbr.bumpTexture.vFlip = false; // Corriger l'effet miroir
+        // Réduire le moiré: filtrage trilineaire + anisotropie
+        try {
+            const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+            pbr.bumpTexture.updateSamplingMode(anisotropicMode);
+            const maxAniso = (scene.getEngine().getCaps().maxAnisotropy || 8);
+            pbr.bumpTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
+        } catch (_) {}
         if (pbr.bumpTexture.onErrorObservable) {
             pbr.bumpTexture.onErrorObservable.add(() => {
                 console.error(`❌ Failed to load bump texture: ${finalMaterialConfig.bumpTexture}`);

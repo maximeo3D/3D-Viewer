@@ -935,6 +935,13 @@ class TweakpaneManager {
                 mat.bumpTexture = setTexture(mat.bumpTexture, this.materialProperties.bumpTexture);
                 if (mat.bumpTexture && this.materialProperties.bumpTextureIntensity !== undefined) {
                     mat.bumpTexture.level = this.materialProperties.bumpTextureIntensity;
+                    // Réduire le moiré: filtrage trilineaire + anisotropie
+                    try {
+                        const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+                        mat.bumpTexture.updateSamplingMode(anisotropicMode);
+                        const maxAniso = (scene.getEngine().getCaps().maxAnisotropy || 8);
+                        mat.bumpTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
+                    } catch (_) {}
                 }
                 mat.lightmapTexture = setTexture(mat.lightmapTexture, this.materialProperties.lightmapTexture);
                 if (mat.lightmapTexture) {
