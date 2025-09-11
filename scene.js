@@ -679,6 +679,7 @@ class TagManager {
         this.activeMaterialConfigs = new Map(); // Map<objectName, configName>
         this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
         this.engravingText = '';
+        this.engravingTexture = null; // DynamicTexture partagée pour l'alpha
     }
     
     // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
@@ -787,6 +788,8 @@ class TagManager {
         });
         
         // Configuration de matériaux appliquée
+        // Réappliquer l'alpha d'engraving si besoin
+        this.updateEngravingTextures();
     }
     
     // Obtenir l'index du slot de matériau
@@ -812,8 +815,8 @@ class TagManager {
     // Définir le texte d'engraving
     setEngravingText(text) {
         this.engravingText = text;
-        // Ici vous pourriez ajouter la logique pour appliquer le texte à l'objet 3D
-        console.log('Engraving text:', text);
+        // Mettre à jour la DynamicTexture et l'appliquer comme opacityTexture
+        this.updateEngravingTextures();
     }
     
     // Obtenir les tags actifs
@@ -823,6 +826,84 @@ class TagManager {
             materials: Object.fromEntries(this.activeMaterialConfigs),
             engravingText: this.engravingText || ''
         };
+    }
+
+    // Créer/mettre à jour la DynamicTexture d'engraving et l'appliquer
+    updateEngravingTextures() {
+        if (!assetConfig || !this.scene) return;
+        const text = (this.engravingText || '').toString();
+
+        // Si pas de texte, retirer l'opacityTexture
+        if (text.trim() === '') {
+            this.applyEngravingOpacity(null);
+            return;
+        }
+
+        // Création/MAJ de la DynamicTexture
+        const size = 1024;
+        if (!this.engravingTexture) {
+            this.engravingTexture = new BABYLON.DynamicTexture('engravingDT', { width: size, height: size }, this.scene, true);
+            this.engravingTexture.hasAlpha = true;
+            try {
+                const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+                this.engravingTexture.updateSamplingMode(anisotropicMode);
+                const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
+                this.engravingTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
+            } catch (_) {}
+        }
+
+        const ctx = this.engravingTexture.getContext();
+        // Fond noir (alpha 0 avec getAlphaFromRGB)
+        ctx.fillStyle = 'rgb(0,0,0)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Calcul de la taille de police et rendu centré
+        let fontSize = Math.floor(size * 0.35);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgb(255,255,255)'; // blanc => alpha 1
+        do {
+            ctx.font = `bold ${fontSize}px Arial`;
+            const w = ctx.measureText(text).width;
+            if (w <= size * 0.9 || fontSize <= 32) break;
+            fontSize -= 8;
+        } while (fontSize > 32);
+        ctx.fillText(text, size / 2, size / 2);
+        this.engravingTexture.update(true);
+
+        this.applyEngravingOpacity(this.engravingTexture);
+    }
+
+    // Appliquer la texture d'alpha aux meshes taggés 'engraving'
+    applyEngravingOpacity(textureOrNull) {
+        Object.keys(assetConfig.models).forEach(modelKey => {
+            const model = assetConfig.models[modelKey];
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshCfg = model.meshes[meshName];
+                const tags = meshCfg.tags || [];
+                if (!tags.includes('engraving')) return;
+
+                let meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
+                meshes.forEach(m => {
+                    const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
+                    if (!pbr) return;
+                    if (!textureOrNull) {
+                        if (pbr.opacityTexture && pbr.opacityTexture.name === 'engravingDT') {
+                            try { pbr.opacityTexture.dispose(); } catch(_){}
+                        }
+                        pbr.opacityTexture = null;
+                        pbr.alpha = (pbr.alpha !== undefined ? pbr.alpha : 1.0);
+                    } else {
+                        pbr.opacityTexture = textureOrNull;
+                        pbr.opacityTexture.getAlphaFromRGB = true;
+                        pbr.opacityTexture.vFlip = false;
+                        pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
+                        pbr.needDepthPrePass = true;
+                    }
+                    pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+                });
+            });
+        });
     }
     
     // Générer automatiquement les configurations de matériaux disponibles
