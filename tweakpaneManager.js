@@ -24,6 +24,7 @@ class TweakpaneManager {
         // Système de logique parent-enfant
         this.independentProperties = new Set();
         this.materialControls = new Map();
+        this.labelClickHandlers = new Map();
         
         // Variables pour la création de matériaux
         this.createMaterialFolder = null;
@@ -299,7 +300,7 @@ class TweakpaneManager {
     async createMaterialControls() {
         // Base Color avec affichage hexadécimal
         this.baseColorDisplay = { hex: '#ffffff' };
-        this.materialsFolder.addInput(this.baseColorDisplay, 'hex', {
+        const baseColorCtrl = this.materialsFolder.addInput(this.baseColorDisplay, 'hex', {
             label: 'Base Color'
         }).on('change', (ev) => {
             this.updateRGBFromHex(ev.value);
@@ -307,9 +308,10 @@ class TweakpaneManager {
             this.independentProperties.add('baseColor');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('baseColor', baseColorCtrl);
         
         // Metallic
-        this.materialsFolder.addInput(this.materialProperties, 'metallic', {
+        const metallicCtrl = this.materialsFolder.addInput(this.materialProperties, 'metallic', {
             min: 0.0,
             max: 1.0,
             step: 0.01
@@ -318,9 +320,10 @@ class TweakpaneManager {
             this.independentProperties.add('metallic');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('metallic', metallicCtrl);
         
         // Roughness
-        this.materialsFolder.addInput(this.materialProperties, 'roughness', {
+        const roughnessCtrl = this.materialsFolder.addInput(this.materialProperties, 'roughness', {
             min: 0.0,
             max: 1.0,
             step: 0.01
@@ -329,9 +332,10 @@ class TweakpaneManager {
             this.independentProperties.add('roughness');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('roughness', roughnessCtrl);
         
         // Alpha
-        this.materialsFolder.addInput(this.materialProperties, 'alpha', {
+        const alphaCtrl = this.materialsFolder.addInput(this.materialProperties, 'alpha', {
             min: 0.0,
             max: 1.0,
             step: 0.01
@@ -340,6 +344,7 @@ class TweakpaneManager {
             this.independentProperties.add('alpha');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('alpha', alphaCtrl);
         
         // Texture controls (async)
         await this.createTextureControls();
@@ -362,6 +367,7 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.albedoTexture = ev.value;
+            this.independentProperties.add('albedoTexture');
             this.applyMaterialChanges();
         }));
         
@@ -370,6 +376,7 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.metallicTexture = ev.value;
+            this.independentProperties.add('metallicTexture');
             this.applyMaterialChanges();
         }));
         
@@ -378,6 +385,7 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.microSurfaceTexture = ev.value;
+            this.independentProperties.add('microSurfaceTexture');
             this.applyMaterialChanges();
         }));
         
@@ -386,6 +394,7 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.ambientTexture = ev.value;
+            this.independentProperties.add('ambientTexture');
             this.applyMaterialChanges();
         }));
         
@@ -394,6 +403,7 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.opacityTexture = ev.value;
+            this.independentProperties.add('opacityTexture');
             this.applyMaterialChanges();
         }));
         
@@ -402,38 +412,46 @@ class TweakpaneManager {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.bumpTexture = ev.value;
+            this.independentProperties.add('bumpTexture');
             this.applyMaterialChanges();
         }));
         
         // Bump Texture Intensity
-        textureFolder.addInput(this.materialProperties, 'bumpTextureIntensity', {
+        const bumpIntensityCtrl = textureFolder.addInput(this.materialProperties, 'bumpTextureIntensity', {
             min: 0.0,
             max: 10.0,
             step: 0.1
         }).on('change', (ev) => {
             this.materialProperties.bumpTextureIntensity = ev.value;
+            this.independentProperties.add('bumpTextureIntensity');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('bumpTextureIntensity', bumpIntensityCtrl);
         
         // Lightmap Texture
         this.materialControls.set('lightmapTexture', textureFolder.addInput(this.materialProperties, 'lightmapTexture', {
             options: availableImages
         }).on('change', (ev) => {
             this.materialProperties.lightmapTexture = ev.value;
+            this.independentProperties.add('lightmapTexture');
             this.applyMaterialChanges();
         }));
         
         // Use Lightmap as Shadowmap
-        textureFolder.addInput(this.materialProperties, 'useLightmapAsShadowmap').on('change', (ev) => {
+        const lmShadowCtrl = textureFolder.addInput(this.materialProperties, 'useLightmapAsShadowmap').on('change', (ev) => {
             this.materialProperties.useLightmapAsShadowmap = ev.value;
+            this.independentProperties.add('useLightmapAsShadowmap');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('useLightmapAsShadowmap', lmShadowCtrl);
         
         // Back Face Culling
-        textureFolder.addInput(this.materialProperties, 'backFaceCulling').on('change', (ev) => {
+        const bfcCtrl = textureFolder.addInput(this.materialProperties, 'backFaceCulling').on('change', (ev) => {
             this.materialProperties.backFaceCulling = ev.value;
+            this.independentProperties.add('backFaceCulling');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('backFaceCulling', bfcCtrl);
         
     }
     
@@ -444,54 +462,64 @@ class TweakpaneManager {
         });
         
         // U Offset
-        transformFolder.addInput(this.materialProperties, 'uOffset', {
+        const uOffsetCtrl = transformFolder.addInput(this.materialProperties, 'uOffset', {
             min: -2.0,
             max: 2.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.uOffset = ev.value;
+            this.independentProperties.add('uOffset');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('uOffset', uOffsetCtrl);
         
         // V Offset
-        transformFolder.addInput(this.materialProperties, 'vOffset', {
+        const vOffsetCtrl = transformFolder.addInput(this.materialProperties, 'vOffset', {
             min: -2.0,
             max: 2.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.vOffset = ev.value;
+            this.independentProperties.add('vOffset');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('vOffset', vOffsetCtrl);
         
         // U Scale
-        transformFolder.addInput(this.materialProperties, 'uScale', {
+        const uScaleCtrl = transformFolder.addInput(this.materialProperties, 'uScale', {
             min: 0.1,
             max: 5.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.uScale = ev.value;
+            this.independentProperties.add('uScale');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('uScale', uScaleCtrl);
         
         // V Scale
-        transformFolder.addInput(this.materialProperties, 'vScale', {
+        const vScaleCtrl = transformFolder.addInput(this.materialProperties, 'vScale', {
             min: 0.1,
             max: 5.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.vScale = ev.value;
+            this.independentProperties.add('vScale');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('vScale', vScaleCtrl);
         
         // W Rotation
-        transformFolder.addInput(this.materialProperties, 'wRotation', {
+        const wRotationCtrl = transformFolder.addInput(this.materialProperties, 'wRotation', {
             min: -180.0,
             max: 180.0,
             step: 1.0
         }).on('change', (ev) => {
             this.materialProperties.wRotation = ev.value;
+            this.independentProperties.add('wRotation');
             this.applyMaterialChanges();
         });
+        this.materialControls.set('wRotation', wRotationCtrl);
     }
     
     createNewMaterialControls() {
@@ -629,8 +657,9 @@ class TweakpaneManager {
             microSurfaceTexture: this.materialProperties.microSurfaceTexture
         });
         
-        // Les contrôles de texture se mettront à jour automatiquement
-        
+        // Recalculer héritage et apparence (parent/enfant)
+        this.updateParentChildDisplay();
+
         // Forcer la mise à jour des contrôles Tweakpane
         if (this.pane) {
             this.pane.refresh();
@@ -654,30 +683,118 @@ class TweakpaneManager {
     }
     
     updateParentChildDisplay() {
-        // Clear independent properties
+        // Recalculer les propriétés indépendantes par rapport au parent
         this.independentProperties.clear();
-        
-        // If material has a parent, determine which properties are independent
-        if (this.materialsConfig.materials[this.materialList.selected]?.parent !== 'none') {
-            const currentMaterial = this.materialsConfig.materials[this.materialList.selected];
-            const parentMaterial = this.materialsConfig.materials[currentMaterial.parent];
-            
-            // Compare each property to determine independence
-            Object.keys(this.materialProperties).forEach(propertyName => {
-                if (currentMaterial[propertyName] !== undefined && 
-                    currentMaterial[propertyName] !== parentMaterial[propertyName]) {
+        const selected = this.materialList.selected;
+        const currentMaterial = this.materialsConfig.materials[selected];
+        if (!currentMaterial) return;
+        const parentName = currentMaterial.parent || 'none';
+        const parentMaterial = parentName !== 'none' ? this.materialsConfig.materials[parentName] : null;
+
+        if (parentMaterial) {
+            Object.keys(this.materialProperties).forEach((propertyName) => {
+                const hasOwn = currentMaterial[propertyName] !== undefined;
+                const ownVal = currentMaterial[propertyName];
+                const parentVal = parentMaterial[propertyName];
+                const differs = JSON.stringify(ownVal) !== JSON.stringify(parentVal);
+                if (hasOwn && differs) {
                     this.independentProperties.add(propertyName);
                 }
             });
+        } else {
+            // Sans parent, tout est indépendant
+            Object.keys(this.materialProperties).forEach((propertyName) => this.independentProperties.add(propertyName));
         }
-        
+
         this.updateControlsAppearance();
     }
-    
+
     updateControlsAppearance() {
-        // Tweakpane doesn't have the same styling options as datGUI
-        // We'll implement a simpler approach for now
-        console.log('Independent properties:', Array.from(this.independentProperties));
+        // Appliquer un style visuel aux contrôles hérités vs indépendants
+        this.materialControls.forEach((control, propertyName) => {
+            const el = control?.element || control?.controller_?.view?.element || null;
+            if (!el) return;
+            const labelEl = el.querySelector('.tp-lblv_l') || el.querySelector('[class*="tp-lblv_"]');
+            const rowEl = el; // le container du contrôle
+            const isIndependent = this.independentProperties.has(propertyName);
+
+            // Grisage des valeurs héritées
+            rowEl.style.opacity = isIndependent ? '1' : '0.5';
+            rowEl.style.pointerEvents = 'auto';
+
+            // Cursor + title sur le label pour indiquer le toggle
+            if (labelEl) {
+                labelEl.style.cursor = 'pointer';
+                labelEl.title = isIndependent ? 'Cliquer pour hériter du parent' : 'Cliquer pour rendre indépendant';
+
+                // Détacher tout ancien listener enregistré
+                const key = `${propertyName}`;
+                const oldHandler = this.labelClickHandlers.get(key);
+                if (oldHandler) {
+                    labelEl.removeEventListener('click', oldHandler);
+                }
+
+                // Attacher un unique listener et stocker sa référence
+                const handler = () => {
+                    // Debounce léger pour éviter le spam
+                    if (this._toggleInProgress) return;
+                    this._toggleInProgress = true;
+                    try {
+                        this.togglePropertyIndependence(propertyName);
+                    } finally {
+                        // Micro-délai pour laisser l'UI se rafraîchir
+                        setTimeout(() => { this._toggleInProgress = false; }, 0);
+                    }
+                };
+                labelEl.addEventListener('click', handler);
+                this.labelClickHandlers.set(key, handler);
+            }
+        });
+    }
+
+    togglePropertyIndependence(propertyName) {
+        const selected = this.materialList.selected;
+        const currentMaterial = this.materialsConfig.materials[selected];
+        if (!currentMaterial) return;
+        const parentName = currentMaterial.parent || 'none';
+        const parentMaterial = parentName !== 'none' ? this.materialsConfig.materials[parentName] : null;
+
+        // Si pas de parent, rien à hériter, c'est toujours indépendant
+        if (!parentMaterial) {
+            this.independentProperties.add(propertyName);
+            this.applyMaterialChanges();
+            this.updateControlsAppearance();
+            return;
+        }
+
+        if (this.independentProperties.has(propertyName)) {
+            // Rendre hérité: supprimer la valeur propre et reprendre celle du parent
+            delete currentMaterial[propertyName];
+            this.independentProperties.delete(propertyName);
+
+            // Mettre à jour l'état affiché à partir du parent
+            const parentVal = parentMaterial[propertyName];
+            if (propertyName === 'baseColor' && typeof parentVal === 'string') {
+                this.baseColorDisplay.hex = parentVal || '#ffffff';
+                this.updateRGBFromHex(this.baseColorDisplay.hex);
+            } else {
+                this.materialProperties[propertyName] = parentVal;
+            }
+        } else {
+            // Rendre indépendant: copier la valeur actuelle effective dans le matériau courant
+            let valueToSet = this.materialProperties[propertyName];
+            if (propertyName === 'baseColor' && this.baseColorDisplay?.hex) {
+                valueToSet = this.baseColorDisplay.hex;
+            }
+            currentMaterial[propertyName] = valueToSet;
+            this.independentProperties.add(propertyName);
+        }
+
+        // Rafraîchir UI + appliquer
+        // Rafraîchir d'abord le pane (recrée des DOM), puis re-attacher les écouteurs, enfin appliquer
+        if (this.pane) this.pane.refresh();
+        this.updateControlsAppearance();
+        this.applyMaterialChanges();
     }
     
     applyMaterialChanges() {

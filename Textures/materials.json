@@ -5,7 +5,7 @@
       "parent": "none",
       "baseColor": "#c20100",
       "metallic": 0,
-      "roughness": 0.39,
+      "roughness": 0.38,
       "alpha": 1,
       "albedoTexture": "None",
       "metallicTexture": "None",
@@ -28,7 +28,7 @@
       "parent": "red",
       "baseColor": "#157200",
       "roughness": 0.13999999999999999,
-      "metallic": 1
+      "metallic": 0
     },
     "blue": {
       "type": "pbr",
@@ -40,7 +40,7 @@
       "type": "pbr",
       "parent": "flag_base",
       "albedoTexture": "flag_fr.jpg",
-      "roughness": 0
+      "baseColor": "#ffffff"
     },
     "flag_us": {
       "type": "pbr",
