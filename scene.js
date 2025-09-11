@@ -852,7 +852,20 @@ class TagManager {
             } catch (_) {}
         }
 
-        const ctx = this.engravingTexture.getContext();
+        let ctx = this.engravingTexture.getContext();
+        if (!ctx) {
+            // Si la texture a été disposée par erreur, la recréer
+            const newDT = new BABYLON.DynamicTexture('engravingDT', { width: size, height: size }, this.scene, true);
+            newDT.hasAlpha = true;
+            try {
+                const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+                newDT.updateSamplingMode(anisotropicMode);
+                const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
+                newDT.anisotropicFilteringLevel = Math.min(16, maxAniso);
+            } catch (_) {}
+            this.engravingTexture = newDT;
+            ctx = this.engravingTexture.getContext();
+        }
         // Fond noir (alpha 0 avec getAlphaFromRGB)
         ctx.fillStyle = 'rgb(0,0,0)';
         ctx.fillRect(0, 0, size, size);
@@ -888,9 +901,7 @@ class TagManager {
                     const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
                     if (!pbr) return;
                     if (!textureOrNull) {
-                        if (pbr.opacityTexture && pbr.opacityTexture.name === 'engravingDT') {
-                            try { pbr.opacityTexture.dispose(); } catch(_){}
-                        }
+                        // Ne pas disposer la texture partagée; simplement détacher
                         pbr.opacityTexture = null;
                         pbr.alpha = (pbr.alpha !== undefined ? pbr.alpha : 1.0);
                     } else {

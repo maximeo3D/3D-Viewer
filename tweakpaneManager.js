@@ -113,8 +113,6 @@ class TweakpaneManager {
             const response = await fetch('Textures/materials.json');
             if (response.ok) {
                 this.materialsConfig = await response.json();
-                console.log('✅ Configuration des matériaux chargée');
-                console.log('📊 Matériaux disponibles:', Object.keys(this.materialsConfig.materials));
             } else {
                 console.warn('⚠️ Impossible de charger materials.json, utilisation de la configuration par défaut');
             }
@@ -650,18 +648,7 @@ class TweakpaneManager {
         this.materialProperties.uScale = getEffective('uScale', 1.0);
         this.materialProperties.vScale = getEffective('vScale', 1.0);
         this.materialProperties.wRotation = getEffective('wRotation', 0.0);
-        
-        // Debug: Afficher les valeurs chargées
-        console.log('📊 Propriétés chargées pour', materialName, ':', {
-            baseColor: this.materialProperties.baseColor,
-            metallic: this.materialProperties.metallic,
-            roughness: this.materialProperties.roughness,
-            alpha: this.materialProperties.alpha,
-            albedoTexture: this.materialProperties.albedoTexture,
-            metallicTexture: this.materialProperties.metallicTexture,
-            microSurfaceTexture: this.materialProperties.microSurfaceTexture
-        });
-        
+                
         // Recalculer héritage et apparence (parent/enfant)
         this.updateParentChildDisplay();
 
@@ -1143,10 +1130,6 @@ class TweakpaneManager {
         }
     }
     
-    refreshImageList() {
-        // Refresh the image list in texture controls
-        console.log('Refreshing image list...');
-    }
     
     setTweakpaneVisibility(visible) {
         if (this.pane) {
@@ -1156,7 +1139,6 @@ class TweakpaneManager {
     
     async exportMaterial() {
         try {
-            console.log('🔄 Starting material export...');
             
             // Sauvegarder les modifications actuelles avant l'export
             this.applyMaterialChanges();
@@ -1166,7 +1148,6 @@ class TweakpaneManager {
                 materials: this.materialsConfig.materials
             };
             
-            console.log('📤 Sending data to server:', exportData);
             
             // Envoyer les données au serveur PowerShell
             const response = await fetch('http://localhost:8080/materials.json', {
@@ -1178,11 +1159,9 @@ class TweakpaneManager {
                 body: JSON.stringify(exportData, null, 2)
             });
             
-            console.log('📡 Server response status:', response.status);
             
             if (response.ok) {
                 const responseText = await response.text();
-                console.log('✅ Material exported successfully:', responseText);
             } else {
                 const errorText = await response.text();
                 console.error('❌ Server error:', errorText);

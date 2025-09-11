@@ -919,13 +919,6 @@ try {
 }
 ```
 
-### **Logs et Debug**
-```javascript
-// Console logs pour le débogage
-console.log(`🎨 Applied albedo color: ${materialConfig.baseColor}`);
-console.log(`🎭 Applied opacity texture: ${materialConfig.opacityTexture}`);
-console.log(`🎭 pbr.opacityTexture:`, pbr.opacityTexture);
-
 // Gestion des erreurs de serveur
 if (!response.ok) {
     throw new Error('Failed to load textures list: ' + response.status);
