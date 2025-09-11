@@ -57,12 +57,7 @@
                 <div class="category">
                     <h3>Engraving</h3>
                     <div class="controls">
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="engraving-checkbox">
-                            <span class="checkmark"></span>
-                            Enable Engraving
-                        </label>
-                        <input type="text" id="engraving-text" placeholder="Enter engraving text..." style="display: none;">
+                        <input type="text" id="engraving-text" placeholder="Enter engraving text...">
                     </div>
                 </div>
             </div>
@@ -133,26 +128,6 @@
                         updateButtonStates();
                     });
                     
-                    // Checkbox pour l'engraving
-                    document.getElementById('engraving-checkbox').addEventListener('change', (e) => {
-                        const isEnabled = e.target.checked;
-                        
-                        if (isEnabled) {
-                            window.tagManager.activeTags.add('engraving');
-                        } else {
-                            window.tagManager.activeTags.delete('engraving');
-                        }
-                        window.tagManager.applyActiveTags();
-                        
-                        // Afficher/masquer le champ de texte
-                        const textField = document.getElementById('engraving-text');
-                        textField.style.display = isEnabled ? 'block' : 'none';
-                        
-                        if (isEnabled) {
-                            textField.focus();
-                        }
-                    });
-                    
                     // Champ de texte pour l'engraving
                     document.getElementById('engraving-text').addEventListener('input', (e) => {
                         window.tagManager.setEngravingText(e.target.value);
@@ -167,17 +142,13 @@
                     if (defaultConfig.flagOption !== 'none') {
                         window.tagManager.activeTags.add('flag');
                     }
-                    if (defaultConfig.engravingEnabled) {
-                        window.tagManager.activeTags.add('engraving');
-                    }
                     window.tagManager.applyActiveTags();
                     
                     // Mettre à jour l'état initial des boutons
                     updateButtonStates();
                     
-                    // Initialiser l'état des contrôles HTML
-                    document.getElementById('engraving-checkbox').checked = defaultConfig.engravingEnabled;
-                    document.getElementById('engraving-text').style.display = defaultConfig.engravingEnabled ? 'block' : 'none';
+                    // Initialiser le champ texte
+                    document.getElementById('engraving-text').value = defaultConfig.engravingText || '';
                 }
             }, 1000);
             
@@ -228,16 +199,7 @@
                     }
                 });
                 
-                // Update engraving checkbox based on active tags
-                const engravingCheckbox = document.getElementById('engraving-checkbox');
-                const engravingText = document.getElementById('engraving-text');
-                if (activeTags.activeTags.includes('engraving')) {
-                    engravingCheckbox.checked = true;
-                    engravingText.style.display = 'block';
-                } else {
-                    engravingCheckbox.checked = false;
-                    engravingText.style.display = 'none';
-                }
+                // Engraving text field is always visible now; tag handled by content presence
             }
         });
     </script>

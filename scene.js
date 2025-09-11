@@ -824,6 +824,12 @@ class TagManager {
     // Définir le texte d'engraving
     setEngravingText(text) {
         this.engravingText = text;
+        // Gérer automatiquement le tag 'engraving' selon la présence de texte
+        if (this.engravingText && this.engravingText.trim() !== '') {
+            this.activeTags.add('engraving');
+        } else {
+            this.activeTags.delete('engraving');
+        }
         // Mettre à jour la DynamicTexture et l'appliquer comme opacityTexture
         this.updateEngravingTextures();
     }
