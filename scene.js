@@ -851,6 +851,27 @@ createScene().then(async createdScene => {
     
     // Rendre le gestionnaire accessible globalement pour la sélection par clic
     window.tweakpaneManager = tweakpaneManager;
+
+    // Sélection de matériau par clic dans la vue 3D (bouton gauche)
+    scene.onPointerObservable.add((evt) => {
+        if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN && evt.event && evt.event.button === 0) {
+            const pick = scene.pick(scene.pointerX, scene.pointerY);
+            if (pick && pick.hit && pick.pickedMesh) {
+                const pickedMesh = pick.pickedMesh;
+                const meshMaterial = pickedMesh.material;
+                if (meshMaterial && meshMaterial.name && materialsConfig && materialsConfig.materials && materialsConfig.materials[meshMaterial.name]) {
+                    const selectedName = meshMaterial.name;
+                    try {
+                        tweakpaneManager.materialList.selected = selectedName;
+                        tweakpaneManager.onMaterialSelectionChange(selectedName);
+                        if (tweakpaneManager.pane) tweakpaneManager.pane.refresh();
+                    } catch (e) {
+                        console.warn('⚠️ Impossible de sélectionner le matériau dans Tweakpane:', e);
+                    }
+                }
+            }
+        }
+    });
 });
 
 // Register a render loop to repeatedly render the scene
