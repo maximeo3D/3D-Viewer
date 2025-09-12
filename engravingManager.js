@@ -8,12 +8,15 @@ class EngravingManager {
         this.aspectOverride = null; // largeur/hauteur, null = auto
         this.alphaDT = null; // DynamicTexture alpha du texte
         this.normalDT = null; // DynamicTexture normal map
+        this.aoDT = null; // DynamicTexture ambient occlusion dérivée
     }
 
     setText(text) {
         this.text = text || '';
         // Drive tag engraving via TagManager if present
         if (window.tagManager) {
+            // Synchronize TagManager.engravingText used by visibility logic
+            window.tagManager.engravingText = this.text;
             if (this.text.trim() !== '') window.tagManager.activeTags.add('engraving');
             else window.tagManager.activeTags.delete('engraving');
         }
@@ -57,34 +60,42 @@ class EngravingManager {
             } catch (_) {}
         }
 
-        let ctx = this.alphaDT.getContext();
-        if (!ctx) {
-            this.alphaDT = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
-            this.alphaDT.hasAlpha = true;
-            ctx = this.alphaDT.getContext();
-        }
-        // Clear to black
-        ctx.fillStyle = 'rgb(0,0,0)';
-        ctx.fillRect(0, 0, size.width, size.height);
-        // Draw centered white text
-        let fontSize = Math.floor(size.height * 0.35);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgb(255,255,255)';
-        do {
-            ctx.font = `bold ${fontSize}px Arial`;
-            const w = ctx.measureText(this.text).width;
-            if (w <= size.width * 0.9 || fontSize <= 32) break;
-            fontSize -= 8;
-        } while (fontSize > 32);
-        ctx.fillText(this.text, size.width / 2, size.height / 2);
-        this.alphaDT.update(true);
+        // Draw alpha with drawText (centered, crisp)
+        const fontPx = Math.floor(size.height * 1);
+        const font = `bold ${fontPx}px Arial`;
+        this.alphaDT.drawText(this.text, null, null, font, 'white', 'black', true, true);
 
-        // Build normal from alpha
-        this.buildNormalFromAlpha(size.width, size.height, true);
+        // Ensure AO DT same size
+        if (!this.aoDT) {
+            this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
+        } else {
+            const s = this.aoDT.getSize();
+            if (s.width !== size.width || s.height !== size.height) {
+                this.aoDT.dispose();
+                this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
+            }
+        }
+        // Draw blurred AO (not inverted)
+        const aoCtx = this.aoDT.getContext();
+        aoCtx.clearRect(0, 0, size.width, size.height);
+        aoCtx.fillStyle = 'black';
+        aoCtx.fillRect(0, 0, size.width, size.height);
+        // Tweak: AO blur radius (in pixels). Increase for a softer, wider engraving halo.
+        try { aoCtx.filter = 'blur(25px)'; } catch(_) {}
+        aoCtx.font = font;
+        aoCtx.fillStyle = 'white';
+        aoCtx.textAlign = 'center';
+        aoCtx.textBaseline = 'middle';
+        aoCtx.fillText(this.text, size.width / 2, size.height / 2);
+        aoCtx.filter = 'none';
+        this.aoDT.update(true);
+
+        // Build normal from AO using Sobel
+        this.buildNormalFromAO(this.aoDT);
 
         // Apply
         this.applyOpacity(this.alphaDT);
+        this.applyAmbient(this.aoDT);
         this.applyNormal(this.normalDT);
     }
 
@@ -113,7 +124,7 @@ class EngravingManager {
         return Math.max(0.1, Math.min(10, width / height));
     }
 
-    buildNormalFromAlpha(width, height, invert) {
+    buildAOFromAlpha(width, height, blurPx = 5, invert = true) {
         const srcCanvas = document.createElement('canvas');
         srcCanvas.width = width; srcCanvas.height = height;
         const srcCtx = srcCanvas.getContext('2d');
@@ -122,19 +133,38 @@ class EngravingManager {
         const data = img.data;
         for (let i = 0; i < data.length; i += 4) {
             const gray = data[i];
-            const h = invert ? (255 - gray) : gray;
-            data[i] = h; data[i+1] = h; data[i+2] = h; data[i+3] = 255;
+            const val = invert ? (255 - gray) : gray; // noir = creux
+            data[i] = val; data[i+1] = val; data[i+2] = val; data[i+3] = 255;
         }
         srcCtx.putImageData(img, 0, 0);
 
-        // Blur ~10%
         const blurCanvas = document.createElement('canvas');
         blurCanvas.width = width; blurCanvas.height = height;
         const blurCtx = blurCanvas.getContext('2d');
-        const blurPx = Math.max(1, Math.round(Math.min(width, height) * 0.1));
-        try { blurCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
+        const px = Math.max(1, Math.round(blurPx));
+        try { blurCtx.filter = `blur(${px}px)`; } catch(_) {}
         blurCtx.drawImage(srcCanvas, 0, 0);
+        return blurCanvas;
+    }
 
+    pushAOToTexture(aoCanvas) {
+        const width = aoCanvas.width, height = aoCanvas.height;
+        if (!this.aoDT) this.aoDT = new BABYLON.DynamicTexture('engravingAODT', { width, height }, this.scene, true);
+        const ctx = this.aoDT.getContext();
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(aoCanvas, 0, 0);
+        this.aoDT.update(true);
+        try {
+            this.aoDT.gammaSpace = false; // AO en espace linéaire
+            const mode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+            this.aoDT.updateSamplingMode(mode);
+        } catch(_) {}
+    }
+
+    buildNormalFromAO(aoDT) {
+        const size = aoDT.getSize();
+        const width = size.width, height = size.height;
+        const blurCtx = aoDT.getContext();
         const blurred = blurCtx.getImageData(0, 0, width, height);
         const bd = blurred.data;
 
@@ -143,33 +173,34 @@ class EngravingManager {
         const nImg = nCtx.createImageData(width, height);
         const nd = nImg.data;
 
-        const heightAt = (x, y) => {
-            const xi = Math.min(width-1, Math.max(0, x));
-            const yi = Math.min(height-1, Math.max(0, y));
-            const idx = (yi*width + xi) * 4;
-            return bd[idx] / 255;
-        };
-
-        const strength = 2.0;
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const hL = heightAt(x-1, y), hR = heightAt(x+1, y);
-                const hU = heightAt(x, y-1), hD = heightAt(x, y+1);
-                const dx = (hR - hL) * strength;
-                const dy = (hD - hU) * strength;
-                let nx = -dx, ny = -dy, nz = 1.0;
+        const idxAt = (x, y) => (y * width + x) * 4;
+        const redAt = (x, y) => bd[idxAt(x, y)] / 255;
+        // Tweak: normal map strength. Smaller = softer; larger = stronger depth.
+        // Increased ~200%: was 2.0 → now 6.0
+        const strength = 6.0;
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                // Sobel operator on red channel
+                const tl = redAt(x-1, y-1), t = redAt(x, y-1), tr = redAt(x+1, y-1);
+                const l  = redAt(x-1, y  ), r  = redAt(x+1, y  );
+                const bl = redAt(x-1, y+1), b = redAt(x, y+1), br = redAt(x+1, y+1);
+                const dX = (tr + 2*r + br) - (tl + 2*l + bl);
+                const dY = (bl + 2*b + br) - (tl + 2*t + tr);
+                // Invert XY for depth impression
+                let nx = -dX, ny = -dY, nz = 5.0 / strength;
                 const len = Math.hypot(nx, ny, nz) || 1.0;
                 nx/=len; ny/=len; nz/=len;
-                const r = Math.round((nx*0.5+0.5)*255);
-                const g = Math.round((ny*0.5+0.5)*255);
-                const b = Math.round((nz*0.5+0.5)*255);
-                const idx = (y*width + x) * 4;
-                nd[idx]=r; nd[idx+1]=g; nd[idx+2]=b; nd[idx+3]=255;
+                const i = idxAt(x, y);
+                nd[i]   = (nx + 1.0) * 127.5;
+                nd[i+1] = (ny + 1.0) * 127.5;
+                nd[i+2] = (nz + 1.0) * 127.5;
+                nd[i+3] = 255;
             }
         }
         nCtx.putImageData(nImg, 0, 0);
         this.normalDT.update(true);
         try {
+            this.normalDT.gammaSpace = false; // normal map en linéaire
             const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
             this.normalDT.updateSamplingMode(anisotropicMode);
             const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
@@ -218,6 +249,9 @@ class EngravingManager {
                         pbr.bumpTexture = null;
                     } else {
                         pbr.bumpTexture = textureOrNull;
+                        // Tweak: bump intensity. Increase for stronger relief on the surface.
+                        // Increased ~200% from base → 2.8
+                        pbr.bumpTexture.level = 2.8;
                         try {
                             const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
                             pbr.bumpTexture.updateSamplingMode(anisotropicMode);
@@ -225,6 +259,37 @@ class EngravingManager {
                             pbr.bumpTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
                         } catch (_) {}
                         pbr.bumpTexture.vFlip = false;
+                        // Orientation par défaut
+                        pbr.invertNormalMapX = false;
+                        pbr.invertNormalMapY = false;
+                    }
+                    pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+                });
+            });
+        });
+    }
+
+    applyAmbient(textureOrNull) {
+        Object.keys(this.assetConfig.models).forEach(modelKey => {
+            const model = this.assetConfig.models[modelKey];
+            Object.keys(model.meshes).forEach(meshName => {
+                const meshCfg = model.meshes[meshName];
+                const tags = meshCfg.tags || [];
+                if (!tags.includes('engraving')) return;
+                const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
+                meshes.forEach(m => {
+                    const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
+                    if (!pbr) return;
+                    if (!textureOrNull) {
+                        pbr.ambientTexture = null;
+                    } else {
+                        pbr.ambientTexture = textureOrNull;
+                        try { pbr.ambientTexture.gammaSpace = false; } catch(_) {}
+                        pbr.ambientTexture.vFlip = false;
+                        // Tweak: AO strength (~200% relative)
+                        if ('ambientTextureStrength' in pbr) pbr.ambientTextureStrength = 1.0;
+                        // Fallback: some engines use ambientColor; keep texture level at 1 and control via strength
+                        pbr.ambientTexture.level = 1.0;
                     }
                     pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
                 });

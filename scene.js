@@ -1065,12 +1065,10 @@ createScene().then(async createdScene => {
     const tagManager = new TagManager(scene, materialsConfig);
     tagManager.loadTagConfiguration();
 
-    // Initialiser l'EngravingManager
-    try {
-        if (window.EngravingManager) {
-            window.engravingManager = new window.EngravingManager(scene, assetConfig);
-        }
-    } catch (_) {}
+    // Initialiser l'EngravingManager (après assetConfig chargé et tagManager créé)
+    if (window.EngravingManager) {
+        window.engravingManager = new window.EngravingManager(scene, assetConfig);
+    }
     
     // Appliquer une configuration de matériaux par défaut pour que Tweakpane fonctionne
     // Appliquer les configurations par défaut pour chaque mesh
