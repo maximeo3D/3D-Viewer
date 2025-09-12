@@ -9,6 +9,8 @@ class EngravingManager {
         this.alphaDT = null; // DynamicTexture alpha du texte
         this.normalDT = null; // DynamicTexture normal map
         this.aoDT = null; // DynamicTexture ambient occlusion dérivée
+        // Global blur percentage (0..1) applied to both Alpha and AO blurs
+        this.blurPercent = 0.01; // 5% par défaut
     }
 
     setText(text) {
@@ -45,7 +47,7 @@ class EngravingManager {
         }
 
         const aspect = this.getAspect();
-        const base = 1024;
+        const base = 512;
         const size = { width: Math.max(2, Math.round(base * aspect)), height: base };
 
         // Ensure alpha DT
@@ -60,10 +62,34 @@ class EngravingManager {
             } catch (_) {}
         }
 
-        // Draw alpha with drawText (centered, crisp)
-        const fontPx = Math.floor(size.height * 1);
-        const font = `bold ${fontPx}px Arial`;
-        this.alphaDT.drawText(this.text, null, null, font, 'white', 'black', true, true);
+        // Unify blur radius for Alpha and AO using a single percentage
+        const minDim = Math.min(size.width, size.height);
+        const blurPx = Math.max(1, Math.round(minDim * this.blurPercent));
+
+        // Draw alpha with unified blur for softer edges
+        let fontPx = Math.floor(size.height * 1);
+        let font = `bold ${fontPx}px Arial`;
+        const aCtx = this.alphaDT.getContext();
+        aCtx.clearRect(0, 0, size.width, size.height);
+        aCtx.fillStyle = 'black';
+        aCtx.fillRect(0, 0, size.width, size.height);
+        // Measure and fit text to avoid clipping
+        aCtx.textAlign = 'center';
+        aCtx.textBaseline = 'middle';
+        while (fontPx > 24) {
+            aCtx.font = `bold ${fontPx}px Arial`;
+            const mW = aCtx.measureText(this.text).width;
+            if (mW <= size.width * 0.9) break;
+            fontPx -= 4;
+        }
+        font = `bold ${fontPx}px Arial`;
+        aCtx.font = font;
+        // Soft edge via blur only (no crisp overlay to keep gradient)
+        try { aCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
+        aCtx.fillStyle = 'white';
+        aCtx.fillText(this.text, size.width / 2, size.height / 2);
+        try { aCtx.filter = 'none'; } catch(_) {}
+        this.alphaDT.update(true);
 
         // Ensure AO DT same size
         if (!this.aoDT) {
@@ -75,13 +101,12 @@ class EngravingManager {
                 this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
             }
         }
-        // Draw blurred AO (not inverted)
+        // Draw blurred AO (not inverted) using same fitted font and unified blur
         const aoCtx = this.aoDT.getContext();
         aoCtx.clearRect(0, 0, size.width, size.height);
         aoCtx.fillStyle = 'black';
         aoCtx.fillRect(0, 0, size.width, size.height);
-        // Tweak: AO blur radius (in pixels). Increase for a softer, wider engraving halo.
-        try { aoCtx.filter = 'blur(25px)'; } catch(_) {}
+        try { aoCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
         aoCtx.font = font;
         aoCtx.fillStyle = 'white';
         aoCtx.textAlign = 'center';
@@ -225,8 +250,12 @@ class EngravingManager {
                         pbr.opacityTexture = textureOrNull;
                         pbr.opacityTexture.getAlphaFromRGB = true;
                         pbr.opacityTexture.vFlip = false;
-                        pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
+                        // Use pure alpha blending to preserve blurred edges (no hard cutoff)
+                        pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+                        pbr.forceAlphaTest = false;
+                        pbr.alphaCutOff =1;
                         pbr.needDepthPrePass = true;
+                        try { pbr.opacityTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE); } catch(_) {}
                     }
                     pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
                 });
