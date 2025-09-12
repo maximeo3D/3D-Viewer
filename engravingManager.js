@@ -5,7 +5,6 @@ class EngravingManager {
         this.scene = scene;
         this.assetConfig = assetConfig;
         this.text = '';
-        this.font = 'Stencil'; // Police par défaut
         this.aspectOverride = null; // largeur/hauteur, null = auto
         this.alphaDT = null; // DynamicTexture alpha du texte
         this.normalDT = null; // DynamicTexture normal map
@@ -15,6 +14,30 @@ class EngravingManager {
         // Processing canvas to satisfy willReadFrequently for readbacks
         this._procCanvas = document.createElement('canvas');
         this._procCtx = this._procCanvas.getContext('2d', { willReadFrequently: true });
+        
+        // ===== PARAMÈTRES D'ENGRAVING MODIFIABLES =====
+        this.fontConfigs = {
+            'Stencil': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 0,
+                fontSizeScale: 1
+            },
+            'Futuristic': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 2,
+                fontSizeScale: 1
+            },
+            'Western': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 15,
+                fontSizeScale: 1
+            }
+        };
+        this.currentFont = 'Stencil';  // Police active
+        // ===============================================
     }
 
     setText(text) {
@@ -33,33 +56,37 @@ class EngravingManager {
     }
 
     async setFont(fontName) {
-        this.font = fontName || 'Stencil';
-        console.log(`EngravingManager: Setting font to ${this.font}`);
-        
-        // Forcer le chargement de la police spécifique
-        if (document.fonts && document.fonts.load) {
-            try {
-                await document.fonts.load(`bold 16px ${this.font}`);
-                console.log(`EngravingManager: Font ${this.font} loaded successfully`);
-                
-                // Vérifier si la police est vraiment disponible
-                const testCanvas = document.createElement('canvas');
-                const testCtx = testCanvas.getContext('2d');
-                testCtx.font = `bold 16px ${this.font}`;
-                const actualFont = testCtx.font;
-                console.log(`EngravingManager: Actual font in canvas: ${actualFont}`);
-                
-                if (actualFont.includes(this.font)) {
-                    console.log(`EngravingManager: Font ${this.font} is working in canvas`);
-                } else {
-                    console.warn(`EngravingManager: Font ${this.font} fallback to system font`);
+        if (this.fontConfigs[fontName]) {
+            this.currentFont = fontName;
+            console.log(`EngravingManager: Switching to font: ${fontName}`);
+            
+            // Forcer le chargement de la police spécifique
+            if (document.fonts && document.fonts.load) {
+                try {
+                    await document.fonts.load(`bold 16px ${fontName}`);
+                    console.log(`EngravingManager: Font ${fontName} loaded successfully`);
+                    
+                    // Vérifier si la police est vraiment disponible
+                    const testCanvas = document.createElement('canvas');
+                    const testCtx = testCanvas.getContext('2d');
+                    testCtx.font = `bold 16px ${fontName}`;
+                    const actualFont = testCtx.font;
+                    console.log(`EngravingManager: Actual font in canvas: ${actualFont}`);
+                    
+                    if (actualFont.includes(fontName)) {
+                        console.log(`EngravingManager: Font ${fontName} is working in canvas`);
+                    } else {
+                        console.warn(`EngravingManager: Font ${fontName} fallback to system font`);
+                    }
+                } catch (error) {
+                    console.warn(`EngravingManager: Error loading font ${fontName}:`, error);
                 }
-            } catch (error) {
-                console.warn(`EngravingManager: Error loading font ${this.font}:`, error);
             }
+            
+            this.update();
+        } else {
+            console.warn(`EngravingManager: Font ${fontName} not found, available: ${Object.keys(this.fontConfigs).join(', ')}`);
         }
-        
-        this.update();
     }
 
     setAspect(aspectOrNull) {
@@ -103,10 +130,13 @@ class EngravingManager {
         const minDim = Math.min(size.width, size.height);
         const blurPx = Math.max(1, Math.round(minDim * this.blurPercent));
 
+        // Récupérer la configuration de la police active
+        const config = this.fontConfigs[this.currentFont] || this.fontConfigs['Stencil'];
+        
         // Draw alpha with unified blur for softer edges
-        let fontPx = Math.floor(size.height * 1);
-        let font = `bold ${fontPx}px ${this.font}`;
-        console.log(`EngravingManager: Using font in context: ${font}`);
+        let fontPx = Math.floor(size.height * config.fontSizeScale);
+        let font = `${config.fontStyle} ${config.fontWeight} ${fontPx}px ${this.currentFont}`;
+        console.log(`EngravingManager: Using font: ${font} (${this.currentFont})`);
         const aCtx = this.alphaDT.getContext('2d', { willReadFrequently: true });
         if (!aCtx) {
             console.error('EngravingManager: Cannot get alpha context after recreation');
@@ -121,14 +151,20 @@ class EngravingManager {
         aCtx.textAlign = 'center';
         aCtx.textBaseline = 'middle';
         while (fontPx > 24) {
-            aCtx.font = `bold ${fontPx}px ${this.font}`;
+            aCtx.font = `${config.fontStyle} ${config.fontWeight} ${fontPx}px ${this.currentFont}`;
             const mW = aCtx.measureText(this.text).width;
             if (mW <= size.width * 0.9) break;
             fontPx -= 4;
         }
-        font = `bold ${fontPx}px ${this.font}`;
+        font = `${config.fontStyle} ${config.fontWeight} ${fontPx}px ${this.currentFont}`;
         aCtx.font = font;
-        console.log(`EngravingManager: Final font applied: ${aCtx.font}`);
+        
+        // Appliquer l'espacement des lettres
+        if (config.letterSpacing !== 0) {
+            aCtx.letterSpacing = `${config.letterSpacing}px`;
+        }
+        
+        console.log(`EngravingManager: Final font applied: ${aCtx.font}, letterSpacing: ${config.letterSpacing}px`);
         // Soft edge via blur only (no crisp overlay to keep gradient)
         try { aCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
         aCtx.fillStyle = 'white';
@@ -154,6 +190,12 @@ class EngravingManager {
         aoCtx.fillRect(0, 0, size.width, size.height);
         try { aoCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
         aoCtx.font = font;
+        
+        // Appliquer l'espacement des lettres aussi pour AO
+        if (config.letterSpacing !== 0) {
+            aoCtx.letterSpacing = `${config.letterSpacing}px`;
+        }
+        
         aoCtx.fillStyle = 'white';
         aoCtx.textAlign = 'center';
         aoCtx.textBaseline = 'middle';
