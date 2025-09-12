@@ -84,18 +84,30 @@
                     document.getElementById('bloc-red-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'red');
                         window.tagManager.applyMaterialConfig('engraving', 'red');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
                         updateButtonStates();
                     });
                     
                     document.getElementById('bloc-blue-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'blue');
                         window.tagManager.applyMaterialConfig('engraving', 'blue');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
                         updateButtonStates();
                     });
                     
                     document.getElementById('bloc-green-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'green');
                         window.tagManager.applyMaterialConfig('engraving', 'green');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
                         updateButtonStates();
                     });
                     
@@ -132,9 +144,20 @@
                         updateButtonStates();
                     });
                     
+                    // Fonction pour obtenir la couleur active du bloc
+                    function getActiveBlocColor() {
+                        if (document.getElementById('bloc-red-btn').classList.contains('active')) return 'red';
+                        if (document.getElementById('bloc-blue-btn').classList.contains('active')) return 'blue';
+                        if (document.getElementById('bloc-green-btn').classList.contains('active')) return 'green';
+                        return 'green'; // défaut
+                    }
+
                     // Champ de texte pour l'engraving
                     document.getElementById('engraving-text').addEventListener('input', (e) => {
                         if (window.engravingManager) {
+                            // Synchroniser la couleur de l'engraving avec celle du bloc avant de définir le texte
+                            const activeColor = getActiveBlocColor();
+                            window.tagManager.applyMaterialConfig('engraving', activeColor);
                             window.engravingManager.setText(e.target.value);
                         } else if (window.tagManager && window.tagManager.setEngravingText) {
                             window.tagManager.setEngravingText(e.target.value);
@@ -145,6 +168,8 @@
                     window.tagManager.setOption(defaultConfig.option);
                     window.tagManager.applyMaterialConfig('bloc', defaultConfig.blocMaterial);
                     window.tagManager.applyMaterialConfig('flag', defaultConfig.flagOption);
+                    // Synchroniser l'engraving avec la couleur par défaut du bloc
+                    window.tagManager.applyMaterialConfig('engraving', defaultConfig.blocMaterial);
                     
                     // Gérer la visibilité par défaut avec les tags
                     if (defaultConfig.flagOption !== 'none') {

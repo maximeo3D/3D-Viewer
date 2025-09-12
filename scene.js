@@ -793,8 +793,6 @@ class TagManager {
         });
         
         // Configuration de matériaux appliquée
-        // Réappliquer l'alpha d'engraving si besoin
-        if (window.engravingManager) window.engravingManager.update();
     }
     
     // Obtenir l'index du slot de matériau

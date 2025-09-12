@@ -10,7 +10,10 @@ class EngravingManager {
         this.normalDT = null; // DynamicTexture normal map
         this.aoDT = null; // DynamicTexture ambient occlusion dérivée
         // Global blur percentage (0..1) applied to both Alpha and AO blurs
-        this.blurPercent = 0.01; // 5% par défaut
+        this.blurPercent = 0.01; // 1% par défaut
+        // Processing canvas to satisfy willReadFrequently for readbacks
+        this._procCanvas = document.createElement('canvas');
+        this._procCtx = this._procCanvas.getContext('2d', { willReadFrequently: true });
     }
 
     setText(text) {
@@ -43,6 +46,7 @@ class EngravingManager {
         if (!hasText) {
             this.applyOpacity(null);
             this.applyNormal(null);
+            this.applyAmbient(null);
             return;
         }
 
@@ -50,17 +54,19 @@ class EngravingManager {
         const base = 512;
         const size = { width: Math.max(2, Math.round(base * aspect)), height: base };
 
-        // Ensure alpha DT
-        if (!this.alphaDT) {
-            this.alphaDT = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
-            this.alphaDT.hasAlpha = true;
-            try {
-                const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
-                this.alphaDT.updateSamplingMode(anisotropicMode);
-                const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
-                this.alphaDT.anisotropicFilteringLevel = Math.min(16, maxAniso);
-            } catch (_) {}
+        // Recréer complètement les textures à chaque fois pour éviter les contextes null
+        if (this.alphaDT) {
+            this.alphaDT.dispose();
+            this.alphaDT = null;
         }
+        this.alphaDT = new BABYLON.DynamicTexture('engravingDT', size, this.scene, true);
+        this.alphaDT.hasAlpha = true;
+        try {
+            const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+            this.alphaDT.updateSamplingMode(anisotropicMode);
+            const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
+            this.alphaDT.anisotropicFilteringLevel = Math.min(16, maxAniso);
+        } catch (_) {}
 
         // Unify blur radius for Alpha and AO using a single percentage
         const minDim = Math.min(size.width, size.height);
@@ -70,9 +76,15 @@ class EngravingManager {
         let fontPx = Math.floor(size.height * 1);
         let font = `bold ${fontPx}px Arial`;
         const aCtx = this.alphaDT.getContext('2d', { willReadFrequently: true });
+        if (!aCtx) {
+            console.error('EngravingManager: Cannot get alpha context after recreation');
+            return;
+        }
+        
         aCtx.clearRect(0, 0, size.width, size.height);
         aCtx.fillStyle = 'black';
         aCtx.fillRect(0, 0, size.width, size.height);
+        
         // Measure and fit text to avoid clipping
         aCtx.textAlign = 'center';
         aCtx.textBaseline = 'middle';
@@ -91,18 +103,19 @@ class EngravingManager {
         try { aCtx.filter = 'none'; } catch(_) {}
         this.alphaDT.update(true);
 
-        // Ensure AO DT same size
-        if (!this.aoDT) {
-            this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
-        } else {
-            const s = this.aoDT.getSize();
-            if (s.width !== size.width || s.height !== size.height) {
-                this.aoDT.dispose();
-                this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
-            }
+        // Recréer complètement la texture AO
+        if (this.aoDT) {
+            this.aoDT.dispose();
+            this.aoDT = null;
         }
+        this.aoDT = new BABYLON.DynamicTexture('engravingAODT', size, this.scene, true);
         // Draw blurred AO (not inverted) using same fitted font and unified blur
         const aoCtx = this.aoDT.getContext('2d', { willReadFrequently: true });
+        if (!aoCtx) {
+            console.error('EngravingManager: Cannot get AO context after recreation');
+            return;
+        }
+        
         aoCtx.clearRect(0, 0, size.width, size.height);
         aoCtx.fillStyle = 'black';
         aoCtx.fillRect(0, 0, size.width, size.height);
@@ -115,7 +128,7 @@ class EngravingManager {
         aoCtx.filter = 'none';
         this.aoDT.update(true);
 
-        // Build normal from AO using Sobel
+        // Build normal from AO using Sobel (readback via processing canvas)
         this.buildNormalFromAO(this.aoDT);
 
         // Apply
@@ -165,7 +178,7 @@ class EngravingManager {
 
         const blurCanvas = document.createElement('canvas');
         blurCanvas.width = width; blurCanvas.height = height;
-        const blurCtx = blurCanvas.getContext('2d');
+        const blurCtx = blurCanvas.getContext('2d', { willReadFrequently: true });
         const px = Math.max(1, Math.round(blurPx));
         try { blurCtx.filter = `blur(${px}px)`; } catch(_) {}
         blurCtx.drawImage(srcCanvas, 0, 0);
@@ -189,12 +202,32 @@ class EngravingManager {
     buildNormalFromAO(aoDT) {
         const size = aoDT.getSize();
         const width = size.width, height = size.height;
-        const blurCtx = aoDT.getContext('2d', { willReadFrequently: true });
-        const blurred = blurCtx.getImageData(0, 0, width, height);
+        const srcCtx = aoDT.getContext('2d', { willReadFrequently: true }) || aoDT.getContext();
+        if (!srcCtx) {
+            console.warn('EngravingManager: Source context for normal map is null');
+            return;
+        }
+        if (this._procCanvas.width !== width || this._procCanvas.height !== height) {
+            this._procCanvas.width = width;
+            this._procCanvas.height = height;
+            this._procCtx = this._procCanvas.getContext('2d', { willReadFrequently: true });
+        }
+        this._procCtx.clearRect(0, 0, width, height);
+        this._procCtx.drawImage(srcCtx.canvas, 0, 0);
+        const blurred = this._procCtx.getImageData(0, 0, width, height);
         const bd = blurred.data;
 
-        if (!this.normalDT) this.normalDT = new BABYLON.DynamicTexture('engravingNormalDT', { width, height }, this.scene, true);
+        // Recréer complètement la texture normale
+        if (this.normalDT) {
+            this.normalDT.dispose();
+            this.normalDT = null;
+        }
+        this.normalDT = new BABYLON.DynamicTexture('engravingNormalDT', { width, height }, this.scene, true);
         const nCtx = this.normalDT.getContext();
+        if (!nCtx) {
+            console.error('EngravingManager: Cannot get normal context after recreation');
+            return;
+        }
         const nImg = nCtx.createImageData(width, height);
         const nd = nImg.data;
 
