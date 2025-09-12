@@ -5,6 +5,79 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [2.6.0] - 2024-12-XX - Système de Gravure Dynamique et Polices Personnalisées
+
+### 🎉 Ajouté
+- **Système de Gravure Dynamique**
+  - Gravure de texte dynamique sur les objets avec tag "engraving"
+  - Génération automatique de textures alpha, ambient occlusion et normal maps
+  - Classe `EngravingManager` pour la gestion centralisée
+  - Calcul automatique du ratio d'aspect pour éviter l'étirement du texte
+  - Visibilité intelligente : objet visible uniquement avec du texte
+  - Synchronisation automatique des couleurs avec les matériaux de bloc
+
+- **Polices Personnalisées**
+  - Support de 3 polices personnalisées : Stencil (défaut), Futuristic, Western
+  - Configuration individuelle des propriétés par police (poids, style, espacement, taille)
+  - Chargement asynchrone des polices avec `document.fonts.load()`
+  - Interface HTML avec boutons de sélection de police
+  - Styles CSS avec `@font-face` pour les polices personnalisées
+
+- **Améliorations des Matériaux**
+  - Filtrage anisotrope (`ANISOTROPIC_SAMPLINGMODE`) pour réduire l'effet moiré
+  - Support des normal maps avec `anisotropicFilteringLevel`
+  - Optimisation du rendu des surfaces inclinées
+
+- **Interface Utilisateur Améliorée**
+  - Paramètre `tweakpaneOpenByDefault` dans `tweakpaneManager.js`
+  - Contrôle de l'état d'ouverture par défaut de Tweakpane
+  - Interface plus intuitive pour la gravure
+
+### 🔧 Modifié
+- **Architecture du Code**
+  - Refactoring du système de gravure dans `engravingManager.js`
+  - Séparation des responsabilités entre `scene.js` et `engravingManager.js`
+  - Amélioration de la gestion des textures dynamiques
+  - Optimisation des performances avec `willReadFrequently: true`
+
+- **Système de Textures**
+  - Génération automatique des normal maps à partir des ambient maps
+  - Application du flou gaussien centralisé avec contrôle par pourcentage
+  - Amélioration de la qualité des textures alpha et ambient occlusion
+  - Support des transformations de texture avancées
+
+- **Gestion des Polices**
+  - Chargement explicite des polices avec vérification Canvas
+  - Gestion des erreurs de chargement de polices
+  - Logs détaillés pour le débogage des polices
+  - Fallback vers les polices système en cas d'erreur
+
+### 🐛 Corrigé
+- **Système de Gravure**
+  - Résolution des erreurs `clearRect` et `createImageData` sur contexte null
+  - Correction de la disparition de la gravure lors des changements de couleur
+  - Amélioration de la stabilité des textures dynamiques
+  - Prévention des duplications de textures dans le cache Babylon.js
+
+- **Chargement des Polices**
+  - Correction du problème de police Arial par défaut
+  - Résolution du problème de double-clic pour changer de police
+  - Amélioration de la synchronisation entre interface et moteur de rendu
+  - Correction des erreurs de format de fichier (.ttf vs .otf)
+
+- **Interface Utilisateur**
+  - Correction de la désélection automatique des boutons de police
+  - Amélioration de la gestion des états actifs des boutons
+  - Synchronisation correcte des couleurs entre bloc et gravure
+  - Résolution des problèmes d'initialisation des polices
+
+### 🗑️ Supprimé
+- **Code Obsolète**
+  - Suppression des contrôles HTML redondants pour les propriétés de police
+  - Nettoyage des variables CSS non utilisées
+  - Suppression des logs de débogage temporaires
+  - Code de compatibilité obsolète pour les polices
+
 ## [2.5.0] - 2024-12-XX - Migration vers Tweakpane et Interface Moderne
 
 ### 🎉 Ajouté

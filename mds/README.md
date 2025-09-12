@@ -1,6 +1,6 @@
 # 3D Viewer - Documentation Principale
 
-Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion par tags.
+Visualiseur 3D avancé avec éditeur de matériaux PBR, système de gestion par tags et gravure dynamique de texte.
 
 ## 🎯 **Fonctionnalités Principales**
 
@@ -19,6 +19,16 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion pa
 - Synchronisation temps réel des paramètres de texture
 - Color picker avec support hexadécimal pour les couleurs de base
 - Export direct vers `materials.json` via serveur PowerShell
+- Filtrage anisotrope pour réduire l'effet moiré sur les normal maps
+
+### **Système de Gravure Dynamique**
+- Gravure de texte dynamique sur les objets avec tag "engraving"
+- Génération automatique de textures alpha, ambient occlusion et normal maps
+- Support de 3 polices personnalisées (Stencil, Futuristic, Western)
+- Configuration individuelle des propriétés de police (poids, style, espacement, taille)
+- Calcul automatique du ratio d'aspect pour éviter l'étirement du texte
+- Visibilité automatique selon la présence de texte
+- Synchronisation des couleurs avec les matériaux de bloc
 
 ### **Contrôles de Caméra Personnalisés**
 - Mouvement horizontal : contrôle de l'alpha (yaw) de la caméra avec sensibilité ajustable
@@ -32,18 +42,27 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR et système de gestion pa
 
 ```
 3D-Viewer/
-├── index.html                 # Interface HTML avec boutons de contrôle
+├── index.html                 # Interface HTML avec boutons de contrôle et sélection de polices
 ├── scene.js                   # Logique 3D, contrôles, TagManager
 ├── tweakpaneManager.js        # Interface utilisateur Tweakpane moderne
+├── engravingManager.js        # Gestionnaire de gravure dynamique avec polices personnalisées
 ├── studio.json                # Configuration environnement/caméra
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
+├── styles.css                 # Styles CSS avec polices personnalisées
 ├── Assets/
 │   ├── asset.js              # Configuration des modèles et tags
-│   └── part.glb              # Modèle de test
-└── Textures/
-    ├── materials.json         # Matériaux PBR avec héritage
-    └── [textures]            # Textures PBR
+│   ├── cubes.glb             # Modèle de test avec meshes multiples
+│   └── part.glb              # Modèle de test avec gravure
+├── Textures/
+│   ├── materials.json         # Matériaux PBR avec héritage
+│   ├── HDR/
+│   │   └── default.hdr       # Environnement HDR
+│   └── [textures]            # Textures PBR
+└── Fonts/
+    ├── stencil.ttf            # Police Stencil pour gravure
+    ├── futuristic.otf         # Police Futuristic pour gravure
+    └── western.ttf            # Police Western pour gravure
 ```
 
 ## 🔧 **Configuration des Assets**
@@ -116,6 +135,48 @@ meshes: {
     }
 }
 ```
+
+## 🎨 **Système de Gravure Dynamique**
+
+### **EngravingManager**
+Le système de gravure utilise la classe `EngravingManager` pour créer des textures dynamiques :
+
+- **Textures générées** : Alpha map, Ambient Occlusion, Normal map
+- **Polices personnalisées** : Stencil (défaut), Futuristic, Western
+- **Configuration par police** : Poids, style, espacement, taille
+- **Calcul automatique** : Ratio d'aspect et ajustement de taille
+- **Visibilité intelligente** : Objet visible uniquement avec du texte
+
+### **Configuration des Polices**
+```javascript
+// Dans engravingManager.js
+this.fontConfigs = {
+    'Stencil': {
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        letterSpacing: 0,
+        fontSizeScale: 1
+    },
+    'Futuristic': {
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        letterSpacing: 2,
+        fontSizeScale: 1
+    },
+    'Western': {
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        letterSpacing: 15,
+        fontSizeScale: 1
+    }
+};
+```
+
+### **Interface Utilisateur**
+- **Champ de texte** : Saisie du texte à graver
+- **Boutons de police** : Sélection entre Stencil, Futuristic, Western
+- **Synchronisation** : Couleur automatiquement synchronisée avec le bloc
+- **Visibilité** : Objet apparaît/disparaît selon la présence de texte
 
 ## JavaScript Configuration Benefits
 

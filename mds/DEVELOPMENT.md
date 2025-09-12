@@ -7,20 +7,27 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 ### **Structure des Fichiers**
 ```
 3D-Viewer/
-├── index.html                 # Interface HTML principale avec contrôles de tags
+├── index.html                 # Interface HTML principale avec contrôles de tags et polices
 ├── scene.js                   # Logique 3D, contrôles personnalisés, TagManager
-├── datGUI.js                  # Interface utilisateur dat.GUI complète
+├── tweakpaneManager.js        # Interface utilisateur Tweakpane moderne
+├── engravingManager.js        # Gestionnaire de gravure dynamique avec polices
+├── styles.css                 # Styles CSS avec polices personnalisées
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
 ├── studio.json                # Configuration environnement/caméra
 ├── Assets/
 │   ├── asset.js              # Configuration des modèles 3D et tags
-│   └── part.glb              # Modèle de test avec meshes
-└── Textures/
-    ├── materials.json         # Configuration des matériaux PBR avec héritage
-    ├── HDR/
-    │   └── default.hdr       # Environnement HDR
-    └── [autres textures]     # Textures PBR (PNG, JPG, etc.)
+│   ├── cubes.glb             # Modèle de test avec meshes multiples
+│   └── part.glb              # Modèle de test avec gravure
+├── Textures/
+│   ├── materials.json         # Configuration des matériaux PBR avec héritage
+│   ├── HDR/
+│   │   └── default.hdr       # Environnement HDR
+│   └── [autres textures]     # Textures PBR (PNG, JPG, etc.)
+└── Fonts/
+    ├── stencil.ttf            # Police Stencil pour gravure
+    ├── futuristic.otf         # Police Futuristic pour gravure
+    └── western.ttf            # Police Western pour gravure
 ```
 
 ### **Technologies Utilisées**
@@ -34,9 +41,11 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 #### **Séparation des Responsabilités**
 - **`scene.js`** : Logique 3D, contrôles de caméra personnalisés, chargement des modèles, classe TagManager
 - **`tweakpaneManager.js`** : Interface utilisateur Tweakpane moderne, gestion des matériaux avec héritage, contrôles d'environnement
+- **`engravingManager.js`** : Gestionnaire de gravure dynamique, génération de textures, gestion des polices personnalisées
+- **`styles.css`** : Styles CSS avec déclarations `@font-face` pour les polices personnalisées
 - **`studio.json`** : Configuration persistante de la caméra et de l'environnement
 - **`Assets/asset.js`** : Configuration centralisée des modèles 3D, tags de visibilité et configurations de matériaux
-- **`index.html`** : Interface utilisateur pour le contrôle des tags et configurations
+- **`index.html`** : Interface utilisateur pour le contrôle des tags, configurations et sélection de polices
 - **`serve.ps1`** : Serveur PowerShell HTTP avec API REST pour export et gestion des textures
 
 #### **Classe TweakpaneManager**
@@ -52,6 +61,9 @@ class TweakpaneManager {
         this.materialsConfig = null;
         this.isLoading = false;
         this.materialInstances = {};
+        
+        // Paramètre pour contrôler l'état d'ouverture par défaut de Tweakpane
+        this.tweakpaneOpenByDefault = false; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
     }
     
     async init() {
@@ -77,6 +89,61 @@ class TweakpaneManager {
     
     async updateAppliedMaterials() {
         // Mise à jour temps réel des matériaux concernés uniquement
+    }
+}
+```
+
+#### **Classe EngravingManager**
+```javascript
+class EngravingManager {
+    constructor(scene, assetConfig) {
+        this.scene = scene;
+        this.assetConfig = assetConfig;
+        this.alphaDT = null;
+        this.aoDT = null;
+        this.normalDT = null;
+        this.text = '';
+        this.aspectOverride = null;
+        this.blurPercent = 10; // Contrôle centralisé du flou
+        
+        // Configuration des polices personnalisées
+        this.fontConfigs = {
+            'Stencil': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 0,
+                fontSizeScale: 1
+            },
+            'Futuristic': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 2,
+                fontSizeScale: 1
+            },
+            'Western': {
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                letterSpacing: 15,
+                fontSizeScale: 1
+            }
+        };
+        this.currentFont = 'Stencil';
+    }
+    
+    async setFont(fontName) {
+        // Chargement asynchrone des polices avec vérification Canvas
+    }
+    
+    setText(text) {
+        // Mise à jour du texte et gestion de la visibilité
+    }
+    
+    update() {
+        // Génération des textures alpha, ambient occlusion et normal maps
+    }
+    
+    buildNormalFromAO(aoDT) {
+        // Génération de normal map à partir de l'ambient occlusion
     }
 }
 ```
@@ -609,6 +676,150 @@ switch ($request.Url.LocalPath) {
 }
 ```
 
+## 🎨 **Système de Gravure Dynamique**
+
+### **Génération de Textures Dynamiques**
+```javascript
+// Génération de l'alpha map
+update() {
+    if (!this.text || this.text.trim() === '') {
+        this.applyOpacity(null);
+        this.applyNormal(null);
+        this.applyAmbient(null);
+        return;
+    }
+    
+    // Disposer et recréer les textures pour éviter les contextes null
+    if (this.alphaDT) this.alphaDT.dispose();
+    if (this.aoDT) this.aoDT.dispose();
+    if (this.normalDT) this.normalDT.dispose();
+    
+    const aspect = this.getAspect();
+    const size = Math.max(512, Math.min(2048, Math.round(512 * aspect)));
+    
+    // Créer les textures avec contexte optimisé
+    this.alphaDT = new BABYLON.DynamicTexture('engraving_alpha', { width: size, height: size }, this.scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, false);
+    this.aoDT = new BABYLON.DynamicTexture('engraving_ao', { width: size, height: size }, this.scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, false);
+    this.normalDT = new BABYLON.DynamicTexture('engraving_normal', { width: size, height: size }, this.scene, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, false);
+    
+    // Obtenir les contextes avec willReadFrequently
+    const aCtx = this.alphaDT.getContext('2d', { willReadFrequently: true });
+    const aoCtx = this.aoDT.getContext('2d', { willReadFrequently: true });
+    
+    // Configuration de la police
+    const config = this.fontConfigs[this.currentFont];
+    const fontPx = Math.max(16, Math.min(128, Math.round(size * 0.15)));
+    const font = `${config.fontStyle} ${config.fontWeight} ${fontPx}px ${this.currentFont}`;
+    
+    // Dessiner le texte
+    aCtx.font = font;
+    aCtx.letterSpacing = `${config.letterSpacing}px`;
+    aCtx.textAlign = 'center';
+    aCtx.textBaseline = 'middle';
+    aCtx.fillStyle = 'white';
+    aCtx.fillText(this.text, size / 2, size / 2);
+    
+    // Générer l'ambient occlusion avec flou
+    const imageData = aCtx.getImageData(0, 0, size, size);
+    const blurredData = this.applyGaussianBlur(imageData, this.blurPercent);
+    aoCtx.putImageData(blurredData, 0, 0);
+    
+    // Générer la normal map
+    this.buildNormalFromAO(this.aoDT);
+    
+    // Appliquer les textures
+    this.applyOpacity(this.alphaDT);
+    this.applyNormal(this.normalDT);
+    this.applyAmbient(this.aoDT);
+}
+```
+
+### **Gestion des Polices Personnalisées**
+```javascript
+async setFont(fontName) {
+    if (this.fontConfigs[fontName]) {
+        this.currentFont = fontName;
+        console.log(`EngravingManager: Switching to font: ${fontName}`);
+        
+        // Forcer le chargement de la police spécifique
+        if (document.fonts && document.fonts.load) {
+            try {
+                await document.fonts.load(`bold 16px ${fontName}`);
+                console.log(`EngravingManager: Font ${fontName} loaded successfully`);
+                
+                // Vérifier si la police est vraiment disponible
+                const testCanvas = document.createElement('canvas');
+                const testCtx = testCanvas.getContext('2d');
+                testCtx.font = `bold 16px ${fontName}`;
+                const actualFont = testCtx.font;
+                
+                if (actualFont.includes(fontName)) {
+                    console.log(`EngravingManager: Font ${fontName} is working in canvas`);
+                } else {
+                    console.warn(`EngravingManager: Font ${fontName} fallback to system font`);
+                }
+            } catch (error) {
+                console.warn(`EngravingManager: Error loading font ${fontName}:`, error);
+            }
+        }
+        
+        this.update();
+    }
+}
+```
+
+### **Génération de Normal Map**
+```javascript
+buildNormalFromAO(aoDT) {
+    const size = aoDT.getSize().width;
+    const aoCtx = aoDT.getContext('2d', { willReadFrequently: true });
+    const imageData = aoCtx.getImageData(0, 0, size, size);
+    const data = imageData.data;
+    
+    const normalData = new ImageData(size, size);
+    const normalArray = normalData.data;
+    
+    // Appliquer l'opérateur Sobel pour générer la normal map
+    for (let y = 1; y < size - 1; y++) {
+        for (let x = 1; x < size - 1; x++) {
+            const idx = (y * size + x) * 4;
+            
+            // Sobel X
+            const sobelX = 
+                -1 * this.getGray(data, x-1, y-1, size) +
+                 1 * this.getGray(data, x+1, y-1, size) +
+                -2 * this.getGray(data, x-1, y,   size) +
+                 2 * this.getGray(data, x+1, y,   size) +
+                -1 * this.getGray(data, x-1, y+1, size) +
+                 1 * this.getGray(data, x+1, y+1, size);
+            
+            // Sobel Y
+            const sobelY = 
+                -1 * this.getGray(data, x-1, y-1, size) +
+                -2 * this.getGray(data, x,   y-1, size) +
+                -1 * this.getGray(data, x+1, y-1, size) +
+                 1 * this.getGray(data, x-1, y+1, size) +
+                 2 * this.getGray(data, x,   y+1, size) +
+                 1 * this.getGray(data, x+1, y+1, size);
+            
+            // Normaliser et convertir en RGB
+            const length = Math.sqrt(sobelX * sobelX + sobelY * sobelY + 1);
+            const nx = (sobelX / length + 1) * 0.5;
+            const ny = (sobelY / length + 1) * 0.5;
+            const nz = (1 / length + 1) * 0.5;
+            
+            normalArray[idx]     = Math.round(nx * 255); // R
+            normalArray[idx + 1] = Math.round(ny * 255); // G
+            normalArray[idx + 2] = Math.round(nz * 255); // B
+            normalArray[idx + 3] = 255; // A
+        }
+    }
+    
+    const normalCtx = this.normalDT.getContext('2d', { willReadFrequently: true });
+    normalCtx.putImageData(normalData, 0, 0);
+}
+```
+
 ## 🎨 **Système de Transparence**
 
 ### **Implémentation de l'Alpha**
@@ -974,6 +1185,6 @@ $rootPath = Get-Location
 
 ---
 
-**Version de développement** : 2.5.0  
+**Version de développement** : 2.6.0  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅
