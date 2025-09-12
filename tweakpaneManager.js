@@ -6,6 +6,9 @@ class TweakpaneManager {
         this.materialsConfig = materialsConfig;
         this.config = config;
         
+        // Paramètre pour contrôler l'état d'ouverture par défaut de Tweakpane
+        this.tweakpaneOpenByDefault = false; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
+        
         this.pane = null;
         this.loadedModels = new Map();
         
@@ -124,7 +127,7 @@ class TweakpaneManager {
         // Créer le panneau principal Tweakpane (API v3)
         this.pane = new Tweakpane.Pane({
             title: '3D Viewer Controls',
-            expanded: true
+            expanded: this.tweakpaneOpenByDefault
         });
         
         // Positionner le panneau

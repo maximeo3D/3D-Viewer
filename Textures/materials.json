@@ -3,9 +3,9 @@
     "red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#c20100",
+      "baseColor": "#880000",
       "metallic": 0,
-      "roughness": 0.38,
+      "roughness": 0.4,
       "alpha": 1,
       "albedoTexture": "None",
       "metallicTexture": "None",
@@ -26,13 +26,13 @@
     "green": {
       "type": "pbr",
       "parent": "red",
-      "baseColor": "#157200",
+      "baseColor": "#0d4900",
       "roughness": 0.13999999999999999
     },
     "blue": {
       "type": "pbr",
       "parent": "red",
-      "baseColor": "#003883"
+      "baseColor": "#002183"
     },
     "flag_fr": {
       "type": "pbr",
@@ -78,9 +78,9 @@
     "engraving_red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#a50000",
-      "metallic": 0.36,
-      "roughness": 0.45,
+      "baseColor": "#8c0000",
+      "metallic": 0.17,
+      "roughness": 0.7000000000000001,
       "alpha": 1,
       "albedoTexture": "filament_tile_albedo.png",
       "metallicTexture": "None",
@@ -101,12 +101,12 @@
     "engraving_blue": {
       "type": "pbr",
       "parent": "engraving_red",
-      "baseColor": "#003883"
+      "baseColor": "#002183"
     },
     "engraving_green": {
       "type": "pbr",
       "parent": "engraving_red",
-      "baseColor": "#136c00"
+      "baseColor": "#0d4900"
     }
   }
 }

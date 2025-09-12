@@ -1,8 +1,8 @@
 ﻿{
   "environment": {
     "backgroundColor": "#ebebeb",
-    "hdrExposure": 1,
-    "orientation": 117.84902261402516
+    "hdrExposure": 1.8,
+    "orientation": 60
   },
   "camera": {
     "alpha": -2.418839804386564,
