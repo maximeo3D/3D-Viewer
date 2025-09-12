@@ -18,7 +18,7 @@
         // Configuration par défaut
         const defaultConfig = {
             option: 'base',
-            blocMaterial: 'red',
+            blocMaterial: 'green',
             flagOption: 'france',
             engravingEnabled: true,
             engravingText: ''
@@ -83,16 +83,19 @@
                     // Boutons de matériau pour le bloc
                     document.getElementById('bloc-red-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'red');
+                        window.tagManager.applyMaterialConfig('engraving', 'red');
                         updateButtonStates();
                     });
                     
                     document.getElementById('bloc-blue-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'blue');
+                        window.tagManager.applyMaterialConfig('engraving', 'blue');
                         updateButtonStates();
                     });
                     
                     document.getElementById('bloc-green-btn').addEventListener('click', () => {
                         window.tagManager.applyMaterialConfig('bloc', 'green');
+                        window.tagManager.applyMaterialConfig('engraving', 'green');
                         updateButtonStates();
                     });
                     

@@ -106,7 +106,7 @@
     "engraving_green": {
       "type": "pbr",
       "parent": "engraving_red",
-      "baseColor": "#157200"
+      "baseColor": "#136c00"
     }
   }
 }
