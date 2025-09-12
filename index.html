@@ -21,7 +21,8 @@
             blocMaterial: 'green',
             flagOption: 'france',
             engravingEnabled: true,
-            engravingText: ''
+            engravingText: 'Test123',
+            engravingFont: 'Stencil'
         };
     </script>
 </head>
@@ -59,6 +60,11 @@
                     <h3>Engraving</h3>
                     <div class="controls">
                         <input type="text" id="engraving-text" placeholder="Enter engraving text...">
+                        <div class="button-group">
+                            <button class="sidebar-btn active" id="font-stencil-btn">Stencil</button>
+                            <button class="sidebar-btn" id="font-futuristic-btn">Futuristic</button>
+                            <button class="sidebar-btn" id="font-western-btn">Western</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -152,6 +158,34 @@
                         return 'green'; // défaut
                     }
 
+                    // Boutons de police pour l'engraving
+                    document.getElementById('font-stencil-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Stencil');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-stencil-btn').classList.add('active');
+                        }
+                    });
+                    
+                    document.getElementById('font-futuristic-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Futuristic');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-futuristic-btn').classList.add('active');
+                        }
+                    });
+                    
+                    document.getElementById('font-western-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Western');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-western-btn').classList.add('active');
+                        }
+                    });
+
                     // Champ de texte pour l'engraving
                     document.getElementById('engraving-text').addEventListener('input', (e) => {
                         if (window.engravingManager) {
@@ -183,8 +217,32 @@
                     // Initialiser le champ texte et l'état engraving
                     const initialText = defaultConfig.engravingText || '';
                     document.getElementById('engraving-text').value = initialText;
-                    if (initialText && window.engravingManager) {
-                        window.engravingManager.setText(initialText);
+                    if (window.engravingManager) {
+                        // Attendre que les polices soient chargées avant d'initialiser
+                        if (document.fonts && document.fonts.ready) {
+                            document.fonts.ready.then(async () => {
+                                console.log('Fonts ready, initializing engraving manager');
+                                // Définir la police par défaut
+                                await window.engravingManager.setFont(defaultConfig.engravingFont);
+                                // Mettre à jour l'état du bouton de police par défaut
+                                document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`font-${defaultConfig.engravingFont.toLowerCase()}-btn`).classList.add('active');
+                                if (initialText) {
+                                    window.engravingManager.setText(initialText);
+                                }
+                            });
+                        } else {
+                            // Fallback si l'API fonts n'est pas disponible
+                            setTimeout(async () => {
+                                console.log('Fonts fallback timeout, initializing engraving manager');
+                                await window.engravingManager.setFont(defaultConfig.engravingFont);
+                                document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`font-${defaultConfig.engravingFont.toLowerCase()}-btn`).classList.add('active');
+                                if (initialText) {
+                                    window.engravingManager.setText(initialText);
+                                }
+                            }, 500);
+                        }
                     }
                 }
             }, 1000);
@@ -194,8 +252,8 @@
                 
                 const activeTags = window.tagManager.getActiveTags();
                 
-                // Reset all buttons
-                document.querySelectorAll('.sidebar-btn').forEach(btn => {
+                // Reset all buttons (except font buttons)
+                document.querySelectorAll('.sidebar-btn:not([id^="font-"])').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 

@@ -5,6 +5,7 @@ class EngravingManager {
         this.scene = scene;
         this.assetConfig = assetConfig;
         this.text = '';
+        this.font = 'Stencil'; // Police par défaut
         this.aspectOverride = null; // largeur/hauteur, null = auto
         this.alphaDT = null; // DynamicTexture alpha du texte
         this.normalDT = null; // DynamicTexture normal map
@@ -29,6 +30,36 @@ class EngravingManager {
         if (window.tagManager) {
             window.tagManager.applyActiveTags();
         }
+    }
+
+    async setFont(fontName) {
+        this.font = fontName || 'Stencil';
+        console.log(`EngravingManager: Setting font to ${this.font}`);
+        
+        // Forcer le chargement de la police spécifique
+        if (document.fonts && document.fonts.load) {
+            try {
+                await document.fonts.load(`bold 16px ${this.font}`);
+                console.log(`EngravingManager: Font ${this.font} loaded successfully`);
+                
+                // Vérifier si la police est vraiment disponible
+                const testCanvas = document.createElement('canvas');
+                const testCtx = testCanvas.getContext('2d');
+                testCtx.font = `bold 16px ${this.font}`;
+                const actualFont = testCtx.font;
+                console.log(`EngravingManager: Actual font in canvas: ${actualFont}`);
+                
+                if (actualFont.includes(this.font)) {
+                    console.log(`EngravingManager: Font ${this.font} is working in canvas`);
+                } else {
+                    console.warn(`EngravingManager: Font ${this.font} fallback to system font`);
+                }
+            } catch (error) {
+                console.warn(`EngravingManager: Error loading font ${this.font}:`, error);
+            }
+        }
+        
+        this.update();
     }
 
     setAspect(aspectOrNull) {
@@ -74,7 +105,8 @@ class EngravingManager {
 
         // Draw alpha with unified blur for softer edges
         let fontPx = Math.floor(size.height * 1);
-        let font = `bold ${fontPx}px Arial`;
+        let font = `bold ${fontPx}px ${this.font}`;
+        console.log(`EngravingManager: Using font in context: ${font}`);
         const aCtx = this.alphaDT.getContext('2d', { willReadFrequently: true });
         if (!aCtx) {
             console.error('EngravingManager: Cannot get alpha context after recreation');
@@ -89,13 +121,14 @@ class EngravingManager {
         aCtx.textAlign = 'center';
         aCtx.textBaseline = 'middle';
         while (fontPx > 24) {
-            aCtx.font = `bold ${fontPx}px Arial`;
+            aCtx.font = `bold ${fontPx}px ${this.font}`;
             const mW = aCtx.measureText(this.text).width;
             if (mW <= size.width * 0.9) break;
             fontPx -= 4;
         }
-        font = `bold ${fontPx}px Arial`;
+        font = `bold ${fontPx}px ${this.font}`;
         aCtx.font = font;
+        console.log(`EngravingManager: Final font applied: ${aCtx.font}`);
         // Soft edge via blur only (no crisp overlay to keep gradient)
         try { aCtx.filter = `blur(${blurPx}px)`; } catch(_) {}
         aCtx.fillStyle = 'white';
