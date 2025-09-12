@@ -53,9 +53,15 @@ const assetConfiguration = {
       }
     },
     "engraving": {
-      "base": {
+      "red": {
         "slot1": "engraving_red"
       },
+      "blue": {
+        "slot1": "engraving_blue"
+      },
+      "green": {
+        "slot1": "engraving_green"
+      }
     }
   }
 };

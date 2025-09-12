@@ -69,7 +69,7 @@ class EngravingManager {
         // Draw alpha with unified blur for softer edges
         let fontPx = Math.floor(size.height * 1);
         let font = `bold ${fontPx}px Arial`;
-        const aCtx = this.alphaDT.getContext();
+        const aCtx = this.alphaDT.getContext('2d', { willReadFrequently: true });
         aCtx.clearRect(0, 0, size.width, size.height);
         aCtx.fillStyle = 'black';
         aCtx.fillRect(0, 0, size.width, size.height);
@@ -102,7 +102,7 @@ class EngravingManager {
             }
         }
         // Draw blurred AO (not inverted) using same fitted font and unified blur
-        const aoCtx = this.aoDT.getContext();
+        const aoCtx = this.aoDT.getContext('2d', { willReadFrequently: true });
         aoCtx.clearRect(0, 0, size.width, size.height);
         aoCtx.fillStyle = 'black';
         aoCtx.fillRect(0, 0, size.width, size.height);
@@ -189,7 +189,7 @@ class EngravingManager {
     buildNormalFromAO(aoDT) {
         const size = aoDT.getSize();
         const width = size.width, height = size.height;
-        const blurCtx = aoDT.getContext();
+        const blurCtx = aoDT.getContext('2d', { willReadFrequently: true });
         const blurred = blurCtx.getImageData(0, 0, width, height);
         const bd = blurred.data;
 
@@ -250,12 +250,14 @@ class EngravingManager {
                         pbr.opacityTexture = textureOrNull;
                         pbr.opacityTexture.getAlphaFromRGB = true;
                         pbr.opacityTexture.vFlip = false;
-                        // Use pure alpha blending to preserve blurred edges (no hard cutoff)
+                        // Preserve blurred edges (no hard cutoff)
                         pbr.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
                         pbr.forceAlphaTest = false;
-                        pbr.alphaCutOff =1;
+                        pbr.alphaCutOff = 0.0;
                         pbr.needDepthPrePass = true;
                         try { pbr.opacityTexture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE); } catch(_) {}
+                        // Ensure standard lit shading for consistency with scene lighting
+                        pbr.unlit = false;
                     }
                     pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
                 });

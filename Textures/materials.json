@@ -79,16 +79,16 @@
       "type": "pbr",
       "parent": "none",
       "baseColor": "#a50000",
-      "metallic": 0,
-      "roughness": 0.09999999999999999,
+      "metallic": 0.36,
+      "roughness": 0.45,
       "alpha": 1,
       "albedoTexture": "filament_tile_albedo.png",
       "metallicTexture": "None",
       "microSurfaceTexture": "None",
       "ambientTexture": "None",
       "opacityTexture": "None",
-      "bumpTexture": "None",
-      "bumpTextureIntensity": 10,
+      "bumpTexture": "filament_tile_nm.png",
+      "bumpTextureIntensity": 1,
       "lightmapTexture": "None",
       "useLightmapAsShadowmap": true,
       "backFaceCulling": true,
@@ -97,6 +97,16 @@
       "uScale": 1,
       "vScale": 1.6600000000000001,
       "wRotation": 0
+    },
+    "engraving_blue": {
+      "type": "pbr",
+      "parent": "engraving_red",
+      "baseColor": "#003883"
+    },
+    "engraving_green": {
+      "type": "pbr",
+      "parent": "engraving_red",
+      "baseColor": "#157200"
     }
   }
 }
