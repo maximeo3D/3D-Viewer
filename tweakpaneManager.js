@@ -47,6 +47,7 @@ class TweakpaneManager {
             bumpTextureIntensity: 1.0,
             lightmapTexture: 'None',
             useLightmapAsShadowmap: true,
+            lightmapUVSet: 0,
             backFaceCulling: true,
             // Texture transformation parameters
             uOffset: 0.0,
@@ -438,6 +439,14 @@ class TweakpaneManager {
             this.independentProperties.add('lightmapTexture');
             this.applyMaterialChanges();
         }));
+        // Lightmap UV Set (UV0 / UV1)
+        this.materialControls.set('lightmapUVSet', textureFolder.addInput(this.materialProperties, 'lightmapUVSet', {
+            options: { 'UV0': 0, 'UV1': 1 }
+        }).on('change', (ev) => {
+            this.materialProperties.lightmapUVSet = ev.value;
+            this.independentProperties.add('lightmapUVSet');
+            this.applyMaterialChanges();
+        }));
         
         // Use Lightmap as Shadowmap (toujours true par défaut, pas de contrôle UI)
         
@@ -483,8 +492,8 @@ class TweakpaneManager {
         
         // U Scale
         const uScaleCtrl = transformFolder.addInput(this.materialProperties, 'uScale', {
-            min: 0.1,
-            max: 5.0,
+            min: 0,
+            max: 20.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.uScale = ev.value;
@@ -495,8 +504,8 @@ class TweakpaneManager {
         
         // V Scale
         const vScaleCtrl = transformFolder.addInput(this.materialProperties, 'vScale', {
-            min: 0.1,
-            max: 5.0,
+            min: 0,
+            max: 20.0,
             step: 0.01
         }).on('change', (ev) => {
             this.materialProperties.vScale = ev.value;
@@ -638,6 +647,7 @@ class TweakpaneManager {
         this.materialProperties.bumpTextureIntensity = getEffective('bumpTextureIntensity', 1.0);
         this.materialProperties.lightmapTexture = getEffective('lightmapTexture', 'None') || 'None';
         this.materialProperties.useLightmapAsShadowmap = getEffective('useLightmapAsShadowmap', true);
+        this.materialProperties.lightmapUVSet = getEffective('lightmapUVSet', 0);
         this.materialProperties.backFaceCulling = getEffective('backFaceCulling', true);
         this.materialProperties.uOffset = getEffective('uOffset', 0.0);
         this.materialProperties.vOffset = getEffective('vOffset', 0.0);
@@ -670,6 +680,7 @@ class TweakpaneManager {
             case 'lightmapTexture': return 'None';
             case 'bumpTextureIntensity': return 1.0;
             case 'useLightmapAsShadowmap': return true;
+            case 'lightmapUVSet': return 0;
             case 'backFaceCulling': return true;
             case 'uOffset':
             case 'vOffset': return 0.0;
@@ -933,6 +944,8 @@ class TweakpaneManager {
                 mat.lightmapTexture = setTexture(mat.lightmapTexture, this.materialProperties.lightmapTexture);
                 if (mat.lightmapTexture) {
                     mat.useLightmapAsShadowmap = true;
+                    const uvSet = (this.materialProperties.lightmapUVSet !== undefined) ? this.materialProperties.lightmapUVSet : 1;
+                    mat.lightmapTexture.coordinatesIndex = uvSet;
                 }
 
                 // Transformations de textures

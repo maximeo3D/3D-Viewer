@@ -331,6 +331,9 @@ function createPBRMaterial(materialConfig, scene, materialName) {
             pbr.lightmapTexture.name = finalMaterialConfig.lightmapTexture;
         }
         pbr.lightmapTexture.vFlip = false; // Corriger l'effet miroir
+        // Set lightmap UV set (0 or 1)
+        const lmUV = (finalMaterialConfig.lightmapUVSet !== undefined) ? finalMaterialConfig.lightmapUVSet : 0;
+        pbr.lightmapTexture.coordinatesIndex = lmUV;
         
         // Enable lightmap as shadowmap by default for better performance
         pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;

@@ -10,18 +10,19 @@
       "albedoTexture": "None",
       "metallicTexture": "None",
       "microSurfaceTexture": "None",
-      "ambientTexture": "filament_albedo.png",
+      "ambientTexture": "filament_tile_albedo.png",
       "opacityTexture": "None",
-      "bumpTexture": "filament_nm.png",
+      "bumpTexture": "filament_tile_nm.png",
       "bumpTextureIntensity": 3.1,
-      "lightmapTexture": "None",
+      "lightmapTexture": "filament_albedo.png",
       "useLightmapAsShadowmap": true,
       "backFaceCulling": true,
       "uOffset": 0,
       "vOffset": 0,
       "uScale": 1,
-      "vScale": 1,
-      "wRotation": 0
+      "vScale": 16,
+      "wRotation": 0,
+      "lightmapUVSet": 1
     },
     "green": {
       "type": "pbr",
@@ -95,7 +96,7 @@
       "uOffset": 0,
       "vOffset": 0,
       "uScale": 1,
-      "vScale": 1.6600000000000001,
+      "vScale": 1,
       "wRotation": 0
     },
     "engraving_blue": {
