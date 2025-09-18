@@ -439,13 +439,7 @@ class TweakpaneManager {
             this.applyMaterialChanges();
         }));
         
-        // Use Lightmap as Shadowmap
-        const lmShadowCtrl = textureFolder.addInput(this.materialProperties, 'useLightmapAsShadowmap').on('change', (ev) => {
-            this.materialProperties.useLightmapAsShadowmap = ev.value;
-            this.independentProperties.add('useLightmapAsShadowmap');
-            this.applyMaterialChanges();
-        });
-        this.materialControls.set('useLightmapAsShadowmap', lmShadowCtrl);
+        // Use Lightmap as Shadowmap (toujours true par défaut, pas de contrôle UI)
         
         // Back Face Culling
         const bfcCtrl = textureFolder.addInput(this.materialProperties, 'backFaceCulling').on('change', (ev) => {
@@ -900,6 +894,10 @@ class TweakpaneManager {
                 if (this.materialProperties.metallic !== undefined) mat.metallic = this.materialProperties.metallic;
                 if (this.materialProperties.roughness !== undefined) mat.roughness = this.materialProperties.roughness;
                 if (this.materialProperties.alpha !== undefined) mat.alpha = this.materialProperties.alpha;
+                // Back Face Culling
+                if (this.materialProperties.backFaceCulling !== undefined) {
+                    mat.backFaceCulling = !!this.materialProperties.backFaceCulling;
+                }
 
                 // Textures (réutiliser si même nom, sinon remplacer proprement)
                 const setTexture = (current, desiredName) => {
@@ -934,7 +932,7 @@ class TweakpaneManager {
                 }
                 mat.lightmapTexture = setTexture(mat.lightmapTexture, this.materialProperties.lightmapTexture);
                 if (mat.lightmapTexture) {
-                    mat.useLightmapAsShadowmap = !!this.materialProperties.useLightmapAsShadowmap;
+                    mat.useLightmapAsShadowmap = true;
                 }
 
                 // Transformations de textures
