@@ -23,5 +23,24 @@
     "lowerBetaLimit": 1.2158707636692831,
     "upperBetaLimit": 1.2158707636692831,
     "initialPitch": 69.66426319159828
+  },
+  "viewpoints": {
+    "Viewpoint1": {
+      "alpha": -2,
+      "beta": 1.2158707636692831,
+      "radius": 22.807543416243938,
+      "fov": 82,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
+    },
+    "Viewpoint2": {
+      "alpha": 2.0,
+      "radius": 2.0,
+      "fov": 50,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 2
+    }
   }
 }

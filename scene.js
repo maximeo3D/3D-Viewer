@@ -453,6 +453,66 @@ const createScene = async function() {
     
     // Enable inertia for smoother camera movements
     camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
+
+    // Viewpoint helper and wiring
+    function animateToViewpoint(vp, durationMs = 800) {
+        if (!vp || !camera) return;
+        const start = {
+            alpha: camera.alpha,
+            beta: camera.beta,
+            radius: camera.radius,
+            fov: camera.fov,
+            target: camera.target.clone()
+        };
+        const end = {
+            alpha: (vp.alpha !== undefined ? vp.alpha : start.alpha),
+            beta: (vp.beta !== undefined ? vp.beta : start.beta),
+            radius: (vp.radius !== undefined ? vp.radius : start.radius),
+            fov: (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : start.fov),
+            target: new BABYLON.Vector3(
+                vp.targetX !== undefined ? vp.targetX : start.target.x,
+                vp.targetY !== undefined ? vp.targetY : start.target.y,
+                vp.targetZ !== undefined ? vp.targetZ : start.target.z
+            )
+        };
+        const t0 = performance.now();
+        const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+        const step = () => {
+            const now = performance.now();
+            const t = Math.min(1, (now - t0) / durationMs);
+            const k = ease(t);
+            camera.alpha = start.alpha + (end.alpha - start.alpha) * k;
+            camera.beta = start.beta + (end.beta - start.beta) * k;
+            camera.radius = start.radius + (end.radius - start.radius) * k;
+            camera.fov = start.fov + (end.fov - start.fov) * k;
+            camera.target = new BABYLON.Vector3(
+                start.target.x + (end.target.x - start.target.x) * k,
+                start.target.y + (end.target.y - start.target.y) * k,
+                start.target.z + (end.target.z - start.target.z) * k
+            );
+            if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    window.gotoViewpoint = (name) => {
+        const vp = (config.viewpoints && config.viewpoints[name]) ? config.viewpoints[name] : null;
+        if (vp) animateToViewpoint(vp, 800);
+    };
+
+    // Apply default viewpoint on init if present
+    if (config.viewpoints && config.viewpoints.Viewpoint1) {
+        const vp = config.viewpoints.Viewpoint1;
+        camera.alpha = (vp.alpha !== undefined ? vp.alpha : camera.alpha);
+        if (vp.beta !== undefined) camera.beta = vp.beta;
+        camera.radius = (vp.radius !== undefined ? vp.radius : camera.radius);
+        if (vp.fov !== undefined) camera.fov = (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov);
+        camera.target = new BABYLON.Vector3(
+            vp.targetX !== undefined ? vp.targetX : camera.target.x,
+            vp.targetY !== undefined ? vp.targetY : camera.target.y,
+            vp.targetZ !== undefined ? vp.targetZ : camera.target.z
+        );
+    }
     
     
     // Add object rotation elasticity in the render loop

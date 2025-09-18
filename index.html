@@ -71,6 +71,14 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="category">
+                    <h3>Viewpoints</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="viewpoint-1-btn">Viewpoint 1</button>
+                        <button class="sidebar-btn" id="viewpoint-2-btn">Viewpoint 2</button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="canvas-container">
@@ -154,6 +162,20 @@
                         updateButtonStates();
                     });
                     
+                    // Viewpoints buttons
+                    const vp1Btn = document.getElementById('viewpoint-1-btn');
+                    const vp2Btn = document.getElementById('viewpoint-2-btn');
+                    if (vp1Btn) vp1Btn.addEventListener('click', () => { 
+                        if (window.gotoViewpoint) window.gotoViewpoint('Viewpoint1');
+                        vp1Btn.classList.add('active');
+                        vp2Btn && vp2Btn.classList.remove('active');
+                    });
+                    if (vp2Btn) vp2Btn.addEventListener('click', () => { 
+                        if (window.gotoViewpoint) window.gotoViewpoint('Viewpoint2');
+                        vp2Btn.classList.add('active');
+                        vp1Btn && vp1Btn.classList.remove('active');
+                    });
+                    
                     // Fonction pour obtenir la couleur active du bloc
                     function getActiveBlocColor() {
                         if (document.getElementById('bloc-red-btn').classList.contains('active')) return 'red';
@@ -217,6 +239,9 @@
                     
                     // Mettre à jour l'état initial des boutons
                     updateButtonStates();
+                    // Activer Viewpoint 1 par défaut si présent
+                    const vp1 = document.getElementById('viewpoint-1-btn');
+                    if (vp1) vp1.classList.add('active');
                     
                     // Initialiser le champ texte et l'état engraving
                     const initialText = defaultConfig.engravingText || '';
@@ -276,8 +301,8 @@
                 
                 const activeTags = window.tagManager.getActiveTags();
                 
-                // Reset all buttons (except font buttons)
-                document.querySelectorAll('.sidebar-btn:not([id^="font-"])').forEach(btn => {
+                // Reset all buttons (except font buttons and viewpoint buttons)
+                document.querySelectorAll('.sidebar-btn:not([id^="font-"]):not([id^="viewpoint-"])').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 
