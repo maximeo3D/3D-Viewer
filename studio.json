@@ -9,8 +9,8 @@
     "beta": 1.2158707636692831,
     "radius": 22.807543416243938,
     "fov": 82,
-    "minDistance": 4.487839849783297,
-    "maxDistance": 30,
+    "minDistance": 1,
+    "maxDistance": 100,
     "zoomSpeed": 2,
     "zoomSensitivity": 0.7000000000000001,
     "inertia": 0.85,
@@ -26,21 +26,26 @@
   },
   "viewpoints": {
     "Viewpoint1": {
-      "alpha": -2,
+      "alpha": 3.830997708127553,
       "beta": 1.2158707636692831,
-      "radius": 22.807543416243938,
-      "fov": 82,
+      "radius": 39.99055512075026,
+      "fov": 15,
+      "minDistance": 15,
+      "maxDistance": 40,
       "targetX": 0,
       "targetY": 0,
       "targetZ": 0
     },
     "Viewpoint2": {
-      "alpha": 2.0,
-      "radius": 2.0,
-      "fov": 50,
+      "alpha": 2.443460952792061,
+      "beta": 1.2158707636692831,
+      "radius": 7,
+      "fov": 30,
+      "minDistance": 5,
+      "maxDistance": 10,
       "targetX": 0,
       "targetY": 0,
-      "targetZ": 2
+      "targetZ": 1.5
     }
   }
 }

@@ -89,10 +89,22 @@ class TweakpaneManager {
         
         // Callback pour les changements de matériaux
         this.onMaterialChange = null;
+
+        // Viewpoints (studio.json)
+        this.viewpoints = {};
+        this.selectedViewpoint = 'Viewpoint1';
+
+        // Helper pour normaliser les angles en degrés [0,360)
+        this.normalizeDeg360 = (deg) => {
+            let d = deg % 360;
+            if (d < 0) d += 360;
+            return d;
+        };
     }
     
     async init() {
         await this.loadMaterialsConfig();
+        await this.loadStudioViewpoints();
         this.createGUI();
         this.createEnvironmentFolder();
         this.createCameraFolder();
@@ -120,6 +132,25 @@ class TweakpaneManager {
         } catch (error) {
             console.warn('⚠️ Erreur lors du chargement de materials.json:', error);
         }
+    }
+    
+    // Charger les viewpoints depuis studio.json
+    async loadStudioViewpoints() {
+        try {
+            const res = await fetch('studio.json');
+            if (res.ok) {
+                const studio = await res.json();
+                this.viewpoints = (studio && studio.viewpoints) ? studio.viewpoints : {};
+                const keys = Object.keys(this.viewpoints);
+                if (keys.length > 0 && !keys.includes(this.selectedViewpoint)) {
+                    this.selectedViewpoint = keys[0];
+                }
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ Erreur lors du chargement des viewpoints:', e);
+        }
+        this.viewpoints = {};
     }
     
     createGUI() {
@@ -188,39 +219,61 @@ class TweakpaneManager {
             expanded: true
         });
         
-        // Alpha (Yaw) en degrés [-180, 180]
+        // Viewpoint selector
+        const vpKeys = Object.keys(this.viewpoints || {});
+        if (vpKeys.length > 0) {
+            const vpOptions = vpKeys.reduce((acc, k) => { acc[k] = k; return acc; }, {});
+            this.cameraFolder.addInput(this, 'selectedViewpoint', {
+                options: vpOptions,
+                label: 'Viewpoint'
+            }).on('change', (ev) => {
+                this.selectedViewpoint = ev.value;
+                if (window.gotoViewpoint) window.gotoViewpoint(this.selectedViewpoint);
+            });
+        }
+        
+        // Alpha (Yaw) en degrés [0, 360]
         this.cameraFolder.addInput(this.cameraData, 'alpha', {
-            min: -180,
-            max: 180,
+            min: 0,
+            max: 360,
             step: 0.1
         }).on('change', (ev) => {
-            // Convertir degrés → radians pour la caméra
-            const radians = BABYLON.Tools.ToRadians(ev.value);
+            // Bouclage 0..360 puis conversion degrés → radians
+            const deg = this.normalizeDeg360(ev.value);
+            if (Math.abs(deg - this.cameraData.alpha) > 1e-4) {
+                this.cameraData.alpha = deg;
+                if (this.pane) { try { this.pane.refresh(); } catch(_) {} }
+            }
+            const radians = BABYLON.Tools.ToRadians(deg);
             this.updateCameraAlpha(radians);
         });
         
-        // Radius (Distance)
+        // Distance (ex-radius)
         this.cameraFolder.addInput(this.cameraData, 'radius', {
             min: 1.0,
-            max: 50.0,
-            step: 0.1
+            max: 100.0,
+            step: 0.1,
+            label: 'Distance'
         }).on('change', (ev) => {
             this.updateCameraRadius(ev.value);
         });
         
-        // Field of View
+        // Field of View (degrees 20–120)
         this.cameraFolder.addInput(this.cameraData, 'fov', {
-            min: 0.1,
-            max: 2.0,
-            step: 0.01
+            min: 10,
+            max: 120,
+            step: 0.1,
+            label: 'fov (deg)'
         }).on('change', (ev) => {
-            this.updateCameraFOV(ev.value);
+            // Convert degrees → radians for camera
+            const radians = BABYLON.Tools.ToRadians(ev.value);
+            this.updateCameraFOV(radians);
         });
         
         // Min Distance
         this.cameraFolder.addInput(this.cameraData, 'minDistance', {
             min: 0.1,
-            max: 10.0,
+            max: 100.0,
             step: 0.1
         }).on('change', (ev) => {
             this.updateCameraMinDistance(ev.value);
@@ -228,9 +281,9 @@ class TweakpaneManager {
         
         // Max Distance
         this.cameraFolder.addInput(this.cameraData, 'maxDistance', {
-            min: 10.0,
-            max: 1000.0,
-            step: 1.0
+            min: 1.0,
+            max: 100.0,
+            step: 0.1
         }).on('change', (ev) => {
             this.updateCameraMaxDistance(ev.value);
         });
@@ -241,15 +294,15 @@ class TweakpaneManager {
                 if (!this.scene.activeCamera) return;
                 const cam = this.scene.activeCamera;
                 // Pull values from camera
-                const nextAlpha = BABYLON.Tools.ToDegrees(cam.alpha);
+                const nextAlpha = this.normalizeDeg360(BABYLON.Tools.ToDegrees(cam.alpha));
                 const nextRadius = cam.radius;
-                const nextFov = cam.fov;
+                const nextFov = BABYLON.Tools.ToDegrees(cam.fov);
                 const nextMin = cam.lowerRadiusLimit ?? this.cameraData.minDistance;
                 const nextMax = cam.upperRadiusLimit ?? this.cameraData.maxDistance;
                 let changed = false;
                 if (Math.abs(this.cameraData.alpha - nextAlpha) > 1e-2) { this.cameraData.alpha = nextAlpha; changed = true; }
                 if (Math.abs(this.cameraData.radius - nextRadius) > 1e-3) { this.cameraData.radius = nextRadius; changed = true; }
-                if (Math.abs(this.cameraData.fov - nextFov) > 1e-4) { this.cameraData.fov = nextFov; changed = true; }
+                if (Math.abs(this.cameraData.fov - nextFov) > 1e-2) { this.cameraData.fov = nextFov; changed = true; }
                 if (Math.abs(this.cameraData.minDistance - nextMin) > 1e-4) { this.cameraData.minDistance = nextMin; changed = true; }
                 if (Math.abs(this.cameraData.maxDistance - nextMax) > 1e-4) { this.cameraData.maxDistance = nextMax; changed = true; }
                 if (changed && this.pane) {
@@ -259,8 +312,57 @@ class TweakpaneManager {
             });
         }
         
+        // Export camera params button
+        this.cameraFolder.addButton({ title: 'Export Camera Params' }).on('click', async () => {
+            try {
+                const res = await fetch('studio.json');
+                if (!res.ok) throw new Error('Failed to read studio.json');
+                const studio = await res.json();
+                if (!studio.viewpoints) studio.viewpoints = {};
+                const cam = this.scene?.activeCamera;
+                if (!cam) throw new Error('No active camera');
+                const vpName = this.selectedViewpoint || 'Viewpoint1';
+                const fovDeg = cam.fov > 2 ? cam.fov : BABYLON.Tools.ToDegrees(cam.fov);
+                studio.viewpoints[vpName] = {
+                    alpha: cam.alpha,
+                    beta: cam.beta,
+                    radius: cam.radius,
+                    fov: Math.round(fovDeg * 100) / 100,
+                    minDistance: cam.lowerRadiusLimit ?? 0,
+                    maxDistance: cam.upperRadiusLimit ?? 1000,
+                    targetX: cam.target?.x ?? 0,
+                    targetY: cam.target?.y ?? 0,
+                    targetZ: cam.target?.z ?? 0
+                };
+                const resp = await fetch('http://localhost:8080/studio.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studio, null, 2)
+                });
+                if (!resp.ok) {
+                    const txt = await resp.text();
+                    console.error('Export studio.json failed:', txt);
+                }
+            } catch (err) {
+                console.error('Export Camera Params error:', err);
+            }
+        });
+        
         // Target controls (sous-menu de Camera)
         this.createTargetFolder();
+
+        // Si viewpoint changé, refléter les valeurs dans UI sans attendre la sync
+        if (Object.keys(this.viewpoints || {}).length > 0) {
+            const vp = this.viewpoints[this.selectedViewpoint];
+            if (vp) {
+                this.cameraData.alpha = BABYLON.Tools.ToDegrees(vp.alpha ?? this.scene?.activeCamera?.alpha ?? 0);
+                this.cameraData.radius = vp.radius ?? this.scene?.activeCamera?.radius ?? this.cameraData.radius;
+                this.cameraData.fov = (vp.fov && vp.fov > 2) ? BABYLON.Tools.ToRadians(vp.fov) : (vp.fov ?? this.scene?.activeCamera?.fov ?? this.cameraData.fov);
+                if (this.pane) {
+                    try { this.pane.refresh(); } catch(_) {}
+                }
+            }
+        }
     }
     
     async createMaterialsFolder() {
@@ -522,8 +624,8 @@ class TweakpaneManager {
         
         // W Rotation
         const wRotationCtrl = transformFolder.addInput(this.materialProperties, 'wRotation', {
-            min: -180.0,
-            max: 180.0,
+            min: 0.0,
+            max: 360.0,
             step: 1.0
         }).on('change', (ev) => {
             this.materialProperties.wRotation = ev.value;
@@ -584,6 +686,24 @@ class TweakpaneManager {
         }).on('change', (ev) => {
             this.updateTargetZ(ev.value);
         });
+
+        // Sync live target from active camera
+        if (this.scene && this.scene.onBeforeRenderObservable) {
+            this.scene.onBeforeRenderObservable.add(() => {
+                const cam = this.scene?.activeCamera;
+                if (!cam) return;
+                const tx = cam.target?.x ?? 0;
+                const ty = cam.target?.y ?? 0;
+                const tz = cam.target?.z ?? 0;
+                let changed = false;
+                if (Math.abs(this.targetData.x - tx) > 1e-3) { this.targetData.x = tx; changed = true; }
+                if (Math.abs(this.targetData.y - ty) > 1e-3) { this.targetData.y = ty; changed = true; }
+                if (Math.abs(this.targetData.z - tz) > 1e-3) { this.targetData.z = tz; changed = true; }
+                if (changed && this.pane) {
+                    try { this.pane.refresh(); } catch(_) {}
+                }
+            });
+        }
     }
     
     createInspectorControls() {
@@ -1020,7 +1140,10 @@ class TweakpaneManager {
     // Camera update methods
     updateCameraAlpha(value) {
         if (this.scene && this.scene.activeCamera) {
-            this.scene.activeCamera.alpha = value;
+            // Normaliser en radians dans [0, 2π)
+            let a = value % (2 * Math.PI);
+            if (a < 0) a += 2 * Math.PI;
+            this.scene.activeCamera.alpha = a;
         }
     }
     
@@ -1044,13 +1167,15 @@ class TweakpaneManager {
     
     updateCameraMinDistance(value) {
         if (this.scene && this.scene.activeCamera) {
-            this.scene.activeCamera.minZ = value;
+            // Distance minimale (limite inférieure du radius)
+            this.scene.activeCamera.lowerRadiusLimit = value;
         }
     }
     
     updateCameraMaxDistance(value) {
         if (this.scene && this.scene.activeCamera) {
-            this.scene.activeCamera.maxZ = value;
+            // Distance maximale (limite supérieure du radius)
+            this.scene.activeCamera.upperRadiusLimit = value;
         }
     }
     

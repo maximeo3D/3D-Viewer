@@ -455,44 +455,107 @@ const createScene = async function() {
     camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
 
     // Viewpoint helper and wiring
-    function animateToViewpoint(vp, durationMs = 800) {
+    function normalizeRadTau(angle) {
+        // Wrap to [0, 2π)
+        let a = angle % (2 * Math.PI);
+        if (a < 0) a += 2 * Math.PI;
+        return a;
+    }
+    function shortestAnglePositive(from, to) {
+        // Work in [0,2π). Compute shortest delta considering wrap-around
+        const a = normalizeRadTau(from);
+        const b = normalizeRadTau(to);
+        let delta = b - a;
+        if (delta > Math.PI) delta -= 2 * Math.PI;
+        if (delta < -Math.PI) delta += 2 * Math.PI;
+        return a + delta;
+    }
+
+    function animateScalar(from, to, setter, durationMs = 400, easing = (t) => 1 - Math.pow(1 - t, 3)) {
+        return new Promise(resolve => {
+            if (from === to || durationMs <= 0) { setter(to); return resolve(); }
+            const t0 = performance.now();
+            const tick = () => {
+                const now = performance.now();
+                const t = Math.min(1, (now - t0) / durationMs);
+                const k = easing(t);
+                const v = from + (to - from) * k;
+                setter(v);
+                if (t < 1) requestAnimationFrame(tick); else resolve();
+            };
+            requestAnimationFrame(tick);
+        });
+    }
+
+    function animateAlphaCircular(fromRad, toRad, durationMs = 400) {
+        const start = normalizeRadTau(fromRad);
+        const target = shortestAnglePositive(start, toRad);
+        return animateScalar(0, 1, (k) => {
+            const v = normalizeRadTau(start + (target - start) * k);
+            camera.alpha = v;
+        }, durationMs);
+    }
+
+    function animateVector3(from, to, setter, durationMs = 400, easing = (t) => 1 - Math.pow(1 - t, 3)) {
+        return new Promise(resolve => {
+            const t0 = performance.now();
+            const tick = () => {
+                const now = performance.now();
+                const t = Math.min(1, (now - t0) / durationMs);
+                const k = easing(t);
+                const x = from.x + (to.x - from.x) * k;
+                const y = from.y + (to.y - from.y) * k;
+                const z = from.z + (to.z - from.z) * k;
+                setter(new BABYLON.Vector3(x, y, z));
+                if (t < 1) requestAnimationFrame(tick); else resolve();
+            };
+            requestAnimationFrame(tick);
+        });
+    }
+
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+    async function animateToViewpoint(vp, totalDurationMs = 1000) {
         if (!vp || !camera) return;
-        const start = {
-            alpha: camera.alpha,
-            beta: camera.beta,
-            radius: camera.radius,
-            fov: camera.fov,
-            target: camera.target.clone()
-        };
-        const end = {
-            alpha: (vp.alpha !== undefined ? vp.alpha : start.alpha),
-            beta: (vp.beta !== undefined ? vp.beta : start.beta),
-            radius: (vp.radius !== undefined ? vp.radius : start.radius),
-            fov: (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : start.fov),
-            target: new BABYLON.Vector3(
-                vp.targetX !== undefined ? vp.targetX : start.target.x,
-                vp.targetY !== undefined ? vp.targetY : start.target.y,
-                vp.targetZ !== undefined ? vp.targetZ : start.target.z
-            )
-        };
-        const t0 = performance.now();
-        const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
-        const step = () => {
-            const now = performance.now();
-            const t = Math.min(1, (now - t0) / durationMs);
-            const k = ease(t);
-            camera.alpha = start.alpha + (end.alpha - start.alpha) * k;
-            camera.beta = start.beta + (end.beta - start.beta) * k;
-            camera.radius = start.radius + (end.radius - start.radius) * k;
-            camera.fov = start.fov + (end.fov - start.fov) * k;
-            camera.target = new BABYLON.Vector3(
-                start.target.x + (end.target.x - start.target.x) * k,
-                start.target.y + (end.target.y - start.target.y) * k,
-                start.target.z + (end.target.z - start.target.z) * k
-            );
-            if (t < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
+        const startAlpha = camera.alpha;
+        const startFov = camera.fov;
+        const startTarget = camera.target.clone();
+        const startRadius = camera.radius;
+
+        const targetAlpha = (vp.alpha !== undefined ? vp.alpha : startAlpha);
+        const targetFov = (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : startFov);
+        const targetTarget = new BABYLON.Vector3(
+            vp.targetX !== undefined ? vp.targetX : startTarget.x,
+            vp.targetY !== undefined ? vp.targetY : startTarget.y,
+            vp.targetZ !== undefined ? vp.targetZ : startTarget.z
+        );
+        const targetMin = (vp.minDistance !== undefined ? vp.minDistance : camera.lowerRadiusLimit ?? 0.1);
+        const targetRadius = (vp.radius !== undefined ? vp.radius : startRadius);
+        const targetMax = (vp.maxDistance !== undefined ? vp.maxDistance : camera.upperRadiusLimit ?? 1000);
+
+        // Durées par étape
+        const dAlpha = Math.round(totalDurationMs * 1);
+        const dFov = Math.round(totalDurationMs * 0.15);
+        const dTarget = Math.round(totalDurationMs * 0.25);
+        const dMin = Math.round(totalDurationMs * 0.05);
+        const dRadius = Math.round(totalDurationMs * 0.2);
+        const dMax = Math.round(totalDurationMs * 0.1);
+
+        await animateAlphaCircular(startAlpha, targetAlpha, dAlpha);
+        await animateScalar(startFov, targetFov, (v) => { camera.fov = v; }, dFov);
+        await animateVector3(startTarget, targetTarget, (v) => { camera.target = v; }, dTarget);
+        if (vp.minDistance !== undefined) {
+            const fromMin = camera.lowerRadiusLimit ?? 0.1;
+            await animateScalar(fromMin, targetMin, (v) => { camera.lowerRadiusLimit = v; }, dMin);
+        }
+        const minL = camera.lowerRadiusLimit ?? 0.1;
+        const maxL = camera.upperRadiusLimit ?? 1000;
+        const clampedTargetRadius = clamp(targetRadius, minL, maxL);
+        await animateScalar(startRadius, clampedTargetRadius, (v) => { camera.radius = v; }, dRadius);
+        if (vp.maxDistance !== undefined) {
+            const fromMax = camera.upperRadiusLimit ?? 1000;
+            await animateScalar(fromMax, targetMax, (v) => { camera.upperRadiusLimit = v; }, dMax);
+        }
     }
 
     window.gotoViewpoint = (name) => {
@@ -512,6 +575,8 @@ const createScene = async function() {
             vp.targetY !== undefined ? vp.targetY : camera.target.y,
             vp.targetZ !== undefined ? vp.targetZ : camera.target.z
         );
+        if (vp.minDistance !== undefined) camera.lowerRadiusLimit = vp.minDistance;
+        if (vp.maxDistance !== undefined) camera.upperRadiusLimit = vp.maxDistance;
     }
     
     
