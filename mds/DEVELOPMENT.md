@@ -35,6 +35,7 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 - **Backend** : PowerShell (serveur HTTP personnalisé)
 - **Formats** : GLB/glTF, HDR, PNG/JPG
 - **Architecture** : Client-Serveur avec API REST
+- **Animations** : Système d'animation étape par étape avec Promises
 
 ### **Architecture Modulaire**
 
@@ -43,7 +44,7 @@ Documentation technique complète du projet 3D Viewer avec éditeur de matériau
 - **`tweakpaneManager.js`** : Interface utilisateur Tweakpane moderne, gestion des matériaux avec héritage, contrôles d'environnement
 - **`engravingManager.js`** : Gestionnaire de gravure dynamique, génération de textures, gestion des polices personnalisées
 - **`styles.css`** : Styles CSS avec déclarations `@font-face` pour les polices personnalisées
-- **`studio.json`** : Configuration persistante de la caméra et de l'environnement
+- **`studio.json`** : Configuration persistante de la caméra, de l'environnement et des viewpoints
 - **`Assets/asset.js`** : Configuration centralisée des modèles 3D, tags de visibilité et configurations de matériaux
 - **`index.html`** : Interface utilisateur pour le contrôle des tags, configurations et sélection de polices
 - **`serve.ps1`** : Serveur PowerShell HTTP avec API REST pour export et gestion des textures
@@ -64,6 +65,10 @@ class TweakpaneManager {
         
         // Paramètre pour contrôler l'état d'ouverture par défaut de Tweakpane
         this.tweakpaneOpenByDefault = false; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
+        
+        // Gestion des viewpoints
+        this.viewpoints = {};
+        this.selectedViewpoint = 'Viewpoint1';
     }
     
     async init() {
@@ -85,6 +90,14 @@ class TweakpaneManager {
     
     createEnvironmentControls() {
         // Contrôles d'environnement
+    }
+    
+    createCameraFolder() {
+        // Contrôles de caméra avec viewpoints et synchronisation temps réel
+    }
+    
+    loadStudioViewpoints() {
+        // Chargement des viewpoints depuis studio.json
     }
     
     async updateAppliedMaterials() {
@@ -150,7 +163,144 @@ class EngravingManager {
 
 ## 🔧 **Implémentation Technique**
 
-### **1. Contrôles de Caméra Personnalisés**
+### **1. Système de Points de Vue (Viewpoints)**
+
+#### **Configuration dans studio.json**
+```json
+{
+  "viewpoints": {
+    "Viewpoint1": {
+      "alpha": 0,
+      "beta": 1.2,
+      "radius": 10.0,
+      "fov": 50,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0,
+      "minDistance": 1.0,
+      "maxDistance": 100.0
+    },
+    "Viewpoint2": {
+      "alpha": 180,
+      "beta": 1.2,
+      "radius": 15.0,
+      "fov": 75,
+      "targetX": 2,
+      "targetY": 1,
+      "targetZ": 0,
+      "minDistance": 2.0,
+      "maxDistance": 50.0
+    }
+  }
+}
+```
+
+#### **Animation Étape par Étape**
+```javascript
+async function animateToViewpoint(vp, totalDurationMs = 1000) {
+    if (!vp || !camera) return;
+    
+    // Durées par étape (ordre optimisé)
+    const dAlpha = Math.round(totalDurationMs * 1.0);      // 25% - Alpha en premier
+    const dFov = Math.round(totalDurationMs * 0.15);       // 15% - FOV
+    const dTarget = Math.round(totalDurationMs * 0.25);    // 25% - Target
+    const dMin = Math.round(totalDurationMs * 0.05);       // 5% - MinDistance
+    const dRadius = Math.round(totalDurationMs * 0.2);     // 20% - Radius
+    const dMax = Math.round(totalDurationMs * 0.1);        // 10% - MaxDistance
+    
+    // 1) Alpha avec gestion circulaire
+    await animateAlphaCircular(startAlpha, targetAlpha, dAlpha);
+    
+    // 2) FOV avec conversion degrés/radians
+    await animateScalar(startFov, targetFov, (v) => { camera.fov = v; }, dFov);
+    
+    // 3) Target (position de la caméra)
+    await animateVector3(startTarget, targetTarget, (v) => { camera.target = v; }, dTarget);
+    
+    // 4) MinDistance (limite inférieure)
+    if (vp.minDistance !== undefined) {
+        await animateScalar(fromMin, targetMin, (v) => { camera.lowerRadiusLimit = v; }, dMin);
+    }
+    
+    // 5) Radius (distance actuelle, respectant les nouvelles limites)
+    const clampedTargetRadius = clamp(targetRadius, minL, maxL);
+    await animateScalar(startRadius, clampedTargetRadius, (v) => { camera.radius = v; }, dRadius);
+    
+    // 6) MaxDistance (limite supérieure)
+    if (vp.maxDistance !== undefined) {
+        await animateScalar(fromMax, targetMax, (v) => { camera.upperRadiusLimit = v; }, dMax);
+    }
+}
+```
+
+#### **Fonctions d'Animation Modulaires**
+```javascript
+function animateScalar(from, to, setter, durationMs = 400, easing = (t) => 1 - Math.pow(1 - t, 3)) {
+    return new Promise(resolve => {
+        if (from === to || durationMs <= 0) { setter(to); return resolve(); }
+        const t0 = performance.now();
+        const tick = () => {
+            const now = performance.now();
+            const t = Math.min(1, (now - t0) / durationMs);
+            const k = easing(t);
+            const v = from + (to - from) * k;
+            setter(v);
+            if (t < 1) requestAnimationFrame(tick); else resolve();
+        };
+        requestAnimationFrame(tick);
+    });
+}
+
+function animateAlphaCircular(fromRad, toRad, durationMs = 400) {
+    const start = normalizeRadTau(fromRad);
+    const target = shortestAnglePositive(start, toRad);
+    return animateScalar(0, 1, (k) => {
+        const v = normalizeRadTau(start + (target - start) * k);
+        camera.alpha = v;
+    }, durationMs);
+}
+
+function animateVector3(from, to, setter, durationMs = 400, easing = (t) => 1 - Math.pow(1 - t, 3)) {
+    return new Promise(resolve => {
+        const t0 = performance.now();
+        const tick = () => {
+            const now = performance.now();
+            const t = Math.min(1, (now - t0) / durationMs);
+            const k = easing(t);
+            const x = from.x + (to.x - from.x) * k;
+            const y = from.y + (to.y - from.y) * k;
+            const z = from.z + (to.z - from.z) * k;
+            setter(new BABYLON.Vector3(x, y, z));
+            if (t < 1) requestAnimationFrame(tick); else resolve();
+        };
+        requestAnimationFrame(tick);
+    });
+}
+```
+
+#### **Gestion des Angles Circulaires**
+```javascript
+function normalizeRadTau(rad) {
+    // Normaliser un angle en radians vers [0, 2π)
+    while (rad < 0) rad += 2 * Math.PI;
+    while (rad >= 2 * Math.PI) rad -= 2 * Math.PI;
+    return rad;
+}
+
+function shortestAnglePositive(a, b) {
+    // Calculer le plus court chemin pour l'interpolation circulaire
+    const delta = b - a;
+    if (delta > Math.PI) return a + delta - 2 * Math.PI;
+    if (delta < -Math.PI) return a + delta + 2 * Math.PI;
+    return b;
+}
+
+function clamp(val, min, max) { 
+    return Math.max(min, Math.min(max, val)); 
+}
+```
+
+### **2. Contrôles de Caméra Personnalisés**
 
 #### **Désactivation des Contrôles Par Défaut**
 ```javascript
@@ -265,7 +415,127 @@ scene.onBeforeRenderObservable.add(() => {
 });
 ```
 
-### **2. Contrôle "Initial Pitch"**
+### **3. Interface Tweakpane avec Viewpoints**
+
+#### **Menu Camera avec Viewpoints**
+```javascript
+createCameraFolder() {
+    this.cameraFolder = this.pane.addFolder({ title: 'Camera', expanded: false });
+    
+    // Charger les viewpoints depuis studio.json
+    this.loadStudioViewpoints();
+    
+    // Contrôles de caméra avec synchronisation temps réel
+    this.cameraFolder.addInput(this.cameraData, 'alpha', {
+        min: 0,
+        max: 360,
+        step: 0.1,
+        label: 'Alpha (Yaw)'
+    }).on('change', (ev) => {
+        this.updateCameraAlpha(ev.value);
+    });
+    
+    this.cameraFolder.addInput(this.cameraData, 'radius', {
+        min: 1.0,
+        max: 100.0,
+        step: 0.1,
+        label: 'Distance'
+    }).on('change', (ev) => {
+        this.updateCameraRadius(ev.value);
+    });
+    
+    this.cameraFolder.addInput(this.cameraData, 'fov', {
+        min: 10,
+        max: 120,
+        step: 0.1,
+        label: 'FOV (Field of View)'
+    }).on('change', (ev) => {
+        this.updateCameraFOV(ev.value);
+    });
+    
+    // Sélecteur de viewpoints
+    this.cameraFolder.addInput(this, 'selectedViewpoint', {
+        label: 'Viewpoint',
+        options: this.viewpoints
+    }).on('change', (ev) => {
+        if (window.gotoViewpoint) {
+            window.gotoViewpoint(ev.value);
+        }
+    });
+    
+    // Bouton d'export des paramètres de caméra
+    this.cameraFolder.addButton({ title: 'Export Camera Params' }).on('click', () => {
+        this.exportCameraParams();
+    });
+}
+
+async loadStudioViewpoints() {
+    try {
+        const response = await fetch('/studio.json');
+        const config = await response.json();
+        
+        if (config.viewpoints) {
+            this.viewpoints = {};
+            Object.keys(config.viewpoints).forEach(key => {
+                this.viewpoints[key] = key;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading viewpoints:', error);
+    }
+}
+
+exportCameraParams() {
+    const camera = this.scene.activeCamera;
+    const viewpointData = {
+        alpha: BABYLON.Tools.ToDegrees(camera.alpha),
+        beta: camera.beta,
+        radius: camera.radius,
+        fov: BABYLON.Tools.ToDegrees(camera.fov),
+        targetX: camera.target.x,
+        targetY: camera.target.y,
+        targetZ: camera.target.z,
+        minDistance: camera.lowerRadiusLimit,
+        maxDistance: camera.upperRadiusLimit
+    };
+    
+    // Sauvegarder dans studio.json
+    this.saveViewpointToStudio(this.selectedViewpoint, viewpointData);
+}
+```
+
+#### **Synchronisation Temps Réel**
+```javascript
+// Synchronisation des valeurs de caméra vers Tweakpane
+syncCameraToTweakpane() {
+    const camera = this.scene.activeCamera;
+    
+    this.cameraData.alpha = BABYLON.Tools.ToDegrees(camera.alpha);
+    this.cameraData.beta = camera.beta;
+    this.cameraData.radius = camera.radius;
+    this.cameraData.fov = BABYLON.Tools.ToDegrees(camera.fov);
+    this.cameraData.targetX = camera.target.x;
+    this.cameraData.targetY = camera.target.y;
+    this.cameraData.targetZ = camera.target.z;
+    this.cameraData.minDistance = camera.lowerRadiusLimit;
+    this.cameraData.maxDistance = camera.upperRadiusLimit;
+    
+    this.pane.refresh();
+}
+
+// Conversion degrés/radians pour les contrôles
+updateCameraAlpha(degrees) {
+    const radians = BABYLON.Tools.ToRadians(degrees);
+    this.scene.activeCamera.alpha = radians;
+}
+
+updateCameraFOV(degrees) {
+    const radians = BABYLON.Tools.ToRadians(degrees);
+    this.scene.activeCamera.fov = radians;
+}
+```
+
+### **4. Contrôle "Initial Pitch"**
 
 #### **Configuration dans studio.json**
 ```json
@@ -319,7 +589,7 @@ this.cameraFolder.add(initialPitch, 'pitch', -90, 90).name('Initial Pitch').onCh
 });
 ```
 
-### **3. Système de Visibilité par Mesh**
+### **5. Système de Visibilité par Mesh**
 
 #### **Configuration dans Assets/asset.js**
 ```javascript
@@ -385,7 +655,7 @@ async function loadModels() {
 }
 ```
 
-### **4. Contrôle de Visibilité de Tweakpane**
+### **6. Contrôle de Visibilité de Tweakpane**
 
 #### **Variable de Contrôle dans scene.js**
 ```javascript
@@ -431,7 +701,7 @@ toggleTweakpaneVisibility(show) {
 }
 ```
 
-### **1. Système de Matériaux PBR**
+### **7. Système de Matériaux PBR**
 
 #### **Fonction `createPBRMaterial`**
 ```javascript
@@ -482,7 +752,7 @@ function createPBRMaterial(materialConfig, scene) {
 - **`bumpTexture`** : Texture de relief (normal map)
 - **`bumpTextureIntensity`** : Intensité du relief (0.0 - 5.0)
 
-### **2. Interface Tweakpane**
+### **8. Interface Tweakpane**
 
 #### **Structure des Contrôles**
 ```javascript
@@ -575,7 +845,7 @@ async updateAppliedMaterials() {
 }
 ```
 
-### **3. Système de Chargement d'Assets**
+### **9. Système de Chargement d'Assets**
 
 #### **Configuration des Modèles**
 ```json
@@ -634,7 +904,7 @@ async function loadModel(modelConfig) {
 }
 ```
 
-### **4. Serveur PowerShell**
+### **10. Serveur PowerShell**
 
 #### **Architecture du Serveur**
 ```powershell
@@ -1185,6 +1455,6 @@ $rootPath = Get-Location
 
 ---
 
-**Version de développement** : 2.6.0  
+**Version de développement** : 2.7.0  
 **Dernière mise à jour** : Décembre 2024  
 **Statut** : Production Ready ✅

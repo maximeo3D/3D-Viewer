@@ -38,6 +38,14 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR, système de gestion par 
 - Zoom fluide avec interpolation
 - Pan désactivé (clic droit)
 
+### **Système de Points de Vue (Viewpoints)**
+- Définition de points de vue prédéfinis dans `studio.json`
+- Transitions fluides entre les viewpoints avec animation étape par étape
+- Contrôles de caméra synchronisés en temps réel avec Tweakpane
+- Export des paramètres de caméra actuels vers les viewpoints
+- Support des limites de distance (minDistance/maxDistance)
+- Interface HTML avec boutons de sélection de viewpoints
+
 ## 📁 **Structure du Projet**
 
 ```
@@ -46,7 +54,7 @@ Visualiseur 3D avancé avec éditeur de matériaux PBR, système de gestion par 
 ├── scene.js                   # Logique 3D, contrôles, TagManager
 ├── tweakpaneManager.js        # Interface utilisateur Tweakpane moderne
 ├── engravingManager.js        # Gestionnaire de gravure dynamique avec polices personnalisées
-├── studio.json                # Configuration environnement/caméra
+├── studio.json                # Configuration environnement/caméra avec viewpoints
 ├── serve.ps1                  # Serveur PowerShell HTTP
 ├── start-server.bat           # Script de démarrage Windows
 ├── styles.css                 # Styles CSS avec polices personnalisées

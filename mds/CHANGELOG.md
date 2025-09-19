@@ -5,6 +5,75 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [2.7.0] - 2024-12-XX - Système de Points de Vue et Améliorations Caméra
+
+### 🎉 Ajouté
+- **Système de Points de Vue (Viewpoints)**
+  - Définition de points de vue prédéfinis dans `studio.json`
+  - Transitions fluides entre viewpoints avec animation étape par étape
+  - Ordre d'animation optimisé : alpha → fov → target → minDistance → radius → maxDistance
+  - Interface HTML avec boutons de sélection de viewpoints
+  - Synchronisation temps réel des contrôles de caméra avec Tweakpane
+
+- **Contrôles de Caméra Avancés**
+  - Export des paramètres de caméra actuels vers les viewpoints
+  - Support complet des limites de distance (minDistance/maxDistance)
+  - Synchronisation bidirectionnelle entre Tweakpane et scène 3D
+  - Gestion des angles alpha en mode 0-360° avec bouclage
+  - Conversion automatique degrés/radians pour FOV et alpha
+
+- **Améliorations de l'Interface Tweakpane**
+  - Menu Camera avec sélecteur de viewpoints dynamique
+  - Bouton "Export Camera Params" pour sauvegarder les paramètres actuels
+  - Contrôles de distance renommés (Radius → Distance)
+  - Suppression des contrôles obsolètes (beta, horizontalSensitivity)
+  - Synchronisation temps réel des valeurs de caméra
+
+### 🔧 Modifié
+- **Architecture des Animations**
+  - Refactoring complet du système d'animation des viewpoints
+  - Fonctions d'animation modulaires (`animateScalar`, `animateAlphaCircular`, `animateVector3`)
+  - Gestion des angles circulaires avec normalisation 0-360°
+  - Durées d'animation configurables par étape
+  - Clamping automatique des valeurs de distance
+
+- **Système de Caméra**
+  - Application des limites min/max avant l'animation de distance
+  - Gestion des transitions sans "saut" visuel
+  - Normalisation des angles pour éviter les discontinuités
+  - Support des viewpoints par défaut à l'initialisation
+
+- **Configuration studio.json**
+  - Structure étendue pour supporter les viewpoints
+  - Paramètres de caméra en degrés pour l'interface utilisateur
+  - Support des limites de distance dans les viewpoints
+  - Export automatique des paramètres modifiés
+
+### 🐛 Corrigé
+- **Transitions de Viewpoints**
+  - Résolution des problèmes de lecture des valeurs incorrectes
+  - Correction de l'export des minDistance/maxDistance
+  - Amélioration de la stabilité des transitions
+  - Gestion des cas limites (valeurs undefined/null)
+
+- **Synchronisation Tweakpane**
+  - Correction de la synchronisation FOV (degrés vs radians)
+  - Résolution des problèmes de sliders minDistance/maxDistance non fonctionnels
+  - Amélioration de la réactivité des contrôles
+  - Correction des valeurs alpha "bloquées" à 180°
+
+- **Interface Utilisateur**
+  - Correction de l'état actif des boutons de viewpoints
+  - Amélioration de la cohérence des contrôles
+  - Résolution des problèmes d'affichage des valeurs
+  - Synchronisation correcte entre interface et moteur 3D
+
+### 🗑️ Supprimé
+- **Contrôles Obsolètes**
+  - Suppression des contrôles beta et horizontalSensitivity de Tweakpane
+  - Nettoyage du code de synchronisation obsolète
+  - Suppression des références aux anciens systèmes de caméra
+
 ## [2.6.0] - 2024-12-XX - Système de Gravure Dynamique et Polices Personnalisées
 
 ### 🎉 Ajouté
