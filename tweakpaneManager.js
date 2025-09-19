@@ -7,7 +7,7 @@ class TweakpaneManager {
         this.config = config;
         
         // Paramètre pour contrôler l'état d'ouverture par défaut de Tweakpane
-        this.tweakpaneOpenByDefault = false; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
+        this.tweakpaneOpenByDefault = true; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
         
         this.pane = null;
         this.loadedModels = new Map();
@@ -67,13 +67,11 @@ class TweakpaneManager {
         
         // Variables pour les contrôles de caméra
         this.cameraData = {
-            alpha: 0.0,
-            beta: 1.2,
+            alpha: 0.0, // degrees in UI
             radius: 10.0,
             fov: 0.8,
             minDistance: 1.0,
-            maxDistance: 100.0,
-            horizontalSensitivity: 0.01
+            maxDistance: 100.0
         };
         
         // Variables pour les contrôles de cible
@@ -187,25 +185,18 @@ class TweakpaneManager {
     createCameraFolder() {
         this.cameraFolder = this.pane.addFolder({
             title: 'Camera',
-            expanded: false
+            expanded: true
         });
         
-        // Alpha (Yaw)
+        // Alpha (Yaw) en degrés [-180, 180]
         this.cameraFolder.addInput(this.cameraData, 'alpha', {
-            min: -Math.PI,
-            max: Math.PI,
-            step: 0.01
+            min: -180,
+            max: 180,
+            step: 0.1
         }).on('change', (ev) => {
-            this.updateCameraAlpha(ev.value);
-        });
-        
-        // Beta (Pitch)
-        this.cameraFolder.addInput(this.cameraData, 'beta', {
-            min: 0.1,
-            max: Math.PI - 0.1,
-            step: 0.01
-        }).on('change', (ev) => {
-            this.updateCameraBeta(ev.value);
+            // Convertir degrés → radians pour la caméra
+            const radians = BABYLON.Tools.ToRadians(ev.value);
+            this.updateCameraAlpha(radians);
         });
         
         // Radius (Distance)
@@ -244,14 +235,29 @@ class TweakpaneManager {
             this.updateCameraMaxDistance(ev.value);
         });
         
-        // Horizontal Sensitivity
-        this.cameraFolder.addInput(this.cameraData, 'horizontalSensitivity', {
-            min: 0.001,
-            max: 0.1,
-            step: 0.001
-        }).on('change', (ev) => {
-            this.updateCameraHorizontalSensitivity(ev.value);
-        });
+        // Sync live from scene
+        if (this.scene && this.scene.onBeforeRenderObservable) {
+            this.scene.onBeforeRenderObservable.add(() => {
+                if (!this.scene.activeCamera) return;
+                const cam = this.scene.activeCamera;
+                // Pull values from camera
+                const nextAlpha = BABYLON.Tools.ToDegrees(cam.alpha);
+                const nextRadius = cam.radius;
+                const nextFov = cam.fov;
+                const nextMin = cam.lowerRadiusLimit ?? this.cameraData.minDistance;
+                const nextMax = cam.upperRadiusLimit ?? this.cameraData.maxDistance;
+                let changed = false;
+                if (Math.abs(this.cameraData.alpha - nextAlpha) > 1e-2) { this.cameraData.alpha = nextAlpha; changed = true; }
+                if (Math.abs(this.cameraData.radius - nextRadius) > 1e-3) { this.cameraData.radius = nextRadius; changed = true; }
+                if (Math.abs(this.cameraData.fov - nextFov) > 1e-4) { this.cameraData.fov = nextFov; changed = true; }
+                if (Math.abs(this.cameraData.minDistance - nextMin) > 1e-4) { this.cameraData.minDistance = nextMin; changed = true; }
+                if (Math.abs(this.cameraData.maxDistance - nextMax) > 1e-4) { this.cameraData.maxDistance = nextMax; changed = true; }
+                if (changed && this.pane) {
+                    // Light refresh to reflect camera values
+                    try { this.pane.refresh(); } catch(_) {}
+                }
+            });
+        }
         
         // Target controls (sous-menu de Camera)
         this.createTargetFolder();
@@ -260,7 +266,7 @@ class TweakpaneManager {
     async createMaterialsFolder() {
         this.materialsFolder = this.pane.addFolder({
             title: 'Materials',
-            expanded: true
+            expanded: false
         });
         
         // Material selection
