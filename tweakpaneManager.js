@@ -32,6 +32,12 @@ class TweakpaneManager {
         // Variables pour la création de matériaux
         this.createMaterialFolder = null;
         this.newMaterialData = { name: '' };
+
+        // Variables pour la création de viewpoints
+        this.createViewpointFolder = null;
+        this.newViewpointData = { name: '' };
+        this.cameraViewpointSelectControl = null;
+        this.cameraHeaderFolder = null;
         this.isLoading = false;
         this.materialProperties = {
             baseColor: { r: 1, g: 1, b: 1 },
@@ -219,11 +225,85 @@ class TweakpaneManager {
             expanded: true
         });
         
+        // Create Viewpoint (en haut du menu Camera)
+        this.createViewpointFolder = this.cameraFolder.addFolder({ title: 'Create Viewpoint', expanded: true });
+        this.newViewpointData = this.newViewpointData || { name: '' };
+        this.createViewpointFolder.addInput(this.newViewpointData, 'name', { label: 'Name' });
+        this.createViewpointFolder.addButton({ title: 'Export Viewpoint' }).on('click', async () => {
+            const name = (this.newViewpointData.name || '').trim();
+            if (!name) return;
+            try {
+                const res = await fetch('studio.json');
+                if (!res.ok) throw new Error('Failed to read studio.json');
+                const studio = await res.json();
+                if (!studio.viewpoints) studio.viewpoints = {};
+                const cam = this.scene?.activeCamera;
+                if (!cam) throw new Error('No active camera');
+                const fovDeg = cam.fov > 2 ? cam.fov : BABYLON.Tools.ToDegrees(cam.fov);
+                studio.viewpoints[name] = {
+                    alpha: cam.alpha,
+                    beta: cam.beta,
+                    radius: cam.radius,
+                    fov: Math.round(fovDeg * 100) / 100,
+                    minDistance: cam.lowerRadiusLimit ?? 0,
+                    maxDistance: cam.upperRadiusLimit ?? 1000,
+                    targetX: cam.target?.x ?? 0,
+                    targetY: cam.target?.y ?? 0,
+                    targetZ: cam.target?.z ?? 0
+                };
+                const resp = await fetch('http://localhost:8080/studio.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studio, null, 2)
+                });
+                if (!resp.ok) {
+                    const txt = await resp.text();
+                    console.error('Export studio.json failed:', txt);
+                } else {
+                    // Mettre à jour la liste des viewpoints en mémoire et dans le dropdown
+                    this.viewpoints[name] = studio.viewpoints[name];
+                    // Mettre à jour le sélecteur s'il existe
+                    try {
+                        const vpKeys = Object.keys(this.viewpoints || {});
+                        if (vpKeys.length > 0) {
+                            const vpOptions = vpKeys.reduce((acc, k) => { acc[k] = k; return acc; }, {});
+                            if (!this.cameraViewpointSelectControl) {
+                                this.cameraViewpointSelectControl = this.cameraHeaderFolder.addInput(this, 'selectedViewpoint', {
+                                    options: vpOptions,
+                                    label: 'Viewpoint'
+                                }).on('change', (ev) => {
+                                    this.selectedViewpoint = ev.value;
+                                    if (window.gotoViewpoint) window.gotoViewpoint(this.selectedViewpoint);
+                                });
+                            } else {
+                                // Remplacer les options du contrôle existant sans le déplacer de dossier
+                                this.cameraViewpointSelectControl.dispose();
+                                this.cameraViewpointSelectControl = this.cameraHeaderFolder.addInput(this, 'selectedViewpoint', {
+                                    options: vpOptions,
+                                    label: 'Viewpoint'
+                                }).on('change', (ev) => {
+                                    this.selectedViewpoint = ev.value;
+                                    if (window.gotoViewpoint) window.gotoViewpoint(this.selectedViewpoint);
+                                });
+                            }
+                            this.selectedViewpoint = name;
+                            try { this.pane.refresh(); } catch(_) {}
+                        }
+                    } catch(_) {}
+                }
+            } catch (err) {
+                console.error('Export Viewpoint error:', err);
+            }
+        });
+        
+        // Créer un sous-dossier fixe pour le sélecteur de viewpoints (reste sous "Create Viewpoint")
+        this.cameraHeaderFolder = this.cameraFolder.addFolder({ title: 'Viewpoints', expanded: true });
+
         // Viewpoint selector
         const vpKeys = Object.keys(this.viewpoints || {});
         if (vpKeys.length > 0) {
             const vpOptions = vpKeys.reduce((acc, k) => { acc[k] = k; return acc; }, {});
-            this.cameraFolder.addInput(this, 'selectedViewpoint', {
+            this.cameraViewpointSelectControl = this.cameraHeaderFolder.addInput(this, 'selectedViewpoint', {
                 options: vpOptions,
                 label: 'Viewpoint'
             }).on('change', (ev) => {

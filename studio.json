@@ -46,6 +46,50 @@
       "targetX": 0,
       "targetY": 0,
       "targetZ": 1.5
+    },
+    "Side": {
+      "alpha": 3.141592653589793,
+      "beta": 1.2158707636692831,
+      "radius": 29.99106313490608,
+      "fov": 10,
+      "minDistance": 20.000000000000004,
+      "maxDistance": 29.999999999999996,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
+    },
+    "3-4 gauche": {
+      "alpha": 5.50651379004211,
+      "beta": 1.2158707636692831,
+      "radius": 28.096097963148374,
+      "fov": 15,
+      "minDistance": 15,
+      "maxDistance": 40,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
+    },
+    "back 3-4": {
+      "alpha": 0.5899212871740834,
+      "beta": 1.2158707636692831,
+      "radius": 40,
+      "fov": 15,
+      "minDistance": 15,
+      "maxDistance": 40,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
+    },
+    "face": {
+      "alpha": 4.715879638888678,
+      "beta": 1.2158707636692831,
+      "radius": 40,
+      "fov": 15,
+      "minDistance": 15,
+      "maxDistance": 40,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
     }
   }
 }
