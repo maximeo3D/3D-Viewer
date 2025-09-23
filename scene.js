@@ -517,45 +517,109 @@ const createScene = async function() {
 
     async function animateToViewpoint(vp, totalDurationMs = 1000) {
         if (!vp || !camera) return;
-        const startAlpha = camera.alpha;
-        const startFov = camera.fov;
-        const startTarget = camera.target.clone();
-        const startRadius = camera.radius;
 
-        const targetAlpha = (vp.alpha !== undefined ? vp.alpha : startAlpha);
-        const targetFov = (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : startFov);
-        const targetTarget = new BABYLON.Vector3(
-            vp.targetX !== undefined ? vp.targetX : startTarget.x,
-            vp.targetY !== undefined ? vp.targetY : startTarget.y,
-            vp.targetZ !== undefined ? vp.targetZ : startTarget.z
-        );
-        const targetMin = (vp.minDistance !== undefined ? vp.minDistance : camera.lowerRadiusLimit ?? 0.1);
-        const targetRadius = (vp.radius !== undefined ? vp.radius : startRadius);
-        const targetMax = (vp.maxDistance !== undefined ? vp.maxDistance : camera.upperRadiusLimit ?? 1000);
+        const start = {
+            alpha: camera.alpha,
+            fov: camera.fov,
+            target: camera.target.clone(),
+            radius: camera.radius,
+            min: camera.lowerRadiusLimit ?? 0.1,
+            max: camera.upperRadiusLimit ?? 1000
+        };
 
-        // Durées par étape
-        const dAlpha = Math.round(totalDurationMs * 1);
-        const dFov = Math.round(totalDurationMs * 0.15);
-        const dTarget = Math.round(totalDurationMs * 0.25);
-        const dMin = Math.round(totalDurationMs * 0.05);
-        const dRadius = Math.round(totalDurationMs * 0.2);
-        const dMax = Math.round(totalDurationMs * 0.1);
+        const end = {
+            alpha: (vp.alpha !== undefined ? vp.alpha : start.alpha),
+            fov: (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : start.fov),
+            target: new BABYLON.Vector3(
+                vp.targetX !== undefined ? vp.targetX : start.target.x,
+                vp.targetY !== undefined ? vp.targetY : start.target.y,
+                vp.targetZ !== undefined ? vp.targetZ : start.target.z
+            ),
+            min: (vp.minDistance !== undefined ? vp.minDistance : start.min),
+            max: (vp.maxDistance !== undefined ? vp.maxDistance : start.max),
+            radius: (vp.radius !== undefined ? vp.radius : start.radius)
+        };
 
-        await animateAlphaCircular(startAlpha, targetAlpha, dAlpha);
-        await animateScalar(startFov, targetFov, (v) => { camera.fov = v; }, dFov);
-        await animateVector3(startTarget, targetTarget, (v) => { camera.target = v; }, dTarget);
-        if (vp.minDistance !== undefined) {
-            const fromMin = camera.lowerRadiusLimit ?? 0.1;
-            await animateScalar(fromMin, targetMin, (v) => { camera.lowerRadiusLimit = v; }, dMin);
+        const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        // Helper: démarrer la phase 2 (zoom/target/limites/radius) pour une durée donnée
+        const startZoomPhase = (durationMs, startSnapshot) => new Promise(resolve => {
+            const s2 = startSnapshot || {
+                fov: camera.fov,
+                target: camera.target.clone(),
+                radius: camera.radius,
+                min: camera.lowerRadiusLimit ?? start.min,
+                max: camera.upperRadiusLimit ?? start.max
+            };
+            const t0 = performance.now();
+            const tick = () => {
+                const now = performance.now();
+                const t = Math.min(1, (now - t0) / durationMs);
+                const k = easeInOutCubic(t);
+
+                // FOV
+                camera.fov = s2.fov + (end.fov - s2.fov) * k;
+
+                // Target
+                const tx = s2.target.x + (end.target.x - s2.target.x) * k;
+                const ty = s2.target.y + (end.target.y - s2.target.y) * k;
+                const tz = s2.target.z + (end.target.z - s2.target.z) * k;
+                camera.target = new BABYLON.Vector3(tx, ty, tz);
+
+                // Limites
+                const curMin = s2.min + (end.min - s2.min) * k;
+                const curMax = s2.max + (end.max - s2.max) * k;
+                camera.lowerRadiusLimit = curMin;
+                camera.upperRadiusLimit = curMax;
+
+                // Radius clampé
+                const desiredRadius = s2.radius + (end.radius - s2.radius) * k;
+                camera.radius = Math.max(curMin, Math.min(curMax, desiredRadius));
+
+                if (t < 1) requestAnimationFrame(tick); else resolve();
+            };
+            requestAnimationFrame(tick);
+        });
+
+        // Phase 1: Rotation alpha uniquement, avec overlap démarrant la phase 2 avant la fin
+        const alphaStart = normalizeRadTau(start.alpha);
+        const alphaTarget = shortestAnglePositive(alphaStart, end.alpha);
+        const alphaDuration = Math.max(200, Math.round(totalDurationMs * 0.5));
+        const overlap = Math.min(250, Math.max(80, Math.round(alphaDuration * 0.5))); // chevauchement doux
+        const restDuration = Math.max(200, totalDurationMs - alphaDuration);
+        let phase2Promise = null;
+
+        await new Promise(resolve => {
+            const t0 = performance.now();
+            const tick = () => {
+                const now = performance.now();
+                const elapsed = now - t0;
+                const t = Math.min(1, elapsed / alphaDuration);
+                const k = easeInOutCubic(t);
+                camera.alpha = normalizeRadTau(alphaStart + (alphaTarget - alphaStart) * k);
+
+                // Lancer la phase 2 sur les derniers X ms de la rotation pour lisser la transition
+                if (!phase2Promise && elapsed >= alphaDuration - overlap) {
+                    const startSnapshot = {
+                        fov: camera.fov,
+                        target: camera.target.clone(),
+                        radius: camera.radius,
+                        min: camera.lowerRadiusLimit ?? start.min,
+                        max: camera.upperRadiusLimit ?? start.max
+                    };
+                    phase2Promise = startZoomPhase(restDuration + overlap, startSnapshot);
+                }
+
+                if (t < 1) requestAnimationFrame(tick); else resolve();
+            };
+            requestAnimationFrame(tick);
+        });
+
+        // Si la phase 2 n'a pas démarré pendant l'overlap, la démarrer maintenant
+        if (!phase2Promise) {
+            phase2Promise = startZoomPhase(restDuration, null);
         }
-        const minL = camera.lowerRadiusLimit ?? 0.1;
-        const maxL = camera.upperRadiusLimit ?? 1000;
-        const clampedTargetRadius = clamp(targetRadius, minL, maxL);
-        await animateScalar(startRadius, clampedTargetRadius, (v) => { camera.radius = v; }, dRadius);
-        if (vp.maxDistance !== undefined) {
-            const fromMax = camera.upperRadiusLimit ?? 1000;
-            await animateScalar(fromMax, targetMax, (v) => { camera.upperRadiusLimit = v; }, dMax);
-        }
+        await phase2Promise;
     }
 
     window.gotoViewpoint = (name) => {
