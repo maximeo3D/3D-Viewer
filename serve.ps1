@@ -7,7 +7,10 @@ param(
 
 # Create HTTP listener
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://localhost:$Port/")
+
+# Bind to all hosts on the given port (requires URLACL for http://+:PORT/)
+$listener.Prefixes.Add("http://+:$Port/")
+Write-Host "Listening on http://+:$Port/"
 
 # Set up graceful shutdown handling
 $global:shutdownRequested = $false
@@ -250,6 +253,21 @@ try {
             }
         }
         
+        # Serve index.html at root
+        elseif ($request.HttpMethod -eq 'GET' -and ($path -eq '' -or $path -eq '/')) {
+            $indexPath = Join-Path $PSScriptRoot 'index.html'
+            if (Test-Path $indexPath -PathType Leaf) {
+                $response.StatusCode = 200
+                $response.ContentType = 'text/html'
+                $content = [System.IO.File]::ReadAllBytes($indexPath)
+                $response.ContentLength64 = $content.Length
+                $response.OutputStream.Write($content, 0, $content.Length)
+            } else {
+                $response.StatusCode = 404
+                $response.Close()
+            }
+        }
+
         # Handle GET requests for studio.json
         elseif ($request.HttpMethod -eq 'GET' -and $path -eq 'studio.json') {
             if (Test-Path $full) {
@@ -283,6 +301,10 @@ try {
                 '.png' { $response.ContentType = 'image/png' }
                 '.jpg' { $response.ContentType = 'image/jpeg' }
                 '.jpeg' { $response.ContentType = 'image/jpeg' }
+                '.ttf' { $response.ContentType = 'font/ttf' }
+                '.otf' { $response.ContentType = 'font/otf' }
+                '.woff' { $response.ContentType = 'font/woff' }
+                '.woff2' { $response.ContentType = 'font/woff2' }
                 default { $response.ContentType = 'text/plain' }
             }
             
