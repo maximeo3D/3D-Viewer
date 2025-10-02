@@ -251,7 +251,7 @@ class TweakpaneManager {
                     targetY: cam.target?.y ?? 0,
                     targetZ: cam.target?.z ?? 0
                 };
-                const resp = await fetch('http://localhost:8080/studio.json', {
+                const resp = await fetch('studio.json', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(studio, null, 2)
@@ -414,7 +414,7 @@ class TweakpaneManager {
                     targetY: cam.target?.y ?? 0,
                     targetZ: cam.target?.z ?? 0
                 };
-                const resp = await fetch('http://localhost:8080/studio.json', {
+                const resp = await fetch('studio.json', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(studio, null, 2)
@@ -1291,9 +1291,15 @@ class TweakpaneManager {
                 this.scene.environmentTexture = null;
             }
         } else {
-            // Load HDR texture
-            const hdrTexture = new BABYLON.CubeTexture.CreateFromPrefilteredData(`Textures/HDR/${textureName}`, this.scene);
-            this.scene.environmentTexture = hdrTexture;
+            // Load prefiltered env if available, else HDR
+            let tex = null;
+            try {
+                tex = BABYLON.CubeTexture.CreateFromPrefilteredData(`Textures/HDR/${textureName.replace('.hdr','.env')}`, this.scene);
+            } catch (_) {}
+            if (!tex) {
+                tex = new BABYLON.HDRCubeTexture(`Textures/HDR/${textureName}`, this.scene, 512, false, false, false, true);
+            }
+            this.scene.environmentTexture = tex;
         }
     }
     
@@ -1312,7 +1318,7 @@ class TweakpaneManager {
     // Utility methods
     async getAvailableImages() {
         try {
-            const response = await fetch('http://localhost:8080/api/textures');
+            const response = await fetch('api/textures');
             if (response.ok) {
                 const data = await response.json();
                 const images = {};
@@ -1374,7 +1380,7 @@ class TweakpaneManager {
             
             
             // Envoyer les données au serveur PowerShell
-            const response = await fetch('http://localhost:8080/materials.json', {
+            const response = await fetch('materials.json', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

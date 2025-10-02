@@ -4,8 +4,8 @@
       "type": "pbr",
       "parent": "none",
       "baseColor": "#880000",
-      "metallic": 0,
-      "roughness": 0.4,
+      "metallic": 0.79,
+      "roughness": 0.37,
       "alpha": 1,
       "albedoTexture": "None",
       "metallicTexture": "None",
@@ -13,10 +13,10 @@
       "ambientTexture": "filament_tile_albedo.png",
       "opacityTexture": "None",
       "bumpTexture": "filament_tile_nm.png",
-      "bumpTextureIntensity": 3.1,
+      "bumpTextureIntensity": 0.5,
       "lightmapTexture": "None",
       "useLightmapAsShadowmap": true,
-      "backFaceCulling": false,
+      "backFaceCulling": true,
       "uOffset": 0,
       "vOffset": 0,
       "uScale": 1,
@@ -38,8 +38,7 @@
     "flag_fr": {
       "type": "pbr",
       "parent": "flag_base",
-      "albedoTexture": "flag_fr.jpg",
-      "baseColor": "#ffffff"
+      "albedoTexture": "flag_fr.jpg"
     },
     "flag_us": {
       "type": "pbr",

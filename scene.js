@@ -1,8 +1,20 @@
 // Get the canvas element
 const canvas = document.getElementById("renderCanvas");
 
-// Create the BABYLON engine
-const engine = new BABYLON.Engine(canvas, true);
+// Create the BABYLON engine (tuned for mobile stability)
+const engine = new BABYLON.Engine(canvas, true, {
+    preserveDrawingBuffer: false,
+    powerPreference: "high-performance",
+    xrCompatible: false,
+    disableUniformBuffers: true
+});
+
+// Reduce render resolution on mobile to avoid GPU memory issues
+try {
+    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        engine.setHardwareScalingLevel(1.5);
+    }
+} catch (_) {}
 
 // Load configuration from studio.json
 let config = {
@@ -829,33 +841,53 @@ const createScene = async function() {
     // Set background color from config
     scene.clearColor = BABYLON.Color4.FromHexString(config.environment.backgroundColor);
     
-    // HDR Environment - Try HDRCubeTexture directly as suggested in forum
+    // HDR/Environment setup with robust mobile fallbacks
     try {
-        const hdrTexture = new BABYLON.HDRCubeTexture("Textures/HDR/default.hdr", scene, 512, false, false, false, true);
-        scene.environmentTexture = hdrTexture;
+        let envSet = false;
+        try {
+            // Prefer prefiltered .env if available
+            const env = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.env", scene);
+            if (env) {
+                scene.environmentTexture = env;
+                envSet = true;
+            }
+        } catch (_) {}
+
+        if (!envSet) {
+            // Try HDR as fallback
+            const hdrTexture = new BABYLON.HDRCubeTexture("Textures/HDR/default.hdr", scene, 256, false, false, false, true);
+            scene.environmentTexture = hdrTexture;
+        }
+
         scene.environmentIntensity = config.environment.hdrExposure;
-        
-        // Apply orientation from config
-        hdrTexture.setReflectionTextureMatrix(
-            BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
-        );
-        
+
+        // Apply orientation from config when possible
+        const tex = scene.environmentTexture;
+        if (tex) {
+            if (typeof tex.rotationY === 'number') {
+                tex.rotationY = config.environment.orientation;
+            } else if (tex.setReflectionTextureMatrix) {
+                tex.setReflectionTextureMatrix(
+                    BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
+                );
+            }
+        }
     } catch (error) {
-        console.error("HDR loading failed:", error);
-        
-        // Fallback: try the original method
+        console.error("HDR/env loading failed:", error);
         try {
             const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.hdr", scene);
             scene.environmentTexture = hdrTexture;
             scene.environmentIntensity = config.environment.hdrExposure;
-            
-            // Apply orientation from config
-            hdrTexture.setReflectionTextureMatrix(
-                BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
-            );
-            
+            if (hdrTexture.setReflectionTextureMatrix) {
+                hdrTexture.setReflectionTextureMatrix(
+                    BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
+                );
+            }
         } catch (fallbackError) {
             console.error("Fallback HDR loading also failed:", fallbackError);
+            // Last resort: simple lighting so scene is visible on mobile
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 1.0;
         }
     }
     

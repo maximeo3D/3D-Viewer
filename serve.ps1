@@ -9,8 +9,29 @@ param(
 $listener = New-Object System.Net.HttpListener
 
 # Bind to all hosts on the given port (requires URLACL for http://+:PORT/)
+# Set up URLACL to allow network access (run as Administrator)
+try {
+    $aclCmd = "netsh http add urlacl url=http://+:$Port/ user=Everyone"
+    Invoke-Expression $aclCmd 2>$null
+} catch {
+    Write-Host "Warning: Could not set URLACL permissions. Run as Administrator for network access." -ForegroundColor Yellow
+}
+
 $listener.Prefixes.Add("http://+:$Port/")
+
+# Get local IP addresses for display
+$ipAddresses = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
+    Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' } | 
+    ForEach-Object { $_.GetIPProperties().UnicastAddresses } | 
+    Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' } | 
+    ForEach-Object { $_.Address }
+
 Write-Host "Listening on http://+:$Port/"
+Write-Host "Local access: http://localhost:$Port"
+foreach ($ip in $ipAddresses) {
+    Write-Host "Network access: http://$($ip):$Port"
+}
+Write-Host ""
 
 # Set up graceful shutdown handling
 $global:shutdownRequested = $false
@@ -18,10 +39,18 @@ $null = Register-EngineEvent PowerShell.Exiting -Action { $global:shutdownReques
 
 try {
     $listener.Start()
-    Write-Host "3D Viewer Server started on http://localhost:$Port"
+    Write-Host "3D Viewer Server started successfully!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "If mobile devices cannot connect, check:" -ForegroundColor Yellow
+    Write-Host "1. Windows Firewall - Allow port $Port for Python/PowerShell" -ForegroundColor Yellow
+    Write-Host "2. Run PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
+    Write-Host "3. Ensure mobile device is on the same network" -ForegroundColor Yellow
+    Write-Host ""
     Write-Host "Press Ctrl+C to stop the server"
 } catch {
-    Write-Host "Error starting server: $($_.Exception.Message)"
+    Write-Host "Error starting server: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Try running PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
     exit 1
 }
 
