@@ -2,56 +2,177 @@
 # This server handles POST requests to directly overwrite studio.json
 
 param(
-    [int]$Port = 8080
+    [int]$Port = 8080,
+    [switch]$AutoFindPort = $false
 )
 
-# Create HTTP listener
-$listener = New-Object System.Net.HttpListener
-
-# Bind to all hosts on the given port (requires URLACL for http://+:PORT/)
-# Set up URLACL to allow network access (run as Administrator)
-try {
-    $aclCmd = "netsh http add urlacl url=http://+:$Port/ user=Everyone"
-    Invoke-Expression $aclCmd 2>$null
-} catch {
-    Write-Host "Warning: Could not set URLACL permissions. Run as Administrator for network access." -ForegroundColor Yellow
+# Resolve a locale-safe account name for URLACL (works on FR/EN Windows)
+function Get-UrlAclUser {
+    param()
+    try {
+        $sid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0") # Everyone
+        return $sid.Translate([System.Security.Principal.NTAccount]).Value
+    } catch {
+        return "BUILTIN\Users"
+    }
 }
 
-$listener.Prefixes.Add("http://+:$Port/")
-
-# Get local IP addresses for display
-$ipAddresses = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
-    Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' } | 
-    ForEach-Object { $_.GetIPProperties().UnicastAddresses } | 
-    Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' } | 
-    ForEach-Object { $_.Address }
-
-Write-Host "Listening on http://+:$Port/"
-Write-Host "Local access: http://localhost:$Port"
-foreach ($ip in $ipAddresses) {
-    Write-Host "Network access: http://$($ip):$Port"
+# Function to check if a port is available
+function Test-PortAvailable {
+    param([int]$PortToTest)
+    try {
+        $connection = Get-NetTCPConnection -LocalPort $PortToTest -ErrorAction SilentlyContinue
+        return -not $connection
+    } catch {
+        # If we can't check, assume it's available and let the listener try
+        return $true
+    }
 }
-Write-Host ""
+
+# Function to find an available port starting from the requested port
+function Find-AvailablePort {
+    param([int]$StartPort)
+    $currentPort = $StartPort
+    $maxAttempts = 100
+    $attempts = 0
+    
+    while ($attempts -lt $maxAttempts) {
+        if (Test-PortAvailable -PortToTest $currentPort) {
+            return $currentPort
+        }
+        $currentPort++
+        $attempts++
+    }
+    
+    return $null
+}
+
+# If AutoFindPort is enabled, we will increment ports on conflict.
+# Otherwise, validate the requested port is free.
+if ($AutoFindPort) {
+    Write-Host "AutoFindPort enabled. Will start at $Port and increment if busy." -ForegroundColor Yellow
+} elseif (-not (Test-PortAvailable -PortToTest $Port)) {
+    Write-Host "Error: Port $Port is not available. Run with -AutoFindPort or choose another port." -ForegroundColor Red
+    exit 1
+}
 
 # Set up graceful shutdown handling
 $global:shutdownRequested = $false
 $null = Register-EngineEvent PowerShell.Exiting -Action { $global:shutdownRequested = $true }
 
-try {
-    $listener.Start()
-    Write-Host "3D Viewer Server started successfully!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "If mobile devices cannot connect, check:" -ForegroundColor Yellow
-    Write-Host "1. Windows Firewall - Allow port $Port for Python/PowerShell" -ForegroundColor Yellow
-    Write-Host "2. Run PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
-    Write-Host "3. Ensure mobile device is on the same network" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "Press Ctrl+C to stop the server"
-} catch {
-    Write-Host "Error starting server: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Try running PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
-    exit 1
+# Try to start the listener, with automatic port retry if needed
+$maxRetries = 5
+$retryCount = 0
+$started = $false
+$listener = $null
+
+while (-not $started -and $retryCount -lt $maxRetries) {
+    try {
+        # Clean up previous listener if retrying
+        if ($listener -ne $null) {
+            try {
+                if ($listener.IsListening) {
+                    $listener.Stop()
+                }
+            } catch {
+                # Ignore cleanup errors
+            }
+            $listener = $null
+        }
+        
+        # Create HTTP listener
+        $listener = New-Object System.Net.HttpListener
+        
+        # Clean old URLACLs then bind to localhost and all hosts on the given port
+        try {
+            $urlAclUser = Get-UrlAclUser
+            $null = netsh http delete urlacl url="http://localhost:$Port/" 2>$null
+            $null = netsh http delete urlacl url="http://+:$Port/" 2>$null
+            $aclCmd = "netsh http add urlacl url=http://localhost:$Port/ user=""$urlAclUser"""
+            Invoke-Expression $aclCmd 2>$null
+            $aclCmd2 = "netsh http add urlacl url=http://+:$Port/ user=""$urlAclUser"""
+            Invoke-Expression $aclCmd2 2>$null
+        } catch {
+            # Ignore URLACL errors - may already exist or already granted
+        }
+        
+        $listener.Prefixes.Add("http://localhost:$Port/")
+        $listener.Prefixes.Add("http://+:$Port/")
+        $listener.Start()
+        $started = $true
+        
+        # Get local IP addresses for display
+        $ipAddresses = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
+            Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' } | 
+            ForEach-Object { $_.GetIPProperties().UnicastAddresses } | 
+            Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' } | 
+            ForEach-Object { $_.Address }
+        
+        Write-Host "3D Viewer Server started successfully!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Listening on http://+:$Port/"
+        Write-Host "Local access: http://localhost:$Port"
+        foreach ($ip in $ipAddresses) {
+            Write-Host "Network access: http://$($ip):$Port"
+        }
+        Write-Host ""
+        Write-Host "If mobile devices cannot connect, check:" -ForegroundColor Yellow
+        Write-Host "1. Windows Firewall - Allow port $Port for Python/PowerShell" -ForegroundColor Yellow
+        Write-Host "2. Run PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
+        Write-Host "3. Ensure mobile device is on the same network" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Press Ctrl+C to stop the server"
+    } catch {
+        $ex = $_.Exception
+        $errorMsg = $ex.Message
+        if ($ex.InnerException) {
+            $errorMsg += " " + $ex.InnerException.Message
+        }
+        
+        # Check for common "port in use" error messages (English and French)
+        $portInUse = $AutoFindPort
+        if (-not $portInUse) {
+            if ($errorMsg -like "*fichier est utilisé*" -or 
+                $errorMsg -like "*already in use*" -or 
+                $errorMsg -like "*Access is denied*" -or 
+                $errorMsg -like "*Prefixes*" -or
+                $errorMsg -like "*conflit*" -or
+                $errorMsg -like "*conflict*") {
+                $portInUse = $true
+            }
+        }
+
+        if ($portInUse -and $retryCount -lt ($maxRetries - 1)) {
+            # Port is in use, try next port (increment)
+            $retryCount++
+            $oldPort = $Port
+            $Port++
+            Write-Host "Port $oldPort seems to be in use (Error: $errorMsg). Retrying with port $Port..." -ForegroundColor Yellow
+            # Update URLACL for new port
+            try {
+                $urlAclUser = Get-UrlAclUser
+                $aclCmd = "netsh http add urlacl url=http://localhost:$Port/ user=""$urlAclUser"""
+                Invoke-Expression $aclCmd 2>$null
+            } catch {
+                # Ignore URLACL errors
+            }
+        } else {
+            Write-Host "Error starting server: $errorMsg" -ForegroundColor Red
+            Write-Host ""
+            
+            if ($portInUse) {
+                Write-Host "Port $Port is already in use. Try one of the following:" -ForegroundColor Yellow
+                Write-Host "1. Stop the existing server process" -ForegroundColor Yellow
+                Write-Host "2. Use a different port: powershell -File serve.ps1 -Port 8081" -ForegroundColor Yellow
+                Write-Host ""
+                Write-Host "To find and stop the process using port $Port, run:" -ForegroundColor Yellow
+                Write-Host "  `$conn = Get-NetTCPConnection -LocalPort $Port; Stop-Process -Id `$conn.OwningProcess" -ForegroundColor Cyan
+            } else {
+                Write-Host "Try running PowerShell as Administrator for URLACL permissions" -ForegroundColor Yellow
+            }
+            exit 1
+        }
+    }
 }
 
 try {

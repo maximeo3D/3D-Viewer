@@ -1,8 +1,8 @@
 @echo off
 echo Starting 3D Viewer Server...
 echo.
-echo This will start a local server on http://localhost:8080
-echo Open your browser and navigate to: http://localhost:8080
+echo This will start a local server (auto-picks a free port starting at 9000)
+echo Once started, check the terminal output for the exact port (e.g., http://localhost:9000)
 echo.
 echo Press Ctrl+C to stop the server when you're done.
 echo.
@@ -18,5 +18,5 @@ if not exist "%SERVER_PS1%" (
   exit /b 1
 )
 
-powershell -ExecutionPolicy Bypass -File "%SERVER_PS1%"
+powershell -ExecutionPolicy Bypass -File "%SERVER_PS1%" -Port 9000 -AutoFindPort
 pause

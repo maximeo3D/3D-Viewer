@@ -11,9 +11,9 @@ if '%errorlevel%' NEQ '0' (
 )
 
 echo Configuration de la règle de pare-feu...
-netsh advfirewall firewall add rule name="3D Viewer Server - HTTP" dir=in action=allow protocol=TCP localport=8080 enable=yes
+netsh advfirewall firewall add rule name="3D Viewer Server - HTTP" dir=in action=allow protocol=TCP localport=9001 enable=yes
 if %errorlevel% EQU 0 (
-    echo ✓ Règle ajoutée avec succès pour le port 8080
+    echo ✓ Règle ajoutée avec succès pour le port 9001
 ) else (
     echo ✗ Erreur lors de l'ajout de la règle
 )
