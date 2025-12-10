@@ -126,17 +126,44 @@ async function loadMaterialsConfig() {
     }
 }
 
+// Chargement d'un modèle obfusqué (.bin → .glb en mémoire)
+async function loadObfuscatedModel(modelConfig) {
+    const binFile = modelConfig.binFile || "model.bin";
+    const xorKey = modelConfig.xorKey !== undefined ? modelConfig.xorKey : 0x42;
+    const response = await fetch(`Assets/${binFile}`);
+    if (!response.ok) throw new Error(`Cannot fetch ${binFile} (${response.status})`);
+
+    const buffer = await response.arrayBuffer();
+    const encrypted = new Uint8Array(buffer);
+    const decrypted = new Uint8Array(encrypted.length);
+    for (let i = 0; i < encrypted.length; i++) {
+        decrypted[i] = encrypted[i] ^ xorKey;
+    }
+
+    const blob = new Blob([decrypted], { type: "model/gltf-binary" });
+    const fileName = (modelConfig.file && modelConfig.file.endsWith(".glb")) ? modelConfig.file : "model.glb";
+    const file = new File([blob], fileName);
+
+    // Import depuis un fichier virtuel (file:)
+    return BABYLON.SceneLoader.ImportMeshAsync("", "file:", file, scene);
+}
+
 // Function to load 3D models
 async function loadModels() {
     if (!assetConfig || !assetConfig.models) return;
     
     // Charger le modèle depuis la configuration asset.js
-    const modelFile = assetConfig.models.part_model.file;
+    const modelConfig = assetConfig.models.part_model;
+    if (!modelConfig) return;
+    const modelFile = modelConfig.file;
     
     try {
-        
-        // Load the GLB file from asset configuration
-        const result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
+        let result;
+        if (modelConfig.obfuscated) {
+            result = await loadObfuscatedModel(modelConfig);
+        } else {
+            result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
+        }
         
         if (result.meshes.length > 0) {
             // Trouver le mesh __root__ qui doit être le parent principal

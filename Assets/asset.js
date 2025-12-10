@@ -9,6 +9,10 @@ const assetConfiguration = {
     "part_model": {
       name: "Modèle Part",
       file: "part.glb",
+      // Chargement obfusqué : placer part.bin dans Assets/ et conserver part.glb non exposé
+      obfuscated: true,
+      binFile: "part.bin",
+      xorKey: 0x42,
       meshes: {
         "bloc": {
           materialSlots: ["slot1"],
