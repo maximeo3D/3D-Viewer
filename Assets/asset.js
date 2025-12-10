@@ -1,18 +1,10 @@
-// Configuration des modèles 3D - Données techniques avec système de tags
-// Ce fichier définit les modèles à charger et leurs paramètres techniques
-// Les configurations de tags sont générées automatiquement depuis ce fichier
-
-
-//Declaration des modèles
 const assetConfiguration = {
   models: {
     "part_model": {
       name: "Modèle Part",
       file: "part.glb",
-      // Chargement obfusqué : placer part.bin dans Assets/ et conserver part.glb non exposé
-      obfuscated: true,
-      binFile: "part.bin",
-      xorKey: 0x42,
+      format: "bin",
+      dataOffset: 66,
       meshes: {
         "bloc": {
           materialSlots: ["slot1"],
@@ -29,7 +21,6 @@ const assetConfiguration = {
       }
     }
   },
-  // Configuration des matériaux par objet (définie manuellement)
   materialConfigs: {
     "bloc": {
       "red": {
@@ -44,7 +35,7 @@ const assetConfiguration = {
     },
     "flag": {
       "none": {
-        "slot1": "red" // Matériau par défaut, mais sera caché
+        "slot1": "red"
       },
       "france": {
         "slot1": "flag_fr"
@@ -69,12 +60,8 @@ const assetConfiguration = {
     }
   }
 };
-
-// Exporter la configuration pour utilisation dans scene.js
 if (typeof module !== 'undefined' && module.exports) {
-  // Node.js
   module.exports = assetConfiguration;
 } else {
-  // Browser - rendre disponible globalement
   window.assetConfig = assetConfiguration;
 }

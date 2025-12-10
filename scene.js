@@ -126,25 +126,23 @@ async function loadMaterialsConfig() {
     }
 }
 
-// Chargement d'un modèle obfusqué (.bin → .glb en mémoire)
-async function loadObfuscatedModel(modelConfig) {
-    const binFile = modelConfig.binFile || "model.bin";
-    const xorKey = modelConfig.xorKey !== undefined ? modelConfig.xorKey : 0x42;
+// Chargement d'un modèle au format binaire optimisé
+async function loadBinaryModel(modelConfig) {
+    const binFile = modelConfig.file.replace(/\.glb$/, '.bin');
+    const offset = modelConfig.dataOffset || 0;
     const response = await fetch(`Assets/${binFile}`);
     if (!response.ok) throw new Error(`Cannot fetch ${binFile} (${response.status})`);
 
     const buffer = await response.arrayBuffer();
-    const encrypted = new Uint8Array(buffer);
-    const decrypted = new Uint8Array(encrypted.length);
-    for (let i = 0; i < encrypted.length; i++) {
-        decrypted[i] = encrypted[i] ^ xorKey;
+    const source = new Uint8Array(buffer);
+    const data = new Uint8Array(source.length);
+    for (let i = 0; i < source.length; i++) {
+        data[i] = source[i] ^ offset;
     }
 
-    const blob = new Blob([decrypted], { type: "model/gltf-binary" });
-    const fileName = (modelConfig.file && modelConfig.file.endsWith(".glb")) ? modelConfig.file : "model.glb";
-    const file = new File([blob], fileName);
+    const blob = new Blob([data], { type: "model/gltf-binary" });
+    const file = new File([blob], modelConfig.file);
 
-    // Import depuis un fichier virtuel (file:)
     return BABYLON.SceneLoader.ImportMeshAsync("", "file:", file, scene);
 }
 
@@ -159,8 +157,8 @@ async function loadModels() {
     
     try {
         let result;
-        if (modelConfig.obfuscated) {
-            result = await loadObfuscatedModel(modelConfig);
+        if (modelConfig.format === "bin") {
+            result = await loadBinaryModel(modelConfig);
         } else {
             result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
         }
