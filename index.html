@@ -34,6 +34,15 @@
     <script>
         // Contrôle de visibilité de la sidebar
         const showSidebar = true; // Changez true/false pour afficher/cacher la sidebar
+        const showTweakpane = true; // Changez true/false pour afficher/cacher Tweakpane
+        // Exposer pour scene.js
+        window.showTweakpane = showTweakpane;
+        document.addEventListener('DOMContentLoaded', () => {
+            // Propager la préférence de visibilité vers le CSS
+            document.documentElement.style.setProperty('--sidebar-display', showSidebar ? 'flex' : 'none');
+            // Forcer un resize Babylon pour recalculer le ratio si la largeur change
+            window.dispatchEvent(new Event('resize'));
+        });
         
         // Configuration par défaut
         const defaultConfig = {

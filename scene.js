@@ -52,7 +52,9 @@ let assetConfig = null; // Asset configuration
 let materialsConfig = null; // Materials configuration
 
 // Contrôle de visibilité de Tweakpane - Changez true/false ici
-let tweakpaneVisible = true;
+let tweakpaneVisible = (typeof window !== 'undefined' && typeof window.showTweakpane === 'boolean')
+    ? window.showTweakpane
+    : true;
 
 
 
@@ -1390,6 +1392,9 @@ class TagManager {
 createScene().then(async createdScene => {
     // Initialiser l'interface Tweakpane complète avec la classe TweakpaneManager
     const tweakpaneManager = new TweakpaneManager(scene, materialsConfig, config);
+    // Aligner l'état d'ouverture/visibilité initiale sur la préférence globale
+    tweakpaneManager.tweakpaneOpenByDefault = tweakpaneVisible;
+    tweakpaneManager.initialVisibility = tweakpaneVisible;
     
     // Initialiser le système de tags
     const tagManager = new TagManager(scene, materialsConfig);

@@ -8,6 +8,8 @@ class TweakpaneManager {
         
         // Paramètre pour contrôler l'état d'ouverture par défaut de Tweakpane
         this.tweakpaneOpenByDefault = true; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
+        // Paramètre pour contrôler la visibilité initiale (évite le clignotement)
+        this.initialVisibility = true;
         
         this.pane = null;
         this.loadedModels = new Map();
@@ -172,6 +174,10 @@ class TweakpaneManager {
         this.pane.element.style.right = '10px';
         this.pane.element.style.zIndex = '1000';
         this.pane.element.style.width = '300px';
+        if (!this.initialVisibility) {
+            // Masquer immédiatement pour éviter tout flash
+            this.pane.element.style.display = 'none';
+        }
     }
     
     createEnvironmentFolder() {

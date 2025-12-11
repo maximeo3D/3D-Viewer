@@ -3,7 +3,7 @@
     "red": {
       "type": "pbr",
       "parent": "none",
-      "baseColor": "#880000",
+      "baseColor": "#424242",
       "metallic": 0,
       "roughness": 0.42000000000000004,
       "alpha": 1,
