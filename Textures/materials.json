@@ -67,13 +67,14 @@
       "bumpTexture": "None",
       "bumpTextureIntensity": 1,
       "lightmapTexture": "None",
-      "backFaceCulling": true,
+      "backFaceCulling": false,
       "uOffset": 0,
       "vOffset": 0,
       "uScale": 1,
       "vScale": 1,
       "wRotation": 0,
-      "useLightmapAsShadowmap": true
+      "useLightmapAsShadowmap": true,
+      "lightmapUVSet": 0
     },
     "engraving_red": {
       "type": "pbr",

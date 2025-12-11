@@ -703,11 +703,24 @@ const createScene = async function() {
     // Désactiver complètement tous les contrôles par défaut
     camera.detachControl(canvas);
     
-    // Ajouter seulement le contrôle de zoom (si pas déjà présent)
-    const existingWheelInput = camera.inputs.attached.mousewheel;
-    if (!existingWheelInput) {
-        camera.inputs.add(new BABYLON.ArcRotateCameraMouseWheelInput());
-    }
+    // Supprimer tous les inputs existants
+    camera.inputs.clear();
+    
+    // Ajouter seulement le contrôle de zoom par molette
+    camera.inputs.add(new BABYLON.ArcRotateCameraMouseWheelInput());
+    
+    // Ajouter le contrôle tactile pour le pinch-to-zoom UNIQUEMENT
+    const pointersInput = new BABYLON.ArcRotateCameraPointersInput();
+    // Désactiver tous les boutons pour empêcher rotation/pan via pointersInput
+    pointersInput.buttons = [];
+    pointersInput.pinchPrecision = 100; // Sensibilité du pinch (plus bas = plus sensible)
+    pointersInput.multiTouchPanning = false;
+    pointersInput.multiTouchPanAndZoom = false;
+    pointersInput.panningSensibility = 0;
+    camera.inputs.add(pointersInput);
+    
+    // Réattacher UNIQUEMENT pour le pinch, pas pour la rotation
+    camera.attachControl(canvas, true);
     
     // Configuration de la sensibilité horizontale de la caméra
     camera.angularSensibilityX = 1; // Plus élevé = moins sensible
@@ -725,7 +738,7 @@ const createScene = async function() {
     let currentRadius = camera.radius;
     const zoomSmoothness = 0.15; // Plus élevé = plus fluide (0.1 = très fluide, 0.9 = instant)
     
-    // Listener de zoom fluide
+    // Listener de zoom fluide (molette de souris)
     canvas.addEventListener('wheel', (event) => {
         event.preventDefault();
         
@@ -736,8 +749,68 @@ const createScene = async function() {
         targetRadius = newTargetRadius;
     });
     
-    // Interpolation fluide du zoom dans la boucle de rendu
+    // Implémentation manuelle du pinch-to-zoom pour mobile
+    let touchStartDistance = 0;
+    let touchStartRadius = 0;
+    let isPinching = false;
+    const savedBeta = config.camera.beta; // Sauvegarder la valeur de beta
+    let savedAlpha = camera.alpha; // Sauvegarder la valeur de alpha
+    
+    canvas.addEventListener('touchstart', (event) => {
+        if (event.touches.length === 2) {
+            isPinching = true;
+            // Sauvegarder les valeurs actuelles de la caméra
+            savedAlpha = camera.alpha;
+            // Calculer la distance initiale entre les deux doigts
+            const touch1 = event.touches[0];
+            const touch2 = event.touches[1];
+            const dx = touch2.clientX - touch1.clientX;
+            const dy = touch2.clientY - touch1.clientY;
+            touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+            touchStartRadius = targetRadius;
+        }
+    }, { passive: true });
+    
+    canvas.addEventListener('touchmove', (event) => {
+        if (event.touches.length === 2) {
+            event.preventDefault();
+            isPinching = true;
+            
+            // Calculer la distance actuelle entre les deux doigts
+            const touch1 = event.touches[0];
+            const touch2 = event.touches[1];
+            const dx = touch2.clientX - touch1.clientX;
+            const dy = touch2.clientY - touch1.clientY;
+            const currentDistance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Calculer le facteur de zoom basé sur la variation de distance
+            const distanceRatio = touchStartDistance / currentDistance;
+            const newTargetRadius = touchStartRadius * distanceRatio;
+            
+            // Appliquer les limites
+            targetRadius = Math.max(camera.lowerRadiusLimit, Math.min(camera.upperRadiusLimit, newTargetRadius));
+            
+            // Forcer alpha et beta à rester constants pendant le pinch
+            camera.alpha = savedAlpha;
+            camera.beta = savedBeta;
+        }
+    }, { passive: false });
+    
+    canvas.addEventListener('touchend', (event) => {
+        if (event.touches.length < 2) {
+            touchStartDistance = 0;
+            isPinching = false;
+        }
+    }, { passive: true });
+    
+    // Interpolation fluide du zoom
     scene.onBeforeRenderObservable.add(() => {
+        // Forcer alpha et beta à rester constants pendant le pinch
+        if (isPinching) {
+            camera.alpha = savedAlpha;
+            camera.beta = savedBeta;
+        }
+        
         // Zoom interpolation
         if (Math.abs(currentRadius - targetRadius) > 0.01) {
             const delta = targetRadius - currentRadius;
@@ -771,6 +844,11 @@ const createScene = async function() {
     // Contrôles pour la rotation des objets seulement
     scene.onPointerObservable.add((evt) => {
         if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+            // Ignorer si c'est un pinch (2+ doigts) ou si on est en train de pincher
+            if ((evt.event.touches && evt.event.touches.length > 1) || isPinching) {
+                return;
+            }
+            
             isMouseDown = true;
             lastMouseX = evt.event.clientX;
             lastMouseY = evt.event.clientY;
@@ -787,6 +865,11 @@ const createScene = async function() {
         }
         
         if (evt.type === BABYLON.PointerEventTypes.POINTERMOVE && isMouseDown) {
+            // Ignorer si c'est un pinch (2+ doigts) ou si on est en train de pincher
+            if ((evt.event.touches && evt.event.touches.length > 1) || isPinching) {
+                return;
+            }
+            
             const deltaX = evt.event.clientX - lastMouseX;
             const deltaY = evt.event.clientY - lastMouseY;
             

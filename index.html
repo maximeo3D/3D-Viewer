@@ -4,30 +4,30 @@
     <meta charset="utf-8">
     <title>3D Viewer</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/loaders/babylonjs.loaders.min.js"></script>
     <script>
         // Configure decoders for better mobile GLB compatibility
         if (window.BABYLON && BABYLON.DracoCompression) {
             // Use CDN Draco
             BABYLON.DracoCompression.Configuration = {
                 decoder: {
-                    wasmUrl: 'https://cdn.babylonjs.com/draco_wasm_wrapper_gltf.js',
-                    wasmBinaryUrl: 'https://cdn.babylonjs.com/draco_decoder_gltf.wasm',
-                    fallbackUrl: 'https://cdn.babylonjs.com/draco_decoder_gltf.js'
+                    wasmUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_wasm_wrapper_gltf.js',
+                    wasmBinaryUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_decoder_gltf.wasm',
+                    fallbackUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_decoder_gltf.js'
                 }
             };
         }
         if (window.BABYLON && BABYLON.MeshoptCompression) {
             BABYLON.MeshoptCompression.Configuration = {
                 decoder: {
-                    url: 'https://cdn.babylonjs.com/meshopt_decoder.js'
+                    url: 'https://cdn.babylonjs.com/v7.54.2/meshopt_decoder.js'
                 }
             };
         }
     </script>
-    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
-    <script src="https://cdn.babylonjs.com/hdr/babylonjs.hdr.min.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/hdr/babylonjs.hdr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js"></script>
     <script src="tweakpaneManager.js"></script>
     <script src="engravingManager.js"></script>
