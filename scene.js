@@ -9,52 +9,12 @@ const engine = new BABYLON.Engine(canvas, true, {
     disableUniformBuffers: true
 });
 
-// Expose engine globally for message handling
-window.engine = engine;
-
 // Reduce render resolution on mobile to avoid GPU memory issues
 try {
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         engine.setHardwareScalingLevel(1.5);
     }
 } catch (_) {}
-
-// Écouter les messages de résolution depuis la page parente
-window.addEventListener('message', function(event) {
-    // Vérifier le type de message
-    if (event.data && event.data.type === 'SET_RESOLUTION') {
-        const { width, height, dpr } = event.data;
-        
-        console.log('Resolution message received:', width, height, dpr);
-        
-        // Si tu as accès à ton engine Babylon
-        if (window.engine && window.engine.setHardwareScalingLevel) {
-            // Forcer le hardware scaling à 1/dpr pour avoir la résolution native
-            window.engine.setHardwareScalingLevel(1 / dpr);
-            console.log('Hardware scaling set to:', 1 / dpr);
-        }
-        
-        // Si tu as accès au canvas
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-            // Définir les dimensions du canvas en pixels réels
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            
-            // Garder les dimensions CSS normales
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-            
-            console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
-            
-            // Forcer un resize de l'engine
-            if (window.engine && window.engine.resize) {
-                window.engine.resize();
-                console.log('Engine resized');
-            }
-        }
-    }
-});
 
 // Load configuration from studio.json
 let config = {
