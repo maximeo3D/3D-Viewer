@@ -1,17 +1,30 @@
 // Get the canvas element
 const canvas = document.getElementById("renderCanvas");
 
+// Detect iframe embedding (cross-origin safe)
+const isInIframe = (() => {
+    try {
+        return window.self !== window.top;
+    } catch (_) {
+        // Cross-origin access to window.top throws => assume iframe
+        return true;
+    }
+})();
+
 // Create the BABYLON engine (tuned for mobile stability)
 const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: false,
     powerPreference: "high-performance",
     xrCompatible: false,
-    disableUniformBuffers: true
+    disableUniformBuffers: true,
+    // Fix blurry rendering when embedded in an iframe on high-DPR devices (iOS/mobile)
+    adaptToDeviceRatio: isInIframe
 });
 
 // Reduce render resolution on mobile to avoid GPU memory issues
 try {
-    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    // Keep the existing perf optimization ONLY when not in iframe (iframe needs crisp DPR)
+    if (!isInIframe && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         engine.setHardwareScalingLevel(1.5);
     }
 } catch (_) {}
@@ -1499,6 +1512,22 @@ engine.runRenderLoop(function() {
 });
 
 // Handle browser/canvas resize events
-window.addEventListener("resize", function() {
-    engine.resize();
+function requestViewerResize() {
+    try {
+        engine.resize();
+    } catch (_) {}
+}
+
+window.addEventListener("resize", requestViewerResize);
+window.addEventListener("orientationchange", requestViewerResize);
+
+// In iframe/overlay the canvas can be hidden or sized late; resize after it becomes visible.
+document.addEventListener("visibilitychange", function() {
+    if (!document.hidden) {
+        setTimeout(requestViewerResize, 100);
+    }
 });
+
+// Initial delayed resizes help when iframe dimensions settle after load.
+setTimeout(requestViewerResize, 100);
+setTimeout(requestViewerResize, 500);
