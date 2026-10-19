@@ -1,0 +1,14 @@
+{
+  "images": [
+    "RGB.png",
+    "alpha.png",
+    "color_grid.png",
+    "filament_albedo.png",
+    "filament_nm.png",
+    "filament_tile_albedo.png",
+    "filament_tile_nm.png",
+    "flag_fr.jpg",
+    "flag_ger.png",
+    "flag_us.png"
+  ]
+}

@@ -1,0 +1,51 @@
+﻿{
+  "environment": {
+    "backgroundColor": "#ebebeb",
+    "hdrExposure": 1.8,
+    "orientation": 60
+  },
+  "camera": {
+    "alpha": -2.418839804386564,
+    "beta": 1.2158707636692831,
+    "radius": 22.807543416243938,
+    "fov": 82,
+    "minDistance": 1,
+    "maxDistance": 100,
+    "zoomSpeed": 2,
+    "zoomSensitivity": 0.7000000000000001,
+    "inertia": 0.85,
+    "zoomSmoothness": 0.1,
+    "targetX": 0,
+    "targetY": 0,
+    "targetZ": 0,
+    "showTarget": false,
+    "pitchElasticity": false,
+    "lowerBetaLimit": 1.2158707636692831,
+    "upperBetaLimit": 1.2158707636692831,
+    "initialPitch": 69.66426319159828
+  },
+  "viewpoints": {
+    "Viewpoint1": {
+      "alpha": 3.830997708127553,
+      "beta": 1.2158707636692831,
+      "radius": 39.99055512075026,
+      "fov": 15,
+      "minDistance": 15,
+      "maxDistance": 40,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 0
+    },
+    "Viewpoint2": {
+      "alpha": 2.443460952792061,
+      "beta": 1.2158707636692831,
+      "radius": 7,
+      "fov": 30,
+      "minDistance": 5,
+      "maxDistance": 10,
+      "targetX": 0,
+      "targetY": 0,
+      "targetZ": 1.5
+    }
+  }
+}

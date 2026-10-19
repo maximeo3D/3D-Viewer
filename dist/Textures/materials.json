@@ -1,0 +1,113 @@
+﻿{
+  "materials": {
+    "red": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#424242",
+      "metallic": 0,
+      "roughness": 0.42000000000000004,
+      "alpha": 1,
+      "albedoTexture": "None",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "filament_tile_albedo.png",
+      "opacityTexture": "None",
+      "bumpTexture": "filament_tile_nm.png",
+      "bumpTextureIntensity": 0.5,
+      "lightmapTexture": "None",
+      "useLightmapAsShadowmap": true,
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 16,
+      "wRotation": 0,
+      "lightmapUVSet": 1
+    },
+    "green": {
+      "type": "pbr",
+      "parent": "red",
+      "baseColor": "#0d4900",
+      "roughness": 0.13999999999999999
+    },
+    "blue": {
+      "type": "pbr",
+      "parent": "red",
+      "baseColor": "#002183"
+    },
+    "flag_fr": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_fr.jpg"
+    },
+    "flag_us": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_us.png",
+      "useLightmapAsShadowmap": true
+    },
+    "flag_ger": {
+      "type": "pbr",
+      "parent": "flag_base",
+      "albedoTexture": "flag_ger.png",
+      "useLightmapAsShadowmap": true
+    },
+    "flag_base": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#ffffff",
+      "metallic": 0,
+      "roughness": 0,
+      "alpha": 1,
+      "albedoTexture": "None",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "None",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "backFaceCulling": false,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0,
+      "useLightmapAsShadowmap": true,
+      "lightmapUVSet": 0
+    },
+    "engraving_red": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#8c0000",
+      "metallic": 0.17,
+      "roughness": 0.7000000000000001,
+      "alpha": 1,
+      "albedoTexture": "filament_tile_albedo.png",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "filament_tile_nm.png",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "useLightmapAsShadowmap": true,
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0
+    },
+    "engraving_blue": {
+      "type": "pbr",
+      "parent": "engraving_red",
+      "baseColor": "#002183"
+    },
+    "engraving_green": {
+      "type": "pbr",
+      "parent": "engraving_red",
+      "baseColor": "#0d4900"
+    }
+  }
+}

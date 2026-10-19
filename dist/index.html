@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.babylonjs.com/v7.54.2/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/loaders/babylonjs.loaders.min.js"></script>
+    <script>
+        // Configure decoders for better mobile GLB compatibility
+        if (window.BABYLON && BABYLON.DracoCompression) {
+            // Use CDN Draco
+            BABYLON.DracoCompression.Configuration = {
+                decoder: {
+                    wasmUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_wasm_wrapper_gltf.js',
+                    wasmBinaryUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_decoder_gltf.wasm',
+                    fallbackUrl: 'https://cdn.babylonjs.com/v7.54.2/draco_decoder_gltf.js'
+                }
+            };
+        }
+        if (window.BABYLON && BABYLON.MeshoptCompression) {
+            BABYLON.MeshoptCompression.Configuration = {
+                decoder: {
+                    url: 'https://cdn.babylonjs.com/v7.54.2/meshopt_decoder.js'
+                }
+            };
+        }
+    </script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/v7.54.2/hdr/babylonjs.hdr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js"></script>
+    <script src="tweakpaneManager.js"></script>
+    <script src="engravingManager.js"></script>
+    <script>
+        // Contrôle de visibilité de la sidebar
+        const showSidebar = true; // Changez true/false pour afficher/cacher la sidebar
+        const showTweakpane = true; // Changez true/false pour afficher/cacher Tweakpane
+        // Exposer pour scene.js
+        window.showTweakpane = showTweakpane;
+        document.addEventListener('DOMContentLoaded', () => {
+            // Propager la préférence de visibilité vers le CSS
+            document.documentElement.style.setProperty('--sidebar-display', showSidebar ? 'flex' : 'none');
+            // Forcer un resize Babylon pour recalculer le ratio si la largeur change
+            window.dispatchEvent(new Event('resize'));
+        });
+        
+        // Configuration par défaut
+        const defaultConfig = {
+            option: 'base',
+            blocMaterial: 'red',
+            flagOption: 'france',
+            engravingEnabled: true,
+            engravingText: 'Test Reso',
+            engravingFont: 'Stencil',
+            engravingFontWeight: 'normal',
+            engravingFontStyle: 'normal',
+            engravingLetterSpacing: 0,
+            engravingFontSizeScale: 1
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-content">
+                <div class="category">
+                    <h3>Options</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="option1-btn">Option 1</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Bloc Material</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="bloc-red-btn">Red</button>
+                        <button class="sidebar-btn" id="bloc-blue-btn">Blue</button>
+                        <button class="sidebar-btn" id="bloc-green-btn">Green</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Flag</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="flag-none-btn">None</button>
+                        <button class="sidebar-btn" id="flag-france-btn">France</button>
+                        <button class="sidebar-btn" id="flag-unitedstates-btn">United States</button>
+                        <button class="sidebar-btn" id="flag-germany-btn">Germany</button>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Engraving</h3>
+                    <div class="controls">
+                        <input type="text" id="engraving-text" placeholder="Enter engraving text...">
+                        <div class="button-group">
+                            <button class="sidebar-btn active" id="font-stencil-btn">Stencil</button>
+                            <button class="sidebar-btn" id="font-futuristic-btn">Futuristic</button>
+                            <button class="sidebar-btn" id="font-western-btn">Western</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="category">
+                    <h3>Viewpoints</h3>
+                    <div class="buttons">
+                        <button class="sidebar-btn" id="viewpoint-1-btn">Viewpoint 1</button>
+                        <button class="sidebar-btn" id="viewpoint-2-btn">Viewpoint 2</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
+    <script src="scene.js"></script>
+    <script>
+        // Connecter les boutons HTML au système de tags
+        document.addEventListener('DOMContentLoaded', function() {
+            // Attendre que le TagManager soit initialisé
+            setTimeout(() => {
+                if (window.tagManager) {
+                    // Bouton Option 1 (affiche le bloc)
+                    document.getElementById('option1-btn').addEventListener('click', () => {
+                        window.tagManager.setOption('base');
+                        updateButtonStates();
+                    });
+                    
+                    // Boutons de matériau pour le bloc
+                    document.getElementById('bloc-red-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'red');
+                        window.tagManager.applyMaterialConfig('engraving', 'red');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('bloc-blue-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'blue');
+                        window.tagManager.applyMaterialConfig('engraving', 'blue');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('bloc-green-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('bloc', 'green');
+                        window.tagManager.applyMaterialConfig('engraving', 'green');
+                        const t = (document.getElementById('engraving-text')?.value || '').toString();
+                        requestAnimationFrame(() => {
+                            if (window.engravingManager) window.engravingManager.setText(t);
+                        });
+                        updateButtonStates();
+                    });
+                    
+                    // Boutons pour le flag
+                    document.getElementById('flag-none-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'none');
+                        // Masquer le flag en désactivant le tag
+                        window.tagManager.activeTags.delete('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-france-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'france');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-unitedstates-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'unitedstates');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    document.getElementById('flag-germany-btn').addEventListener('click', () => {
+                        window.tagManager.applyMaterialConfig('flag', 'germany');
+                        // Afficher le flag en activant le tag
+                        window.tagManager.activeTags.add('flag');
+                        window.tagManager.applyActiveTags();
+                        updateButtonStates();
+                    });
+                    
+                    // Viewpoints buttons
+                    const vp1Btn = document.getElementById('viewpoint-1-btn');
+                    const vp2Btn = document.getElementById('viewpoint-2-btn');
+                    if (vp1Btn) vp1Btn.addEventListener('click', () => { 
+                        if (window.gotoViewpoint) window.gotoViewpoint('Viewpoint1');
+                        vp1Btn.classList.add('active');
+                        vp2Btn && vp2Btn.classList.remove('active');
+                    });
+                    if (vp2Btn) vp2Btn.addEventListener('click', () => { 
+                        if (window.gotoViewpoint) window.gotoViewpoint('Viewpoint2');
+                        vp2Btn.classList.add('active');
+                        vp1Btn && vp1Btn.classList.remove('active');
+                    });
+                    
+                    // Fonction pour obtenir la couleur active du bloc
+                    function getActiveBlocColor() {
+                        if (document.getElementById('bloc-red-btn').classList.contains('active')) return 'red';
+                        if (document.getElementById('bloc-blue-btn').classList.contains('active')) return 'blue';
+                        if (document.getElementById('bloc-green-btn').classList.contains('active')) return 'green';
+                        return 'green'; // défaut
+                    }
+
+                    // Boutons de choix de police pour l'engraving
+                    document.getElementById('font-stencil-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Stencil');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-stencil-btn').classList.add('active');
+                        }
+                    });
+                    
+                    document.getElementById('font-futuristic-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Futuristic');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-futuristic-btn').classList.add('active');
+                        }
+                    });
+                    
+                    document.getElementById('font-western-btn').addEventListener('click', async () => {
+                        if (window.engravingManager) {
+                            await window.engravingManager.setFont('Western');
+                            // Mettre à jour les boutons actifs
+                            document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById('font-western-btn').classList.add('active');
+                        }
+                    });
+
+                    // Champ de texte pour l'engraving
+                    document.getElementById('engraving-text').addEventListener('input', (e) => {
+                        if (window.engravingManager) {
+                            // Synchroniser la couleur de l'engraving avec celle du bloc avant de définir le texte
+                            const activeColor = getActiveBlocColor();
+                            window.tagManager.applyMaterialConfig('engraving', activeColor);
+                            window.engravingManager.setText(e.target.value);
+                        } else if (window.tagManager && window.tagManager.setEngravingText) {
+                        window.tagManager.setEngravingText(e.target.value);
+                        }
+                    });
+                    
+                    // Appliquer la configuration par défaut
+                    window.tagManager.setOption(defaultConfig.option);
+                    window.tagManager.applyMaterialConfig('bloc', defaultConfig.blocMaterial);
+                    window.tagManager.applyMaterialConfig('flag', defaultConfig.flagOption);
+                    // Synchroniser l'engraving avec la couleur par défaut du bloc
+                    window.tagManager.applyMaterialConfig('engraving', defaultConfig.blocMaterial);
+                    
+                    // Gérer la visibilité par défaut avec les tags
+                    if (defaultConfig.flagOption !== 'none') {
+                        window.tagManager.activeTags.add('flag');
+                    }
+                    window.tagManager.applyActiveTags();
+                    
+                    // Mettre à jour l'état initial des boutons
+                    updateButtonStates();
+                    // Activer Viewpoint 1 par défaut si présent
+                    const vp1 = document.getElementById('viewpoint-1-btn');
+                    if (vp1) vp1.classList.add('active');
+                    
+                    // Initialiser le champ texte et l'état engraving
+                    const initialText = defaultConfig.engravingText || '';
+                    document.getElementById('engraving-text').value = initialText;
+                    if (window.engravingManager) {
+                        // Attendre que les polices soient chargées avant d'initialiser
+                        if (document.fonts && document.fonts.ready) {
+                            document.fonts.ready.then(async () => {
+                                console.log('Fonts ready, initializing engraving manager');
+                                // Définir tous les paramètres par défaut
+                                await window.engravingManager.setFont(defaultConfig.engravingFont);
+                                
+                                // Mettre à jour l'état du bouton de police par défaut
+                                document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`font-${defaultConfig.engravingFont.toLowerCase()}-btn`).classList.add('active');
+                                
+                                if (initialText) {
+                                    window.engravingManager.setText(initialText);
+                                }
+                            });
+                        } else {
+                            // Fallback si l'API fonts n'est pas disponible
+                            setTimeout(async () => {
+                                console.log('Fonts fallback timeout, initializing engraving manager');
+                                // Définir tous les paramètres par défaut (fallback)
+                                window.engravingManager.setFont(defaultConfig.engravingFont);
+                                
+                                // Mettre à jour l'état du bouton de police par défaut
+                                document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`font-${defaultConfig.engravingFont.toLowerCase()}-btn`).classList.add('active');
+                                
+                                // Mettre à jour l'état des boutons par défaut (fallback)
+                                document.querySelectorAll('[id^="font-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`font-${defaultConfig.engravingFont.toLowerCase()}-btn`).classList.add('active');
+                                document.querySelectorAll('[id^="weight-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`weight-${defaultConfig.engravingFontWeight}-btn`).classList.add('active');
+                                document.querySelectorAll('[id^="style-"]').forEach(btn => btn.classList.remove('active'));
+                                document.getElementById(`style-${defaultConfig.engravingFontStyle}-btn`).classList.add('active');
+                                
+                                // Mettre à jour les sliders (fallback)
+                                document.getElementById('letter-spacing-slider').value = defaultConfig.engravingLetterSpacing;
+                                document.getElementById('letter-spacing-value').textContent = `${defaultConfig.engravingLetterSpacing}px`;
+                                document.getElementById('font-size-slider').value = defaultConfig.engravingFontSizeScale;
+                                document.getElementById('font-size-value').textContent = `${Math.round(defaultConfig.engravingFontSizeScale * 100)}%`;
+                                
+                                if (initialText) {
+                                    window.engravingManager.setText(initialText);
+                                }
+                            }, 500);
+                        }
+                    }
+                }
+            }, 1000);
+            
+            function updateButtonStates() {
+                if (!window.tagManager) return;
+                
+                const activeTags = window.tagManager.getActiveTags();
+                
+                // Reset all buttons (except font buttons and viewpoint buttons)
+                document.querySelectorAll('.sidebar-btn:not([id^="font-"]):not([id^="viewpoint-"])').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Activate option buttons
+                activeTags.activeTags.forEach(tag => {
+                    if (tag === 'base') {
+                        const btn = document.getElementById('option1-btn');
+                        if (btn) {
+                            btn.classList.add('active');
+                        }
+                    }
+                });
+                
+                // Activate material config buttons independently
+                // Bloc material buttons
+                const blocMaterials = ['red', 'blue', 'green'];
+                blocMaterials.forEach(material => {
+                    const btn = document.getElementById(`bloc-${material}-btn`);
+                    if (btn) {
+                        btn.classList.remove('active');
+                        // Check if this material is currently applied to bloc
+                        if (activeTags.materials && activeTags.materials.bloc === material) {
+                            btn.classList.add('active');
+                        }
+                    }
+                });
+                
+                // Flag material buttons (align with real ids)
+                const flagMaterials = ['none', 'france', 'unitedstates', 'germany'];
+                flagMaterials.forEach(material => {
+                    const btn = document.getElementById(`flag-${material}-btn`);
+                    if (btn) {
+                        btn.classList.remove('active');
+                        // Check if this material is currently applied to flag
+                        if (activeTags.materials && activeTags.materials.flag === material) {
+                            btn.classList.add('active');
+                        }
+                    }
+                });
+                
+                // Engraving text field is always visible now; tag handled by content presence
+            }
+        });
+    </script>
+</body>
+</html>

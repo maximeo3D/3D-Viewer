@@ -10,6 +10,8 @@ class TweakpaneManager {
         this.tweakpaneOpenByDefault = true; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
         // Paramètre pour contrôler la visibilité initiale (évite le clignotement)
         this.initialVisibility = true;
+        // false en local (serve.ps1). Le build Pages passe cette valeur à true dans dist/.
+        this.useStaticTextureIndex = false;
         
         this.pane = null;
         this.loadedModels = new Map();
@@ -1323,26 +1325,52 @@ class TweakpaneManager {
     
     // Utility methods
     async getAvailableImages() {
-        try {
-            const response = await fetch('api/textures');
-            if (response.ok) {
-                const data = await response.json();
-                const images = {};
-                // S'assurer que "None" est toujours en premier
-                images['None'] = 'None';
-                data.images.forEach(imageName => {
-                    if (imageName !== 'None') {
-                        images[imageName] = imageName;
-                    }
-                });
-                return images;
-            } else {
-                console.warn('⚠️ Impossible de charger la liste des textures, utilisation de la liste par défaut');
-                return this.getDefaultImages();
+        // Sur GitHub Pages, ne pas appeler api/textures : le navigateur affiche le 404 même si le repli réussit.
+        if (this.useStaticTextureIndex) {
+            const fromManifest = await this.loadTextureIndex('Textures/texture-list.json');
+            if (fromManifest) {
+                return fromManifest;
             }
-        } catch (error) {
-            console.warn('⚠️ Erreur lors du chargement des textures:', error);
-            return this.getDefaultImages();
+        }
+
+        // serve.ps1 exposes /api/textures. GitHub Pages is static and publishes Textures/texture-list.json instead.
+        const fromApi = await this.loadTextureIndex('api/textures');
+        if (fromApi) {
+            return fromApi;
+        }
+
+        if (!this.useStaticTextureIndex) {
+            const fromManifest = await this.loadTextureIndex('Textures/texture-list.json');
+            if (fromManifest) {
+                return fromManifest;
+            }
+        }
+
+        console.warn('⚠️ Impossible de charger la liste des textures, utilisation de la liste par défaut');
+        return this.getDefaultImages();
+    }
+
+    async loadTextureIndex(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                return null;
+            }
+            const data = await response.json();
+            if (!data || !Array.isArray(data.images)) {
+                return null;
+            }
+            const images = {};
+            // S'assurer que "None" est toujours en premier
+            images['None'] = 'None';
+            data.images.forEach(imageName => {
+                if (imageName && imageName !== 'None') {
+                    images[imageName] = imageName;
+                }
+            });
+            return images;
+        } catch (_) {
+            return null;
         }
     }
     
