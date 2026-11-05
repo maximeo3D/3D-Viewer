@@ -17,6 +17,23 @@ function Get-UrlAclUser {
     }
 }
 
+function Get-JsonProp($obj, $key) {
+    if ($null -eq $obj) { return $null }
+    if ($obj -is [System.Collections.IDictionary]) { return $obj[$key] }
+    return $obj.$key
+}
+
+function ConvertFrom-JsonLarge([string]$text) {
+    try {
+        Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $serializer.MaxJsonLength = 134217728
+        return $serializer.DeserializeObject($text)
+    } catch {
+        return ($text | ConvertFrom-Json)
+    }
+}
+
 # Function to check if a port is available
 function Test-PortAvailable {
     param([int]$PortToTest)
@@ -319,6 +336,96 @@ try {
                 Write-Host "Error updating asset.json: $($_.Exception.Message)"
             }
         }
+        elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'Assets/asset.js') {
+            try {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $content = $reader.ReadToEnd()
+                $reader.Close()
+                if ($content -notmatch 'assetConfiguration') {
+                    throw 'Le contenu ne contient pas assetConfiguration'
+                }
+                $assetPath = Join-Path $PSScriptRoot 'Assets\asset.js'
+                $utf8 = New-Object System.Text.UTF8Encoding $false
+                [System.IO.File]::WriteAllText($assetPath, $content, $utf8)
+                $response.StatusCode = 200
+                $response.ContentType = 'application/json'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes('{"status":"success","message":"asset.js updated successfully"}')
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "asset.js updated successfully"
+            } catch {
+                $response.StatusCode = 400
+                $response.ContentType = 'application/json'
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message.Replace('"','\"') + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "Error updating asset.js: $($_.Exception.Message)"
+            }
+        }
+        elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'api/upload') {
+            try {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $content = $reader.ReadToEnd()
+                $reader.Close()
+                $payload = ConvertFrom-JsonLarge $content
+                $folder = [string](Get-JsonProp $payload 'folder')
+                $allowedFolders = @('Assets', 'Textures', 'Textures/HDR')
+                if ($allowedFolders -notcontains $folder) { throw "Dossier non autorise: $folder" }
+                $name = [System.IO.Path]::GetFileName([string](Get-JsonProp $payload 'filename'))
+                if ([string]::IsNullOrWhiteSpace($name) -or $name.Contains('..')) { throw 'Nom de fichier invalide' }
+                $ext = [System.IO.Path]::GetExtension($name).ToLower()
+                $allowedExt = @{
+                    'Assets' = @('.bin', '.glb', '.gltf')
+                    'Textures' = @('.png', '.jpg', '.jpeg', '.webp')
+                    'Textures/HDR' = @('.hdr', '.env')
+                }
+                if ($allowedExt[$folder] -notcontains $ext) { throw "Extension non autorisee: $ext" }
+                $dir = Join-Path $PSScriptRoot ($folder -replace '/', '\')
+                if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+                $bytes = [Convert]::FromBase64String([string](Get-JsonProp $payload 'dataBase64'))
+                [System.IO.File]::WriteAllBytes((Join-Path $dir $name), $bytes)
+                $response.StatusCode = 200
+                $response.ContentType = 'application/json'
+                $ok = '{"status":"success","file":"' + $name + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($ok)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "Uploaded $folder/$name ($($bytes.Length) bytes)"
+            } catch {
+                $response.StatusCode = 400
+                $response.ContentType = 'application/json'
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message.Replace('"','\"') + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "Error uploading file: $($_.Exception.Message)"
+            }
+        }
+        elseif ($request.HttpMethod -eq 'GET' -and $path -eq 'api/environments') {
+            try {
+                $hdrPath = Join-Path $PSScriptRoot 'Textures\HDR'
+                $files = @()
+                if (Test-Path $hdrPath) {
+                    $files = Get-ChildItem -Path $hdrPath -File | Where-Object {
+                        $_.Extension -match '\.(hdr|env)$'
+                    } | ForEach-Object { $_.Name }
+                }
+                $json = @{ files = @($files) } | ConvertTo-Json
+                $response.StatusCode = 200
+                $response.ContentType = 'application/json'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($json)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+            } catch {
+                $response.StatusCode = 500
+                $response.ContentType = 'application/json'
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message.Replace('"','\"') + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+            }
+        }
         
         # Handle GET requests for listing textures
         elseif ($request.HttpMethod -eq 'GET' -and $path -eq 'api/textures') {
@@ -445,6 +552,9 @@ try {
                 '.json' { $response.ContentType = 'application/json' }
                 '.hdr' { $response.ContentType = 'application/octet-stream' }
                 '.glb' { $response.ContentType = 'model/gltf-binary' }
+                '.bin' { $response.ContentType = 'application/octet-stream' }
+                '.env' { $response.ContentType = 'application/octet-stream' }
+                '.webp' { $response.ContentType = 'image/webp' }
                 '.gltf' { $response.ContentType = 'model/gltf+json' }
                 '.fbx' { $response.ContentType = 'application/octet-stream' }
                 '.obj' { $response.ContentType = 'text/plain' }

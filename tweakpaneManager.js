@@ -176,9 +176,10 @@ class TweakpaneManager {
         this.pane.element.style.right = '10px';
         this.pane.element.style.zIndex = '1000';
         this.pane.element.style.width = '300px';
+        const tweakpaneRoot = this.pane.element.closest('.tp-dfwv') || this.pane.element;
         if (!this.initialVisibility) {
             // Masquer immédiatement pour éviter tout flash
-            this.pane.element.style.display = 'none';
+            tweakpaneRoot.style.display = 'none';
         }
     }
     
@@ -1396,8 +1397,9 @@ class TweakpaneManager {
     
     
     setTweakpaneVisibility(visible) {
-        if (this.pane) {
-            this.pane.element.style.display = visible ? 'block' : 'none';
+        if (this.pane && this.pane.element) {
+            const root = this.pane.element.closest('.tp-dfwv') || this.pane.element;
+            root.style.display = visible ? 'block' : 'none';
         }
     }
     

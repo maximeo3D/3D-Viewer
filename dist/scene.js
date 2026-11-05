@@ -143,7 +143,9 @@ async function loadMaterialsConfig() {
 
 // Chargement d'un modèle au format binaire optimisé
 async function loadBinaryModel(modelConfig) {
-    const binFile = modelConfig.file.replace(/\.glb$/, '.bin');
+    const binFile = /\.bin$/i.test(modelConfig.file)
+        ? modelConfig.file
+        : modelConfig.file.replace(/\.glb$/i, '.bin');
     const offset = modelConfig.dataOffset || 0;
     const response = await fetch(`Assets/${binFile}`);
     if (!response.ok) throw new Error(`Cannot fetch ${binFile} (${response.status})`);
@@ -163,6 +165,7 @@ async function loadBinaryModel(modelConfig) {
 
 // Function to load 3D models
 async function loadModels() {
+    window.lastModelError = null;
     if (!assetConfig || !assetConfig.models) return;
     
     // Charger le modèle depuis la configuration asset.js
@@ -246,10 +249,36 @@ async function loadModels() {
         }
     } catch (error) {
         console.error(`❌ Error loading model ${modelFile}:`, error);
+        window.lastModelError = (error && error.message) ? error.message : String(error);
     }
-    
-    // Le modèle est maintenant chargé une seule fois pour le système de tags
 }
+
+window.getAssetConfig = () => assetConfig;
+window.getMaterialsConfig = () => materialsConfig;
+window.getStudioConfig = () => config;
+window.setAssetConfig = (next) => {
+    assetConfig = next;
+    window.assetConfig = next;
+    if (window.tagManager) window.tagManager.loadTagConfiguration();
+};
+
+window.reloadModels = async function() {
+    if (!scene) return;
+    if (scene.animationGroups) {
+        scene.animationGroups.slice().forEach(group => {
+            try { group.dispose(); } catch (_) {}
+        });
+    }
+    scene.meshes.slice().forEach(mesh => {
+        try { mesh.dispose(false, false); } catch (_) {}
+    });
+    loadedModels.clear();
+    await loadModels();
+    if (window.viewer && typeof window.viewer.applyDefaults === 'function') {
+        await window.viewer.applyDefaults();
+    }
+    window.dispatchEvent(new CustomEvent('viewer-model-loaded'));
+};
 
 // Function to create PBR material according to Babylon.js documentation
 function createPBRMaterial(materialConfig, scene, materialName) {
@@ -412,6 +441,20 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     return pbr;
 }
 
+window.refreshMaterials = function() {
+    if (!scene || !materialsConfig || !materialsConfig.materials) return;
+    Object.keys(materialsConfig.materials).forEach(name => {
+        createPBRMaterial(materialsConfig.materials[name], scene, name);
+    });
+    if (window.tagManager) {
+        window.tagManager.materialsConfig = materialsConfig;
+        window.tagManager.loadTagConfiguration();
+        window.tagManager.activeMaterialConfigs.forEach((configName, meshName) => {
+            window.tagManager.applyMaterialConfig(meshName, configName);
+        });
+    }
+};
+
 // Function to apply texture transformations to all textures except lightmap
 function applyTextureTransformations(pbr, finalMaterialConfig) {
     const textures = [
@@ -481,7 +524,9 @@ const createScene = async function() {
     camera = new BABYLON.ArcRotateCamera("camera", config.camera.alpha, config.camera.beta, config.camera.radius, BABYLON.Vector3.Zero(), scene);
     
     // Set camera properties from config
-    if (config.camera.fov) camera.fov = config.camera.fov;
+    if (config.camera.fov) {
+        camera.fov = config.camera.fov > 2 ? BABYLON.Tools.ToRadians(config.camera.fov) : config.camera.fov;
+    }
     if (config.camera.minDistance) camera.lowerRadiusLimit = config.camera.minDistance;
     if (config.camera.maxDistance) camera.upperRadiusLimit = config.camera.maxDistance;
     
@@ -505,6 +550,61 @@ const createScene = async function() {
     
     // Enable inertia for smoother camera movements
     camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
+
+    window.captureViewpoint = function() {
+        return {
+            alpha: camera.alpha,
+            beta: camera.beta,
+            radius: camera.radius,
+            fov: BABYLON.Tools.ToDegrees(camera.fov),
+            minDistance: camera.lowerRadiusLimit,
+            maxDistance: camera.upperRadiusLimit,
+            targetX: camera.target.x,
+            targetY: camera.target.y,
+            targetZ: camera.target.z
+        };
+    };
+
+    window.applyCameraState = function(cam) {
+        if (!cam) return;
+        if (cam.minDistance !== undefined) {
+            camera.lowerRadiusLimit = cam.minDistance;
+            config.camera.minDistance = cam.minDistance;
+        }
+        if (cam.maxDistance !== undefined) {
+            camera.upperRadiusLimit = cam.maxDistance;
+            config.camera.maxDistance = cam.maxDistance;
+        }
+        if (cam.alpha !== undefined) {
+            camera.alpha = cam.alpha;
+            config.camera.alpha = cam.alpha;
+        }
+        if (cam.radius !== undefined) {
+            camera.radius = cam.radius;
+            config.camera.radius = cam.radius;
+        }
+        if (cam.fov !== undefined) {
+            config.camera.fov = cam.fov;
+            camera.fov = cam.fov > 2 ? BABYLON.Tools.ToRadians(cam.fov) : cam.fov;
+        }
+        if (cam.initialPitch !== undefined) {
+            const pitch = BABYLON.Tools.ToRadians(cam.initialPitch);
+            camera.beta = pitch;
+            camera.lowerBetaLimit = pitch;
+            camera.upperBetaLimit = pitch;
+            config.camera.initialPitch = cam.initialPitch;
+            config.camera.beta = pitch;
+            config.camera.lowerBetaLimit = pitch;
+            config.camera.upperBetaLimit = pitch;
+        }
+        ['targetX', 'targetY', 'targetZ'].forEach((key, index) => {
+            const axis = ['x', 'y', 'z'][index];
+            if (cam[key] !== undefined) {
+                camera.target[axis] = cam[key];
+                config.camera[key] = cam[key];
+            }
+        });
+    };
 
     // Viewpoint helper and wiring
     function normalizeRadTau(angle) {
@@ -944,13 +1044,6 @@ const createScene = async function() {
         return false;
     });
     
-    // Désactiver aussi le clic droit sur le document entier
-    document.addEventListener('contextmenu', (evt) => {
-        evt.preventDefault();
-        evt.stopPropagation();
-        return false;
-    });
-    
     // Load 3D models from asset configuration
     await loadModels();
     
@@ -961,60 +1054,82 @@ const createScene = async function() {
         });
     }
     
-    // Set background color from config
-    scene.clearColor = BABYLON.Color4.FromHexString(config.environment.backgroundColor);
-    
-    // HDR/Environment setup with robust mobile fallbacks
-    try {
-        let envSet = false;
-        try {
-            // Prefer prefiltered .env if available
-            const env = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.env", scene);
-            if (env) {
-                scene.environmentTexture = env;
-                envSet = true;
-            }
-        } catch (_) {}
-
-        if (!envSet) {
-            // Try HDR as fallback
-            const hdrTexture = new BABYLON.HDRCubeTexture("Textures/HDR/default.hdr", scene, 256, false, false, false, true);
-            scene.environmentTexture = hdrTexture;
-        }
-
-        scene.environmentIntensity = config.environment.hdrExposure;
-
-        // Apply orientation from config when possible
-        const tex = scene.environmentTexture;
-        if (tex) {
-            if (typeof tex.rotationY === 'number') {
-                tex.rotationY = config.environment.orientation;
-            } else if (tex.setReflectionTextureMatrix) {
-                tex.setReflectionTextureMatrix(
-                    BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
-                );
-            }
-        }
-    } catch (error) {
-        console.error("HDR/env loading failed:", error);
-        try {
-            const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.hdr", scene);
-            scene.environmentTexture = hdrTexture;
-            scene.environmentIntensity = config.environment.hdrExposure;
-            if (hdrTexture.setReflectionTextureMatrix) {
-                hdrTexture.setReflectionTextureMatrix(
-                    BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(config.environment.orientation))
-                );
-            }
-        } catch (fallbackError) {
-            console.error("Fallback HDR loading also failed:", fallbackError);
-            // Last resort: simple lighting so scene is visible on mobile
-            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
-            hemi.intensity = 1.0;
-        }
-    }
+    applyEnvironmentSettings();
     
     return scene;
+};
+
+function applyEnvironmentSettings() {
+    if (!scene || !config || !config.environment) return;
+    const env = config.environment;
+    if (env.backgroundColor) {
+        scene.clearColor = BABYLON.Color4.FromHexString(env.backgroundColor);
+    }
+
+    const intensity = env.hdrExposure !== undefined ? env.hdrExposure : 1;
+    const explicit = env.file ? `Textures/HDR/${env.file}` : null;
+    const queue = explicit ? [explicit] : ["Textures/HDR/default.env", "Textures/HDR/default.hdr"];
+    let tex = null;
+    for (const path of queue) {
+        try {
+            tex = path.toLowerCase().endsWith('.hdr')
+                ? new BABYLON.HDRCubeTexture(path, scene, 256, false, false, false, true)
+                : BABYLON.CubeTexture.CreateFromPrefilteredData(path, scene);
+            if (tex) break;
+        } catch (error) {
+            console.warn("Environment load failed:", path, error);
+            tex = null;
+        }
+    }
+    if (!tex) {
+        try {
+            tex = BABYLON.CubeTexture.CreateFromPrefilteredData("Textures/HDR/default.env", scene);
+        } catch (_) {}
+    }
+    if (tex) {
+        if (scene.environmentTexture && scene.environmentTexture !== tex) {
+            try { scene.environmentTexture.dispose(); } catch (_) {}
+        }
+        scene.environmentTexture = tex;
+        scene.environmentIntensity = intensity;
+        const orientation = env.orientation || 0;
+        if (typeof tex.rotationY === 'number') {
+            tex.rotationY = orientation;
+        } else if (tex.setReflectionTextureMatrix) {
+            tex.setReflectionTextureMatrix(BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(orientation)));
+        }
+    } else if (!scene.getLightByName('hemi')) {
+        const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+        hemi.intensity = 1.0;
+    }
+}
+
+function updateEnvironmentLive() {
+    if (!scene || !config || !config.environment) return;
+    const env = config.environment;
+    if (env.backgroundColor) {
+        scene.clearColor = BABYLON.Color4.FromHexString(env.backgroundColor);
+    }
+    if (env.hdrExposure !== undefined) {
+        scene.environmentIntensity = env.hdrExposure;
+    }
+    const tex = scene.environmentTexture;
+    if (!tex) return;
+    const orientation = env.orientation || 0;
+    if (typeof tex.rotationY === 'number') {
+        tex.rotationY = orientation;
+    } else if (tex.setReflectionTextureMatrix) {
+        tex.setReflectionTextureMatrix(BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(orientation)));
+    }
+}
+
+window.applyEnvironment = function(partial, options) {
+    config.environment = Object.assign({}, config.environment, partial || {});
+    if (options && options.reloadTexture === false) {
+        updateEnvironmentLive();
+        return;
+    }
+    applyEnvironmentSettings();
 };
 
 // Classe TagManager pour gérer le système de tags
@@ -1473,6 +1588,8 @@ createScene().then(async createdScene => {
             }
         }
     });
+
+    window.dispatchEvent(new CustomEvent('viewer-ready'));
 });
 
 // Register a render loop to repeatedly render the scene

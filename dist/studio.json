@@ -2,7 +2,8 @@
   "environment": {
     "backgroundColor": "#ebebeb",
     "hdrExposure": 1.8,
-    "orientation": 60
+    "orientation": 60,
+    "file": "default.env"
   },
   "camera": {
     "alpha": -2.418839804386564,
