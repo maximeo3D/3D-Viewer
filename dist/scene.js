@@ -59,6 +59,7 @@ let config = {
 // Global variables to store scene and camera references
 let scene;
 let camera;
+let environmentSkybox = null;
 let loadedModels = new Map(); // Store loaded models
 window.loadedModels = loadedModels; // Rendre accessible globalement pour tweakpaneManager.js
 let assetConfig = null; // Asset configuration
@@ -269,6 +270,7 @@ window.reloadModels = async function() {
             try { group.dispose(); } catch (_) {}
         });
     }
+    environmentSkybox = null;
     scene.meshes.slice().forEach(mesh => {
         try { mesh.dispose(false, false); } catch (_) {}
     });
@@ -277,6 +279,7 @@ window.reloadModels = async function() {
     if (window.viewer && typeof window.viewer.applyDefaults === 'function') {
         await window.viewer.applyDefaults();
     }
+    syncEnvironmentVisibility();
     window.dispatchEvent(new CustomEvent('viewer-model-loaded'));
 };
 
@@ -1059,6 +1062,50 @@ const createScene = async function() {
     return scene;
 };
 
+function clearEnvironmentSkybox() {
+    if (!environmentSkybox) return;
+    const skybox = environmentSkybox;
+    environmentSkybox = null;
+    try {
+        if (skybox.material) skybox.material.reflectionTexture = null;
+        skybox.dispose(false, false);
+    } catch (_) {}
+}
+
+function applyEnvironmentOrientation(orientation) {
+    const degrees = Number(orientation) || 0;
+    const radians = degrees * Math.PI / 180;
+    const apply = (tex) => {
+        if (!tex) return;
+        if (typeof tex.rotationY === "number") {
+            tex.rotationY = radians;
+        } else if (tex.setReflectionTextureMatrix) {
+            tex.setReflectionTextureMatrix(BABYLON.Matrix.RotationY(radians));
+        }
+    };
+    apply(scene && scene.environmentTexture);
+    const skyTexture = environmentSkybox && environmentSkybox.material && environmentSkybox.material.reflectionTexture;
+    if (skyTexture !== (scene && scene.environmentTexture)) apply(skyTexture);
+}
+
+function syncEnvironmentVisibility() {
+    if (!scene || !config || !config.environment) return;
+    const visible = config.environment.visible === true && !!scene.environmentTexture;
+    if (!visible) {
+        if (environmentSkybox) environmentSkybox.setEnabled(false);
+        return;
+    }
+    if (!environmentSkybox) {
+        environmentSkybox = scene.createDefaultSkybox(scene.environmentTexture, true, 5000, 0, false);
+        if (environmentSkybox) {
+            environmentSkybox.isPickable = false;
+            environmentSkybox.infiniteDistance = true;
+        }
+    } else {
+        environmentSkybox.setEnabled(true);
+    }
+}
+
 function applyEnvironmentSettings() {
     if (!scene || !config || !config.environment) return;
     const env = config.environment;
@@ -1067,6 +1114,7 @@ function applyEnvironmentSettings() {
     }
 
     const intensity = env.hdrExposure !== undefined ? env.hdrExposure : 1;
+    clearEnvironmentSkybox();
     const explicit = env.file ? `Textures/HDR/${env.file}` : null;
     const queue = explicit ? [explicit] : ["Textures/HDR/default.env", "Textures/HDR/default.hdr"];
     let tex = null;
@@ -1092,16 +1140,12 @@ function applyEnvironmentSettings() {
         }
         scene.environmentTexture = tex;
         scene.environmentIntensity = intensity;
-        const orientation = env.orientation || 0;
-        if (typeof tex.rotationY === 'number') {
-            tex.rotationY = orientation;
-        } else if (tex.setReflectionTextureMatrix) {
-            tex.setReflectionTextureMatrix(BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(orientation)));
-        }
     } else if (!scene.getLightByName('hemi')) {
         const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
         hemi.intensity = 1.0;
     }
+    syncEnvironmentVisibility();
+    applyEnvironmentOrientation(env.orientation || 0);
 }
 
 function updateEnvironmentLive() {
@@ -1113,14 +1157,8 @@ function updateEnvironmentLive() {
     if (env.hdrExposure !== undefined) {
         scene.environmentIntensity = env.hdrExposure;
     }
-    const tex = scene.environmentTexture;
-    if (!tex) return;
-    const orientation = env.orientation || 0;
-    if (typeof tex.rotationY === 'number') {
-        tex.rotationY = orientation;
-    } else if (tex.setReflectionTextureMatrix) {
-        tex.setReflectionTextureMatrix(BABYLON.Matrix.RotationY(BABYLON.Tools.ToRadians(orientation)));
-    }
+    syncEnvironmentVisibility();
+    applyEnvironmentOrientation(env.orientation || 0);
 }
 
 window.applyEnvironment = function(partial, options) {

@@ -146,7 +146,7 @@
         const found = new Map();
         if (scene) {
             scene.meshes.forEach(mesh => {
-                if (!mesh.name || mesh.name === '__root__' || mesh.name === 'Main_Models') return;
+                if (!mesh.name || mesh.name === '__root__' || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
                 const base = mesh.name.replace(/_primitive\d+$/, '');
                 const primitive = mesh.name.match(/_primitive(\d+)$/);
                 const count = primitive ? Number(primitive[1]) + 1 : 1;
@@ -262,6 +262,8 @@
         const scroll = panel.scrollTop;
         panel.innerHTML = builders[state.tab]();
         panel.scrollTop = scroll;
+        if (state.tab === 'light') mountEnvPreview();
+        else disposeEnvPreview();
     }
 
     function renderModel() {
@@ -452,7 +454,7 @@
             <label class="field">Parent<select data-mat="parent">${parents}</select></label>
             <div class="${paramClass(raw, 'baseColor')}" data-param="baseColor">
                 <div class="param-head"><span>Base Color</span>${inheritButton(raw, 'baseColor')}</div>
-                <div class="param-body">${colorPickerHtml(view.baseColor || '#ffffff')}</div>
+                <div class="param-body">${colorPickerHtml(view.baseColor || '#ffffff', 'material')}</div>
             </div>
             ${slider('metallic', 'Metalness', 0, 1, 0.01)}
             ${slider('roughness', 'Roughness', 0, 1, 0.01)}
@@ -480,6 +482,185 @@
         </div>`;
     }
 
+    let envPreview = null;
+    let envPreviewToken = 0;
+
+    function disposeEnvPreview() {
+        envPreviewToken += 1;
+        const current = envPreview;
+        envPreview = null;
+        if (!current) return;
+        try { current.engine.stopRenderLoop(); } catch (_) {}
+        try { current.scene.dispose(); } catch (_) {}
+        try { current.engine.dispose(); } catch (_) {}
+    }
+
+    function mountEnvPreview() {
+        disposeEnvPreview();
+        const token = envPreviewToken;
+        requestAnimationFrame(() => {
+            if (token !== envPreviewToken || state.tab !== 'light' || !window.BABYLON) return;
+            const canvas = document.querySelector('#panel .env-preview');
+            const file = studio().environment && studio().environment.file;
+            if (!canvas || !file) return;
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(2, Math.round(rect.width || 280));
+            canvas.width = width;
+            canvas.height = Math.max(2, Math.round(width / 2));
+            try {
+                const glCanvas = document.createElement('canvas');
+                const previewEngine = new BABYLON.Engine(glCanvas, true, { adaptToDeviceRatio: false, preserveDrawingBuffer: true });
+                const previewScene = new BABYLON.Scene(previewEngine);
+                previewScene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+                const path = `Textures/HDR/${file}`;
+                const texture = /\.hdr$/i.test(file)
+                    ? new BABYLON.HDRCubeTexture(path, previewScene, 256, false, false, false, true)
+                    : BABYLON.CubeTexture.CreateFromPrefilteredData(path, previewScene);
+                previewScene.environmentTexture = texture;
+                const sky = previewScene.createDefaultSkybox(texture, true, 50, 0, false);
+                if (sky) {
+                    sky.isPickable = false;
+                    sky.infiniteDistance = true;
+                }
+                const camera = new BABYLON.FreeCamera('env-face', BABYLON.Vector3.Zero(), previewScene);
+                camera.fov = Math.PI / 2;
+                camera.minZ = 0.01;
+                camera.maxZ = 10000;
+                const faceSize = 128;
+                const ctx = canvas.getContext('2d');
+                const bag = {
+                    token,
+                    engine: previewEngine,
+                    scene: previewScene,
+                    camera,
+                    sky,
+                    canvas,
+                    ctx,
+                    faces: null,
+                    exposure: null
+                };
+                const faceAims = [
+                    [0, Math.PI / 2],
+                    [0, -Math.PI / 2],
+                    [-Math.PI / 2, Math.PI],
+                    [Math.PI / 2, Math.PI],
+                    [0, 0],
+                    [0, Math.PI]
+                ];
+                const captureFaces = (exposure) => {
+                    previewScene.environmentIntensity = exposure;
+                    previewEngine.setSize(faceSize, faceSize);
+                    const gl = previewEngine._gl;
+                    previewScene.activeCamera = camera;
+                    camera.rotationQuaternion = null;
+                    camera.upVector.set(0, 1, 0);
+                    camera.rotation.set(0, 0, 0);
+                    previewScene.render();
+                    previewScene.render();
+                    const faces = [];
+                    const matrices = [];
+                    faceAims.forEach(([pitch, yaw]) => {
+                        camera.rotation.set(pitch, yaw, 0);
+                        matrices.push(Array.from(camera.getViewMatrix(true).m));
+                        previewScene.render();
+                        previewScene.render();
+                        gl.finish();
+                        const pixels = new Uint8Array(faceSize * faceSize * 4);
+                        gl.readPixels(0, 0, faceSize, faceSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                        faces.push(pixels);
+                    });
+                    return { faces, matrices };
+                };
+                const sampleFace = (face, u, v) => {
+                    const x = Math.min(faceSize - 1, Math.max(0, Math.floor(u * (faceSize - 1))));
+                    const y = Math.min(faceSize - 1, Math.max(0, Math.floor(v * (faceSize - 1))));
+                    const index = (y * faceSize + x) * 4;
+                    return [face[index], face[index + 1], face[index + 2]];
+                };
+                const drawEquirect = () => {
+                    const image = ctx.createImageData(canvas.width, canvas.height);
+                    const output = image.data;
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    for (let y = 0; y < height; y++) {
+                        const latitude = Math.PI / 2 - (y / Math.max(1, height - 1)) * Math.PI;
+                        const cosLat = Math.cos(latitude);
+                        const sinLat = Math.sin(latitude);
+                        for (let x = 0; x < width; x++) {
+                            const longitude = (x / Math.max(1, width - 1)) * Math.PI * 2 - Math.PI;
+                            const dirX = cosLat * Math.sin(longitude);
+                            const dirY = sinLat;
+                            const dirZ = cosLat * Math.cos(longitude);
+                            let faceIndex = 0;
+                            let best = -1;
+                            let u = 0.5;
+                            let v = 0.5;
+                            const matrices = bag.matrices || [];
+                            for (let index = 0; index < matrices.length; index++) {
+                                const matrix = matrices[index];
+                                const viewX = matrix[0] * dirX + matrix[4] * dirY + matrix[8] * dirZ;
+                                const viewY = matrix[1] * dirX + matrix[5] * dirY + matrix[9] * dirZ;
+                                const viewZ = matrix[2] * dirX + matrix[6] * dirY + matrix[10] * dirZ;
+                                if (viewZ <= 0.05 || viewZ <= best) continue;
+                                const ndcX = viewX / viewZ;
+                                const ndcY = viewY / viewZ;
+                                if (Math.abs(ndcX) > 1 || Math.abs(ndcY) > 1) continue;
+                                best = viewZ;
+                                faceIndex = index;
+                                u = ndcX * 0.5 + 0.5;
+                                v = ndcY * 0.5 + 0.5;
+                            }
+                            const color = best < 0 ? [0, 0, 0] : sampleFace(bag.faces[faceIndex], u, v);
+                            const offset = (y * width + x) * 4;
+                            output[offset] = color[0];
+                            output[offset + 1] = color[1];
+                            output[offset + 2] = color[2];
+                            output[offset + 3] = 255;
+                        }
+                    }
+                    ctx.putImageData(image, 0, 0);
+                };
+                const paint = () => {
+                    if (bag.token !== envPreviewToken) return;
+                    const reflection = sky && sky.material && sky.material.reflectionTexture;
+                    if (reflection && reflection.isReady && !reflection.isReady()) {
+                        requestAnimationFrame(paint);
+                        return;
+                    }
+                    const hasColor = (faces) => {
+                        if (!faces || faces.length < 6) return false;
+                        return faces.every((face) => {
+                            let lit = 0;
+                            for (let index = 0; index < face.length; index += 64) {
+                                if (face[index] + face[index + 1] + face[index + 2] > 24) lit++;
+                            }
+                            return lit > 4;
+                        });
+                    };
+                    if (!hasColor(bag.faces)) {
+                        const next = captureFaces(1);
+                        bag.tries = (bag.tries || 0) + 1;
+                        if (hasColor(next.faces) || bag.tries > 40) {
+                            bag.faces = next.faces;
+                            bag.matrices = next.matrices;
+                        }
+                    }
+                    if (!bag.faces) {
+                        requestAnimationFrame(paint);
+                        return;
+                    }
+                    drawEquirect();
+                    previewEngine.dispose();
+                    if (envPreview && envPreview.engine === previewEngine) envPreview = null;
+                };
+                envPreview = { engine: previewEngine, scene: previewScene };
+                requestAnimationFrame(paint);
+            } catch (error) {
+                console.warn('Prévisualisation environnement impossible', error);
+            }
+        });
+    }
+
     function renderLight() {
         const env = (studio().environment) || {};
         const files = Array.from(new Set([env.file].concat(state.environments).filter(Boolean)));
@@ -488,11 +669,15 @@
         ).join('');
         return `
             <div class="stack">
-                <label class="field">Fond<input type="color" data-env="backgroundColor" value="${esc(env.backgroundColor || '#ebebeb')}"></label>
+                <div class="field">Fond
+                    ${colorPickerHtml(env.backgroundColor || '#ebebeb', 'background')}
+                </div>
                 <label class="field">Fichier<select data-env="file">${options}</select></label>
+                <canvas class="env-preview" aria-label="Prévisualisation de l'environnement"></canvas>
+                <label class="env-visible"><input type="checkbox" data-env="visible" ${env.visible ? 'checked' : ''}> Afficher l'environnement</label>
                 <button type="button" data-action="import-env">Importer .env / .hdr</button>
                 ${sliderField('Puissance', 'data-env="hdrExposure" data-kind="number"', 0, 5, 0.05, env.hdrExposure ?? 1, 'out-exposure')}
-                ${sliderField('Rotation', 'data-env="orientation" data-kind="number"', -360, 360, 1, env.orientation ?? 0, 'out-rotation')}
+                ${sliderField('Rotation', 'data-env="orientation" data-kind="number"', -180, 180, 1, env.orientation ?? 0, 'out-rotation')}
             </div>`;
     }
 
@@ -613,12 +798,12 @@
         else { red = chroma; blue = x; }
         return { r: (red + m) * 255, g: (green + m) * 255, b: (blue + m) * 255 };
     }
-    function colorPickerHtml(hexValue) {
+    function colorPickerHtml(hexValue, target) {
         const rgb = hexToRgb(hexValue);
         const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
         const hue = Math.round(hsv.h);
         const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-        return `<div class="color-picker" data-color-picker data-h="${hue}" data-s="${hsv.s}" data-v="${hsv.v}">
+        return `<div class="color-picker" data-color-picker data-color-target="${target || 'material'}" data-h="${hue}" data-s="${hsv.s}" data-v="${hsv.v}">
             <div class="color-sv" data-sv style="background:hsl(${hue},100%,50%)">
                 <div class="color-sv-white"></div>
                 <div class="color-sv-black"></div>
@@ -654,7 +839,11 @@
         });
         const hexInput = root.querySelector('[data-hex]');
         if (!skipHex && document.activeElement !== hexInput) hexInput.value = hex;
-        if (state.material) writeMaterial(state.material, 'baseColor', hex);
+        if (root.dataset.colorTarget === 'background') {
+            window.applyEnvironment({ backgroundColor: hex }, { reloadTexture: false });
+        } else if (state.material) {
+            writeMaterial(state.material, 'baseColor', hex);
+        }
     }
     function updateColorFromControl(target) {
         const root = target.closest('[data-color-picker]');
@@ -801,8 +990,13 @@
             window.viewer.setEngravingFont(target.value);
             return;
         }
+        if (target.dataset.env === 'visible') {
+            window.applyEnvironment({ visible: target.checked }, { reloadTexture: false });
+            return;
+        }
         if (target.dataset.env === 'file') {
             window.applyEnvironment({ file: target.value }, { reloadTexture: true });
+            mountEnvPreview();
             return;
         }
         if (target.dataset.mat && state.material) {
@@ -899,7 +1093,7 @@
     function previewMesh(meshName) {
         if (!meshName || !window.tagManager) return;
         window.tagManager.scene.meshes.forEach(mesh => {
-            if (!mesh.name || mesh.name === '__root__') return;
+            if (!mesh.name || mesh.name === '__root__' || mesh.name === 'hdrSkyBox') return;
             const base = mesh.name.replace(/_primitive\d+$/, '');
             mesh.setEnabled(base === meshName);
         });

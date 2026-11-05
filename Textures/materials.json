@@ -95,8 +95,8 @@
       "backFaceCulling": true,
       "uOffset": 0,
       "vOffset": 0,
-      "uScale": 1,
-      "vScale": 1,
+      "uScale": 0,
+      "vScale": 2,
       "wRotation": 0
     },
     "engraving_blue": {

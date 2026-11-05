@@ -181,7 +181,7 @@ const assetConfiguration = {
       "color": "red",
       "flag": "france"
     },
-    "engravingText": "Test Reso",
+    "engravingText": "Test",
     "engravingFont": "Stencil"
   }
 };
