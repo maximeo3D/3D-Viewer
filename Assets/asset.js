@@ -43,6 +43,9 @@ const assetConfiguration = {
       },
       "green": {
         "slot1": "green"
+      },
+      "none": {
+        "slot1": "red"
       }
     },
     "engraving": {
@@ -141,6 +144,9 @@ const assetConfiguration = {
           "label": "Aucun",
           "assignments": {
             "flag": {
+              "slot1": "red"
+            },
+            "bloc": {
               "slot1": "red"
             }
           }

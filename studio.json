@@ -1,7 +1,7 @@
 ﻿{
   "environment": {
     "backgroundColor": "#ebebeb",
-    "hdrExposure": 1.8,
+    "hdrExposure": 1.2,
     "orientation": 60,
     "file": "default.env",
     "visible": false

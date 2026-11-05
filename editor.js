@@ -73,11 +73,14 @@
         while (used.has(id)) id = slug(base) + index++;
         return id;
     }
+    let statusTimer = 0;
     function setStatus(message) {
         const status = $('status');
         if (!status) return;
+        window.clearTimeout(statusTimer);
         status.hidden = !message;
         status.textContent = message || '';
+        if (message) statusTimer = window.setTimeout(() => setStatus(''), 5000);
     }
     function materialNames() {
         return Object.keys((materials() && materials().materials) || {});
@@ -155,12 +158,25 @@
         }
         const meshes = partModel().meshes;
         found.forEach((count, name) => {
+            const slots = Array.from({ length: Math.max(1, count) }, (_, index) => `slot${index + 1}`);
             if (!meshes[name]) {
-                meshes[name] = {
-                    materialSlots: Array.from({ length: count }, (_, index) => `slot${index + 1}`),
-                    tags: []
-                };
+                meshes[name] = { materialSlots: slots, tags: [] };
+                return;
             }
+            const current = meshes[name].materialSlots || [];
+            const same = current.length === slots.length && current.every((slot, index) => slot === slots[index]);
+            if (same) return;
+            meshes[name].materialSlots = slots;
+            rules().forEach(rule => (rule.options || []).forEach(option => {
+                const assignment = option.assignments && option.assignments[name];
+                if (!assignment) return;
+                slots.forEach(slot => {
+                    if (!assignment[slot]) assignment[slot] = materialNames()[0] || '';
+                });
+                Object.keys(assignment).forEach(slot => {
+                    if (!slots.includes(slot)) delete assignment[slot];
+                });
+            }));
         });
         state.present = new Set(found.keys());
     }
@@ -284,13 +300,6 @@
                     <input data-mesh-newtag="${esc(name)}" placeholder="Nouveau tag">
                     <button type="button" class="ghost" data-action="add-mesh-tag" data-mesh="${esc(name)}">Ajouter</button>
                 </div>
-                <label class="field">Slots matériau
-                    <input type="number" min="1" max="8" data-slot-count="${esc(name)}" value="${(mesh.materialSlots || ['slot1']).length}">
-                </label>
-                <div class="row">
-                    <button type="button" class="ghost" data-action="preview-mesh" data-mesh="${esc(name)}">Isoler</button>
-                    <button type="button" class="ghost" data-action="remove-mesh" data-mesh="${esc(name)}">Retirer</button>
-                </div>
             </div>`;
         }).join('');
         return `
@@ -301,7 +310,6 @@
                     <button type="button" data-action="import-bin">Importer un .bin</button>
                     <button type="button" class="ghost" data-action="reload-model">Recharger</button>
                 </div>
-                <button type="button" class="ghost" data-action="restore-rules">Réafficher selon les règles</button>
             </div>
             ${cards || '<p class="help">Aucun mesh. Importez un modèle puis rechargez.</p>'}
             ${window.lastModelError ? `<p class="help">${esc(window.lastModelError)}</p>` : ''}`;
@@ -701,12 +709,12 @@
         </div>`).join('');
         return `
             <div class="stack">
-                ${slider('alphaDeg', 'Alpha', -180, 360, 1, alpha)}
+                ${slider('alphaDeg', 'Rotation', -180, 180, 1, alpha)}
                 ${slider('initialPitch', 'Inclinaison', 5, 175, 0.5, camera.initialPitch ?? 60)}
                 ${slider('radius', 'Distance', 0.5, 200, 0.1, camera.radius ?? 10)}
-                ${slider('fov', 'Champ', 10, 120, 1, fov)}
                 ${slider('minDistance', 'Distance min', 0.1, 100, 0.1, camera.minDistance ?? 1)}
                 ${slider('maxDistance', 'Distance max', 1, 300, 0.5, camera.maxDistance ?? 100)}
+                ${slider('fov', 'FOV', 10, 120, 1, fov)}
                 ${slider('targetX', 'Cible X', -20, 20, 0.1, camera.targetX ?? 0)}
                 ${slider('targetY', 'Cible Y', -20, 20, 0.1, camera.targetY ?? 0)}
                 ${slider('targetZ', 'Cible Z', -20, 20, 0.1, camera.targetZ ?? 0)}
@@ -714,7 +722,7 @@
             </div>
             <div class="row">
                 <input id="new-viewpoint" placeholder="Nom">
-                <button type="button" data-action="add-viewpoint">Capturer</button>
+                <button type="button" data-action="add-viewpoint">Ajouter</button>
             </div>
             ${cards}`;
     }
@@ -1013,7 +1021,6 @@
         if (target.dataset.optionTag) return toggleOptionTag(target.dataset.option, target.dataset.optionTag, target.checked);
         if (target.dataset.targetMesh) return toggleTarget(target.dataset.option, target.dataset.targetMesh, target.checked);
         if (target.dataset.slotMesh) return setSlot(target.dataset.option, target.dataset.slotMesh, target.dataset.slot, target.value);
-        if (target.dataset.slotCount) return setSlotCount(target.dataset.slotCount, Number(target.value));
         if (target.dataset.defaultRule) {
             defaults().rules[target.dataset.defaultRule] = target.value;
             return;
@@ -1059,13 +1066,8 @@
         const action = button.dataset.action;
         if (action === 'import-bin') $('file-bin').click();
         else if (action === 'reload-model') await window.reloadModels();
-        else if (action === 'restore-rules') await window.viewer.applyDefaults();
         else if (action === 'add-mesh-tag') addMeshTag(button.dataset.mesh);
         else if (action === 'remove-tag') removeMeshTag(button.dataset.mesh, button.dataset.tag);
-        else if (action === 'remove-mesh') {
-            delete partModel().meshes[button.dataset.mesh];
-            render();
-        } else if (action === 'preview-mesh') previewMesh(button.dataset.mesh);
         else if (action === 'add-rule') addRule(button.dataset.type);
         else if (action === 'select-rule') {
             state.rule = button.dataset.id;
@@ -1105,22 +1107,6 @@
     function removeMeshTag(meshName, tag) {
         const mesh = partModel().meshes[meshName];
         mesh.tags = (mesh.tags || []).filter(item => item !== tag);
-        render();
-    }
-    function setSlotCount(meshName, count) {
-        const mesh = partModel().meshes[meshName];
-        const total = Math.max(1, Math.min(8, count || 1));
-        mesh.materialSlots = Array.from({ length: total }, (_, index) => `slot${index + 1}`);
-        rules().forEach(rule => (rule.options || []).forEach(option => {
-            const assignment = option.assignments && option.assignments[meshName];
-            if (!assignment) return;
-            mesh.materialSlots.forEach(slot => {
-                if (!assignment[slot]) assignment[slot] = materialNames()[0] || '';
-            });
-            Object.keys(assignment).forEach(slot => {
-                if (!mesh.materialSlots.includes(slot)) delete assignment[slot];
-            });
-        }));
         render();
     }
     function previewMesh(meshName) {

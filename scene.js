@@ -1297,22 +1297,10 @@ class TagManager {
     
     // Obtenir l'index du slot de matériau
     getSlotIndex(slotName) {
-        // Nettoyer la chaîne pour éliminer les caractères invisibles
-        const cleanSlotName = slotName.trim();
-        
-        // Test direct avec if/else
-        let result = -1;
-        if (cleanSlotName === 'slot1') {
-            result = 0;
-        } else if (cleanSlotName === 'slot2') {
-            result = 1;
-        } else if (cleanSlotName === 'slot3') {
-            result = 2;
-        } else if (cleanSlotName === 'slot4') {
-            result = 3;
-        }
-        
-        return result;
+        const match = String(slotName || '').trim().match(/^slot(\d+)$/);
+        if (!match) return -1;
+        const index = Number(match[1]) - 1;
+        return index >= 0 ? index : -1;
     }
     
     // Définir le texte d'engraving

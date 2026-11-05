@@ -2,7 +2,7 @@ const assetConfiguration = {
   models: {
     "part_model": {
       name: "Modèle Part",
-      file: "part.glb",
+      file: "model.glb",
       format: "bin",
       dataOffset: 66,
       meshes: {
