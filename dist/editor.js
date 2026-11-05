@@ -221,12 +221,15 @@
         const decimals = text.includes('.') ? text.split('.')[1].length : 0;
         return number.toFixed(decimals);
     }
+    function sliderReadout(id, label, shown) {
+        return `<input class="slider-readout" id="${id}" value="${shown}" inputmode="decimal" spellcheck="false" aria-label="${esc(label)}">`;
+    }
     function sliderField(label, attrs, min, max, step, value, readoutId) {
         const shown = formatNum(value, step);
         return `<label class="field">${label}
             <div class="slider-row">
                 <input type="range" min="${min}" max="${max}" step="${step}" ${attrs} data-readout="${readoutId}" value="${shown}">
-                <span class="slider-readout" id="${readoutId}">${shown}</span>
+                ${sliderReadout(readoutId, label, shown)}
             </div>
         </label>`;
     }
@@ -417,7 +420,7 @@
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body slider-row">
                     <input type="range" min="${min}" max="${max}" step="${step}" data-mat="${key}" data-kind="number" data-readout="out-${key}" value="${shown}">
-                    <span class="slider-readout" id="out-${key}">${shown}</span>
+                    ${sliderReadout(`out-${key}`, label, shown)}
                 </div>
             </div>`;
         };
@@ -905,9 +908,10 @@
             return;
         }
         if (target.type === 'checkbox' || target.dataset.commit === 'change') return;
+        if (target.classList.contains('slider-readout')) return;
         if (target.dataset.readout) {
             const output = document.getElementById(target.dataset.readout);
-            if (output) output.textContent = target.value;
+            if (output) output.value = formatNum(target.value, target.step || 1);
         }
         if (target.dataset.model) {
             const model = partModel();
@@ -959,8 +963,37 @@
         else window.applyCameraState({ [key]: value });
     }
 
+    function clampSliderValue(range, raw) {
+        const min = Number(range.min);
+        const max = Number(range.max);
+        const step = Number(range.step);
+        const text = String(raw).trim().replace(',', '.');
+        let value = Number(text);
+        if (!text || !Number.isFinite(value)) value = Number(range.value);
+        if (!Number.isFinite(value)) value = min;
+        value = Math.min(max, Math.max(min, value));
+        if (Number.isFinite(step) && step > 0) {
+            value = min + Math.round((value - min) / step) * step;
+            value = Math.min(max, Math.max(min, value));
+        }
+        return formatNum(value, Number.isFinite(step) && step > 0 ? step : 1);
+    }
+    function commitSliderReadout(input) {
+        const range = document.querySelector(`#panel input[type="range"][data-readout="${CSS.escape(input.id)}"]`);
+        if (!range) return;
+        const shown = clampSliderValue(range, input.value);
+        const changed = range.value !== shown;
+        range.value = shown;
+        input.value = shown;
+        if (changed) range.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     function onChange(event) {
         const target = event.target;
+        if (target.classList.contains('slider-readout')) {
+            commitSliderReadout(target);
+            return;
+        }
         if (target.id === 'material-select') {
             state.material = target.value;
             render();
@@ -1437,6 +1470,11 @@
         $('panel').addEventListener('click', onClick);
         $('panel').addEventListener('input', onInput);
         $('panel').addEventListener('change', onChange);
+        $('panel').addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || !event.target.classList.contains('slider-readout')) return;
+            event.preventDefault();
+            event.target.blur();
+        });
         $('panel').addEventListener('pointerdown', onColorPointerDown);
         $('panel').addEventListener('focusout', (event) => {
             if (event.target.dataset.hex === undefined) return;
