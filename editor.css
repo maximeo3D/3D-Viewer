@@ -302,37 +302,147 @@
     font-weight: 600;
 }
 
-.editor-panel button.inherit-toggle {
+.editor-panel label.inherit-toggle {
+    position: relative;
     display: inline-flex;
     align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.editor-panel label.inherit-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    pointer-events: none;
+}
+
+.inherit-box {
+    width: 14px;
+    height: 14px;
+    box-sizing: border-box;
+    border: 1px solid #000;
+    background: #fff;
+    display: inline-grid;
+    place-content: center;
+    flex: 0 0 14px;
+}
+
+.editor-panel label.inherit-toggle input:checked + .inherit-box::after {
+    content: "";
+    width: 8px;
+    height: 4px;
+    border-left: 2px solid #000;
+    border-bottom: 2px solid #000;
+    transform: translateY(-1px) rotate(-45deg);
+}
+
+.color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.color-sv {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 150px;
+    border: 1px solid #000;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.color-sv-white,
+.color-sv-black {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.color-sv-white {
+    background: linear-gradient(to right, #fff, transparent);
+}
+
+.color-sv-black {
+    background: linear-gradient(to top, #000, transparent);
+}
+
+.color-cursor {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #000;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.editor input.color-hue::-webkit-slider-runnable-track {
+    height: 12px;
+    border: 1px solid #000;
+    border-radius: 0;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+.editor input.color-hue::-webkit-slider-thumb {
+    margin-top: -3px;
+}
+
+.editor input.color-hue::-moz-range-track {
+    height: 12px;
+    border: 1px solid #000;
+    border-radius: 0;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+.color-values {
+    display: flex;
+    align-items: flex-end;
     gap: 4px;
-    padding: 2px 6px;
+}
+
+.color-values label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 40px;
+    flex: 0 0 40px;
     font-size: 10px;
-    line-height: 14px;
     font-weight: 600;
 }
 
-.editor-panel button.inherit-toggle i {
-    display: block;
-    width: 8px;
-    height: 8px;
-    border: 1px solid currentColor;
-    background: currentColor;
+.editor-panel .color-values input {
+    width: 100%;
+    padding: 4px 2px;
+    text-align: center;
 }
 
-.editor-panel button.inherit-toggle.inherited i {
-    background: transparent;
+.editor-panel .color-values input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
 }
 
-.editor-panel button.inherit-toggle.own {
-    background: #000;
-    color: #fff;
+.editor-panel .color-values input[type="number"]::-webkit-outer-spin-button,
+.editor-panel .color-values input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
-.param input[type="color"] {
-    width: 72px;
-    height: 28px;
-    padding: 0;
+.editor-panel input.color-hex {
+    width: 78px;
+    flex: 0 0 78px;
+    margin-left: auto;
+    text-align: right;
+    padding: 4px 6px;
 }
 
 .editor-panel input[type="checkbox"] {
@@ -342,27 +452,48 @@
 .tex-block {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 6px;
 }
 
-.tex-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.tex-row select {
-    flex: 1;
-    min-width: 0;
+.editor-panel .tex-block select {
+    width: 100%;
+    align-self: stretch;
 }
 
 .thumb {
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 148px;
     border: 1px solid #000;
     background: #fff;
     overflow: hidden;
+}
+
+.thumb-actions {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    display: flex;
+    gap: 4px;
+}
+
+.editor-panel button.icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #000;
+}
+
+.editor-panel button.icon-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
 }
 
 .thumb.empty {
@@ -376,7 +507,7 @@
 .thumb img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
 

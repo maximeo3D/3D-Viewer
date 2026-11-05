@@ -240,9 +240,9 @@
         if (!hasParent(raw)) return '';
         const own = isOwn(raw, key);
         const title = own
-            ? 'Valeur propre. Cliquer pour hériter du parent.'
-            : 'Hérité du parent. Cliquer pour définir une valeur propre.';
-        return `<button type="button" class="ghost inherit-toggle ${own ? 'own' : 'inherited'}" data-action="toggle-inherit" data-key="${esc(key)}" title="${esc(title)}"><i></i>${own ? 'Propre' : 'Hérité'}</button>`;
+            ? 'Valeur propre. Cocher pour hériter du parent.'
+            : 'Hérité du parent. Décocher pour définir une valeur propre.';
+        return `<label class="inherit-toggle" title="${esc(title)}"><input type="checkbox" data-inherit-key="${esc(key)}" ${own ? '' : 'checked'}><span class="inherit-box"></span>Hérité</label>`;
     }
     function paramClass(raw, key) {
         if (!hasParent(raw)) return 'param';
@@ -430,14 +430,14 @@
             return `<div class="${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body tex-block">
-                    <div class="tex-row">
-                        <div class="thumb${current ? '' : ' empty'}">${thumb}</div>
-                        <select data-mat="${key}" data-tex="1">${options}</select>
+                    <div class="thumb${current ? '' : ' empty'}">
+                        ${thumb}
+                        <div class="thumb-actions">
+                            <button type="button" class="ghost icon-btn" data-action="import-image" data-slot="${key}" title="Ajouter" aria-label="Ajouter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+                            <button type="button" class="ghost icon-btn" data-action="clear-texture" data-slot="${key}" title="Supprimer" aria-label="Supprimer" ${current ? '' : 'disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                        </div>
                     </div>
-                    <div class="row">
-                        <button type="button" class="ghost" data-action="import-image" data-slot="${key}">Ajouter</button>
-                        <button type="button" class="ghost" data-action="clear-texture" data-slot="${key}" ${current ? '' : 'disabled'}>Supprimer</button>
-                    </div>
+                    <select data-mat="${key}" data-tex="1">${options}</select>
                 </div>
             </div>`;
         }).join('');
@@ -452,7 +452,7 @@
             <label class="field">Parent<select data-mat="parent">${parents}</select></label>
             <div class="${paramClass(raw, 'baseColor')}" data-param="baseColor">
                 <div class="param-head"><span>Base Color</span>${inheritButton(raw, 'baseColor')}</div>
-                <div class="param-body"><input type="color" data-mat="baseColor" value="${esc(view.baseColor || '#ffffff')}"></div>
+                <div class="param-body">${colorPickerHtml(view.baseColor || '#ffffff')}</div>
             </div>
             ${slider('metallic', 'Metalness', 0, 1, 0.01)}
             ${slider('roughness', 'Roughness', 0, 1, 0.01)}
@@ -557,12 +557,148 @@
         if (!row) return;
         row.classList.remove('inherited');
         row.classList.add('own');
-        const button = row.querySelector('[data-action="toggle-inherit"]');
-        if (!button) return;
-        button.classList.remove('inherited');
-        button.classList.add('own');
-        button.innerHTML = '<i></i>Propre';
-        button.title = 'Valeur propre. Cliquer pour hériter du parent.';
+        const box = row.querySelector('[data-inherit-key]');
+        if (box) box.checked = false;
+    }
+
+    function clamp01(value) {
+        return Math.min(1, Math.max(0, value));
+    }
+    function hexToRgb(hex) {
+        let text = String(hex || '').replace('#', '').trim();
+        if (text.length === 3) text = text.split('').map(char => char + char).join('');
+        if (!/^[0-9a-fA-F]{6}$/.test(text)) text = 'ffffff';
+        return {
+            r: parseInt(text.slice(0, 2), 16),
+            g: parseInt(text.slice(2, 4), 16),
+            b: parseInt(text.slice(4, 6), 16)
+        };
+    }
+    function channelByte(value) {
+        return Math.max(0, Math.min(255, Math.round(Number(value) || 0))).toString(16).padStart(2, '0');
+    }
+    function rgbToHex(r, g, b) {
+        return '#' + channelByte(r) + channelByte(g) + channelByte(b);
+    }
+    function rgbToHsv(r, g, b) {
+        const red = r / 255;
+        const green = g / 255;
+        const blue = b / 255;
+        const max = Math.max(red, green, blue);
+        const min = Math.min(red, green, blue);
+        const delta = max - min;
+        let hue = 0;
+        if (delta !== 0) {
+            if (max === red) hue = ((green - blue) / delta) % 6;
+            else if (max === green) hue = (blue - red) / delta + 2;
+            else hue = (red - green) / delta + 4;
+            hue *= 60;
+            if (hue < 0) hue += 360;
+        }
+        return { h: hue, s: max === 0 ? 0 : delta / max, v: max };
+    }
+    function hsvToRgb(h, s, v) {
+        const hue = ((h % 360) + 360) % 360;
+        const chroma = v * s;
+        const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
+        const m = v - chroma;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+        if (hue < 60) { red = chroma; green = x; }
+        else if (hue < 120) { red = x; green = chroma; }
+        else if (hue < 180) { green = chroma; blue = x; }
+        else if (hue < 240) { green = x; blue = chroma; }
+        else if (hue < 300) { red = x; blue = chroma; }
+        else { red = chroma; blue = x; }
+        return { r: (red + m) * 255, g: (green + m) * 255, b: (blue + m) * 255 };
+    }
+    function colorPickerHtml(hexValue) {
+        const rgb = hexToRgb(hexValue);
+        const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+        const hue = Math.round(hsv.h);
+        const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        return `<div class="color-picker" data-color-picker data-h="${hue}" data-s="${hsv.s}" data-v="${hsv.v}">
+            <div class="color-sv" data-sv style="background:hsl(${hue},100%,50%)">
+                <div class="color-sv-white"></div>
+                <div class="color-sv-black"></div>
+                <div class="color-cursor" data-sv-cursor style="left:${hsv.s * 100}%;top:${(1 - hsv.v) * 100}%"></div>
+            </div>
+            <input type="range" class="color-hue" min="0" max="360" step="1" data-hue value="${hue}" aria-label="Teinte">
+            <div class="color-values">
+                <label>R<input type="number" min="0" max="255" step="1" data-rgb="r" value="${Math.round(rgb.r)}"></label>
+                <label>G<input type="number" min="0" max="255" step="1" data-rgb="g" value="${Math.round(rgb.g)}"></label>
+                <label>B<input type="number" min="0" max="255" step="1" data-rgb="b" value="${Math.round(rgb.b)}"></label>
+                <input class="color-hex" data-hex value="${esc(hex)}" spellcheck="false" maxlength="7" aria-label="Hexadécimal">
+            </div>
+        </div>`;
+    }
+    function applyColorPicker(root, hsv, skipHex) {
+        const hue = ((Number(hsv.h) % 360) + 360) % 360;
+        const saturation = clamp01(Number(hsv.s) || 0);
+        const value = clamp01(Number(hsv.v) || 0);
+        root.dataset.h = String(hue);
+        root.dataset.s = String(saturation);
+        root.dataset.v = String(value);
+        const rgb = hsvToRgb(hue, saturation, value);
+        const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        root.querySelector('[data-sv]').style.background = `hsl(${hue}, 100%, 50%)`;
+        const cursor = root.querySelector('[data-sv-cursor]');
+        cursor.style.left = (saturation * 100) + '%';
+        cursor.style.top = ((1 - value) * 100) + '%';
+        const hueInput = root.querySelector('[data-hue]');
+        if (document.activeElement !== hueInput) hueInput.value = String(Math.round(hue));
+        ['r', 'g', 'b'].forEach(channel => {
+            const input = root.querySelector(`[data-rgb="${channel}"]`);
+            if (document.activeElement !== input) input.value = String(Math.round(rgb[channel]));
+        });
+        const hexInput = root.querySelector('[data-hex]');
+        if (!skipHex && document.activeElement !== hexInput) hexInput.value = hex;
+        if (state.material) writeMaterial(state.material, 'baseColor', hex);
+    }
+    function updateColorFromControl(target) {
+        const root = target.closest('[data-color-picker]');
+        if (!root) return;
+        if (target.dataset.hue !== undefined) {
+            applyColorPicker(root, { h: Number(target.value), s: Number(root.dataset.s), v: Number(root.dataset.v) });
+            return;
+        }
+        if (target.dataset.rgb) {
+            const rgb = {
+                r: Number(root.querySelector('[data-rgb="r"]').value),
+                g: Number(root.querySelector('[data-rgb="g"]').value),
+                b: Number(root.querySelector('[data-rgb="b"]').value)
+            };
+            applyColorPicker(root, rgbToHsv(rgb.r, rgb.g, rgb.b));
+            return;
+        }
+        if (target.dataset.hex !== undefined) {
+            const match = target.value.trim().match(/^#?([0-9a-fA-F]{6})$/);
+            if (!match) return;
+            const rgb = hexToRgb(match[1]);
+            applyColorPicker(root, rgbToHsv(rgb.r, rgb.g, rgb.b), true);
+        }
+    }
+    function onColorPointerDown(event) {
+        const sv = event.target.closest('[data-sv]');
+        if (!sv || event.button !== 0) return;
+        const root = sv.closest('[data-color-picker]');
+        event.preventDefault();
+        const drag = (pointer) => {
+            const rect = sv.getBoundingClientRect();
+            applyColorPicker(root, {
+                h: Number(root.dataset.h) || 0,
+                s: clamp01((pointer.clientX - rect.left) / rect.width),
+                v: clamp01(1 - (pointer.clientY - rect.top) / rect.height)
+            });
+        };
+        const stop = () => {
+            window.removeEventListener('pointermove', drag);
+            window.removeEventListener('pointerup', stop);
+        };
+        window.addEventListener('pointermove', drag);
+        window.addEventListener('pointerup', stop);
+        drag(event);
     }
 
     function writeMaterial(name, key, value) {
@@ -575,6 +711,10 @@
 
     function onInput(event) {
         const target = event.target;
+        if (target.closest('[data-color-picker]')) {
+            updateColorFromControl(target);
+            return;
+        }
         if (target.type === 'checkbox' || target.dataset.commit === 'change') return;
         if (target.dataset.readout) {
             const output = document.getElementById(target.dataset.readout);
@@ -635,6 +775,10 @@
         if (target.id === 'material-select') {
             state.material = target.value;
             render();
+            return;
+        }
+        if (target.dataset.inheritKey !== undefined) {
+            toggleInherit(target.dataset.inheritKey, target.checked);
             return;
         }
         if (target.dataset.commit === 'change' && target.dataset.ruleProp === 'id') return renameRule(target.value);
@@ -706,7 +850,6 @@
         else if (action === 'add-material') addMaterial();
         else if (action === 'delete-material') deleteMaterial();
         else if (action === 'inherit-material') inheritMaterial();
-        else if (action === 'toggle-inherit') toggleInherit(button.dataset.key);
         else if (action === 'clear-texture') {
             writeMaterial(state.material, button.dataset.slot, 'None');
             render();
@@ -912,15 +1055,16 @@
         window.refreshMaterials();
         render();
     }
-    function toggleInherit(key) {
+    function toggleInherit(key, inherited) {
         const name = state.material;
         const mat = name && materials().materials[name];
         if (!mat || !hasParent(mat) || !key) return;
-        if (isOwn(mat, key)) delete mat[key];
-        else {
+        if (inherited) {
+            if (isOwn(mat, key)) delete mat[key];
+        } else if (!isOwn(mat, key)) {
             const view = resolvedMaterial(name);
             mat[key] = view[key] !== undefined ? view[key] : blankMaterial()[key];
-        }
+        } else return;
         window.refreshMaterials();
         render();
     }
@@ -1099,6 +1243,19 @@
         $('panel').addEventListener('click', onClick);
         $('panel').addEventListener('input', onInput);
         $('panel').addEventListener('change', onChange);
+        $('panel').addEventListener('pointerdown', onColorPointerDown);
+        $('panel').addEventListener('focusout', (event) => {
+            if (event.target.dataset.hex === undefined) return;
+            const root = event.target.closest('[data-color-picker]');
+            if (!root) return;
+            if (!/^#?[0-9a-fA-F]{6}$/.test(event.target.value.trim())) {
+                applyColorPicker(root, {
+                    h: Number(root.dataset.h) || 0,
+                    s: Number(root.dataset.s) || 0,
+                    v: Number(root.dataset.v) || 0
+                });
+            }
+        });
         $('save-all').addEventListener('click', saveAll);
         $('revert-all').addEventListener('click', () => {
             revertAll().catch(error => setStatus('Annulation impossible. ' + error.message));

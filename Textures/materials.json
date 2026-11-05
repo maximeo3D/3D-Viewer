@@ -33,7 +33,7 @@
     "blue": {
       "type": "pbr",
       "parent": "red",
-      "baseColor": "#002183"
+      "baseColor": "#0040ff"
     },
     "flag_fr": {
       "type": "pbr",
@@ -108,6 +108,30 @@
       "type": "pbr",
       "parent": "engraving_red",
       "baseColor": "#0d4900"
+    },
+    "Test": {
+      "type": "pbr",
+      "parent": "none",
+      "baseColor": "#00e404",
+      "metallic": 1,
+      "roughness": 0.08,
+      "alpha": 1,
+      "albedoTexture": "None",
+      "metallicTexture": "None",
+      "microSurfaceTexture": "None",
+      "ambientTexture": "None",
+      "opacityTexture": "None",
+      "bumpTexture": "None",
+      "bumpTextureIntensity": 1,
+      "lightmapTexture": "None",
+      "useLightmapAsShadowmap": true,
+      "backFaceCulling": true,
+      "uOffset": 0,
+      "vOffset": 0,
+      "uScale": 1,
+      "vScale": 1,
+      "wRotation": 0,
+      "lightmapUVSet": 0
     }
   }
 }
