@@ -8,103 +8,97 @@
 (function () {
     let booting = false;
 
-    function syncMaterialConfigs(asset) {
-        if (!asset || !Array.isArray(asset.rules)) return;
-        const configs = {};
-        asset.rules.forEach(rule => {
-            if (!rule || rule.type !== 'material') return;
-            (rule.options || []).forEach(option => {
-                const assignments = option.assignments || {};
-                Object.keys(assignments).forEach(meshName => {
-                    configs[meshName] = configs[meshName] || {};
-                    configs[meshName][option.id] = assignments[meshName];
-                });
-            });
+    function slotNames(mesh) {
+        if (!mesh) return [];
+        if (mesh.slots && mesh.slots.length) return mesh.slots;
+        if (mesh.materialSlots && mesh.materialSlots.length) return mesh.materialSlots;
+        return [];
+    }
+
+    function resolveSlotName(mesh, slotKey) {
+        const slots = slotNames(mesh);
+        const match = /^slot(\d+)$/.exec(String(slotKey || ''));
+        if (match) return slots[Number(match[1]) - 1] || slotKey;
+        return slotKey;
+    }
+
+    function migrateAsset(asset) {
+        if (!asset || asset._rulesMigrated) return;
+        const model = asset.models && asset.models.part_model;
+        const meshes = (model && model.meshes) || {};
+        Object.values(meshes).forEach(mesh => {
+            if (!mesh.slots || !mesh.slots.length) mesh.slots = slotNames(mesh).slice();
+            if (!mesh.slots.length) mesh.slots = ['Matériau 1'];
+            if (mesh.engraving === undefined) mesh.engraving = (mesh.tags || []).includes('engraving');
         });
-        asset.materialConfigs = configs;
-        if (window.tagManager) window.tagManager.loadTagConfiguration();
+        (asset.rules || []).forEach(rule => {
+            (rule.options || []).forEach(option => {
+                option.meshes = option.meshes || {};
+                Object.entries(option.assignments || {}).forEach(([meshName, slotMap]) => {
+                    const materials = Object.assign({}, (option.meshes[meshName] && option.meshes[meshName].materials) || {});
+                    Object.entries(slotMap || {}).forEach(([slotKey, materialName]) => {
+                        if (!materialName) return;
+                        materials[resolveSlotName(meshes[meshName], slotKey)] = materialName;
+                    });
+                    option.meshes[meshName] = Object.assign({}, option.meshes[meshName], { materials });
+                });
+                delete option.assignments;
+                if (rule.type === 'visibility') {
+                    Object.entries(meshes).forEach(([meshName, mesh]) => {
+                        if (mesh.engraving || (mesh.tags || []).includes('engraving')) return;
+                        const meshTags = (mesh.tags || []).filter(tag => tag !== 'engraving');
+                        const controlled = meshTags.some(tag => (rule.options || []).some(item => (item.tags || []).includes(tag)));
+                        if (!controlled) return;
+                        const visible = meshTags.some(tag => (option.tags || []).includes(tag));
+                        option.meshes[meshName] = Object.assign({ visible }, option.meshes[meshName]);
+                    });
+                    delete option.tags;
+                }
+                if (rule.showTag) {
+                    Object.entries(meshes).forEach(([meshName, mesh]) => {
+                        const tagged = (mesh.tags || []).includes(rule.showTag) || meshName === rule.showTag;
+                        if (!tagged) return;
+                        const visible = !(rule.hideWhen && option.id === rule.hideWhen);
+                        option.meshes[meshName] = Object.assign({ visible }, option.meshes[meshName]);
+                    });
+                }
+            });
+            delete rule.type;
+            delete rule.showTag;
+            delete rule.hideWhen;
+        });
+        Object.values(meshes).forEach(mesh => {
+            delete mesh.tags;
+            delete mesh.materialSlots;
+        });
+        delete asset.materialConfigs;
+        asset._rulesMigrated = true;
     }
 
     function ensureRules(asset) {
         if (!asset) return;
-        if (Array.isArray(asset.rules) && asset.rules.length) {
-            asset.defaults = asset.defaults || { rules: {}, engravingText: '', engravingFont: 'Stencil' };
-            asset.defaults.rules = asset.defaults.rules || {};
-            return;
-        }
-        const rules = [];
-        const model = asset.models && asset.models.part_model;
-        const tags = new Set();
-        if (model && model.meshes) {
-            Object.values(model.meshes).forEach(mesh => {
-                (mesh.tags || []).forEach(tag => {
-                    if (tag !== 'engraving') tags.add(tag);
-                });
-            });
-        }
-        if (tags.size) {
-            rules.push({
-                id: 'visibility',
-                label: 'Visibilité',
-                type: 'visibility',
-                options: Array.from(tags).map(tag => ({ id: tag, label: tag, tags: [tag] }))
-            });
-        }
-        const materialConfigs = asset.materialConfigs || {};
-        Object.keys(materialConfigs).forEach(meshName => {
-            rules.push({
-                id: meshName,
-                label: meshName,
-                type: 'material',
-                options: Object.keys(materialConfigs[meshName]).map(optionId => ({
-                    id: optionId,
-                    label: optionId,
-                    assignments: { [meshName]: materialConfigs[meshName][optionId] }
-                }))
-            });
-        });
-        asset.rules = rules;
-        asset.defaults = asset.defaults || {
-            rules: {},
-            engravingText: '',
-            engravingFont: 'Stencil'
-        };
+        migrateAsset(asset);
+        asset.rules = asset.rules || [];
+        asset.defaults = asset.defaults || { rules: {}, engravingText: '', engravingFont: 'Stencil' };
         asset.defaults.rules = asset.defaults.rules || {};
     }
 
     function applyRule(ruleId, optionId) {
         const asset = window.assetConfig;
-        if (!asset || !window.tagManager) return;
-        syncMaterialConfigs(asset);
+        const tagManager = window.tagManager;
+        if (!asset || !tagManager) return;
+        ensureRules(asset);
         const rule = (asset.rules || []).find(item => item.id === ruleId);
         if (!rule) return;
         const option = (rule.options || []).find(item => item.id === optionId);
         if (!option) return;
-        const tagManager = window.tagManager;
-
-        if (rule.type === 'visibility') {
-            const owned = new Set();
-            (rule.options || []).forEach(item => {
-                (item.tags || []).forEach(tag => {
-                    if (tag !== 'engraving') owned.add(tag);
-                });
+        tagManager.ruleChoices[ruleId] = optionId;
+        Object.entries(option.meshes || {}).forEach(([meshName, effect]) => {
+            Object.entries((effect && effect.materials) || {}).forEach(([slotName, materialName]) => {
+                if (materialName) tagManager.applySlotMaterial(meshName, slotName, materialName);
             });
-            owned.forEach(tag => tagManager.activeTags.delete(tag));
-            (option.tags || []).forEach(tag => {
-                if (tag !== 'engraving') tagManager.activeTags.add(tag);
-            });
-            tagManager.applyActiveTags();
-            return;
-        }
-
-        Object.keys(option.assignments || {}).forEach(meshName => {
-            tagManager.applyMaterialConfig(meshName, option.id);
         });
-        if (rule.showTag) {
-            if (rule.hideWhen && option.id === rule.hideWhen) tagManager.activeTags.delete(rule.showTag);
-            else tagManager.activeTags.add(rule.showTag);
-            tagManager.applyActiveTags();
-        }
+        tagManager.applySceneVisibility();
     }
 
     async function applyDefaults() {
@@ -114,9 +108,7 @@
         const defaults = asset.defaults || {};
         const chosen = defaults.rules || {};
         const rules = asset.rules || [];
-        const ordered = rules.filter(rule => rule.type === 'visibility')
-            .concat(rules.filter(rule => rule.type === 'material'));
-        ordered.forEach(rule => {
+        rules.forEach(rule => {
             const optionId = chosen[rule.id] || (rule.options[0] && rule.options[0].id);
             if (optionId) applyRule(rule.id, optionId);
         });
@@ -137,7 +129,9 @@
                 getDefaults: () => (window.assetConfig && window.assetConfig.defaults) || {},
                 applyRule,
                 applyDefaults,
-                sync: () => syncMaterialConfigs(window.assetConfig),
+                sync: () => {
+                    if (window.tagManager && window.tagManager.reapplyMaterials) window.tagManager.reapplyMaterials();
+                },
                 setEngravingText: (text) => {
                     if (window.engravingManager) window.engravingManager.setText(text || '');
                     else if (window.tagManager && window.tagManager.setEngravingText) window.tagManager.setEngravingText(text || '');

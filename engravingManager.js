@@ -44,15 +44,11 @@ class EngravingManager {
         this.text = text || '';
         // Drive tag engraving via TagManager if present
         if (window.tagManager) {
-            // Synchronize TagManager.engravingText used by visibility logic
             window.tagManager.engravingText = this.text;
-            if (this.text.trim() !== '') window.tagManager.activeTags.add('engraving');
-            else window.tagManager.activeTags.delete('engraving');
+            if (window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
         }
         this.update();
-        if (window.tagManager) {
-            window.tagManager.applyActiveTags();
-        }
+        if (window.tagManager && window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
     }
 
     async setFont(fontName) {
@@ -220,8 +216,7 @@ class EngravingManager {
             outer: for (const modelKey of Object.keys(this.assetConfig.models)) {
                 const model = this.assetConfig.models[modelKey];
                 for (const meshName of Object.keys(model.meshes)) {
-                    const tags = model.meshes[meshName].tags || [];
-                    if (tags.includes('engraving')) {
+                    if (model.meshes[meshName].engraving) {
                         const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                         if (meshes.length > 0) { targetMesh = meshes[0]; break outer; }
                     }
@@ -346,8 +341,7 @@ class EngravingManager {
             const model = this.assetConfig.models[modelKey];
             Object.keys(model.meshes).forEach(meshName => {
                 const meshCfg = model.meshes[meshName];
-                const tags = meshCfg.tags || [];
-                if (!tags.includes('engraving')) return;
+                if (!meshCfg.engraving) return;
                 const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                 meshes.forEach(m => {
                     const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
@@ -378,8 +372,7 @@ class EngravingManager {
             const model = this.assetConfig.models[modelKey];
             Object.keys(model.meshes).forEach(meshName => {
                 const meshCfg = model.meshes[meshName];
-                const tags = meshCfg.tags || [];
-                if (!tags.includes('engraving')) return;
+                if (!meshCfg.engraving) return;
                 const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                 meshes.forEach(m => {
                     const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;
@@ -413,8 +406,7 @@ class EngravingManager {
             const model = this.assetConfig.models[modelKey];
             Object.keys(model.meshes).forEach(meshName => {
                 const meshCfg = model.meshes[meshName];
-                const tags = meshCfg.tags || [];
-                if (!tags.includes('engraving')) return;
+                if (!meshCfg.engraving) return;
                 const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                 meshes.forEach(m => {
                     const pbr = (m.material && m.material instanceof BABYLON.PBRMaterial) ? m.material : null;

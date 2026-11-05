@@ -88,15 +88,6 @@
     function meshNames() {
         return Object.keys(partModel().meshes);
     }
-    function knownTags() {
-        const tags = new Set();
-        Object.values(partModel().meshes).forEach(mesh => (mesh.tags || []).forEach(tag => tags.add(tag)));
-        rules().forEach(rule => {
-            if (rule.showTag) tags.add(rule.showTag);
-            (rule.options || []).forEach(option => (option.tags || []).forEach(tag => tags.add(tag)));
-        });
-        return Array.from(tags);
-    }
     function blankMaterial() {
         return {
             type: 'pbr',
@@ -133,7 +124,9 @@
     }
     function slotsFor(meshName) {
         const mesh = partModel().meshes[meshName];
-        return (mesh && mesh.materialSlots && mesh.materialSlots.length) ? mesh.materialSlots : ['slot1'];
+        if (mesh && mesh.slots && mesh.slots.length) return mesh.slots;
+        if (mesh && mesh.materialSlots && mesh.materialSlots.length) return mesh.materialSlots;
+        return ['Matériau 1'];
     }
     function fontNames() {
         const configs = window.engravingManager && window.engravingManager.fontConfigs;
@@ -158,44 +151,16 @@
         }
         const meshes = partModel().meshes;
         found.forEach((count, name) => {
-            const slots = Array.from({ length: Math.max(1, count) }, (_, index) => `slot${index + 1}`);
-            if (!meshes[name]) {
-                meshes[name] = { materialSlots: slots, tags: [] };
-                return;
-            }
-            const current = meshes[name].materialSlots || [];
-            const same = current.length === slots.length && current.every((slot, index) => slot === slots[index]);
-            if (same) return;
-            meshes[name].materialSlots = slots;
-            rules().forEach(rule => (rule.options || []).forEach(option => {
-                const assignment = option.assignments && option.assignments[name];
-                if (!assignment) return;
-                slots.forEach(slot => {
-                    if (!assignment[slot]) assignment[slot] = materialNames()[0] || '';
-                });
-                Object.keys(assignment).forEach(slot => {
-                    if (!slots.includes(slot)) delete assignment[slot];
-                });
-            }));
+            if (!meshes[name]) meshes[name] = { slots: ['Matériau 1'], engraving: false };
         });
         state.present = new Set(found.keys());
     }
 
     function currentOptionId(rule) {
-        const active = window.tagManager.getActiveTags();
-        if (rule.type === 'visibility') {
-            const hits = (rule.options || []).filter(option =>
-                (option.tags || []).every(tag => active.activeTags.includes(tag))
-            );
-            hits.sort((a, b) => (b.tags || []).length - (a.tags || []).length);
-            if (hits[0]) return hits[0].id;
-        } else if (active.materials) {
-            const meshes = new Set();
-            (rule.options || []).forEach(option => Object.keys(option.assignments || {}).forEach(name => meshes.add(name)));
-            for (const meshName of meshes) {
-                if (active.materials[meshName]) return active.materials[meshName];
-            }
-        }
+        const choices = window.tagManager && window.tagManager.ruleChoices;
+        if (choices && choices[rule.id]) return choices[rule.id];
+        const chosen = defaults().rules && defaults().rules[rule.id];
+        if (chosen) return chosen;
         return rule.options && rule.options[0] && rule.options[0].id;
     }
 
@@ -289,17 +254,12 @@
         const model = partModel();
         const cards = meshNames().map(name => {
             const mesh = model.meshes[name];
-            const tags = (mesh.tags || []).map(tag =>
-                `<button type="button" class="ghost" data-action="remove-tag" data-mesh="${esc(name)}" data-tag="${esc(tag)}">${esc(tag)} ×</button>`
-            ).join('');
             const absent = state.present.size && !state.present.has(name) ? '<span class="absent">Absent du fichier chargé</span>' : '';
+            const zone = mesh.engraving ? '<span class="absent">Zone de gravure</span>' : '';
+            const slots = slotsFor(name).map(slot => `<span>${esc(slot)}</span>`).join('');
             return `<div class="card">
-                <strong>${esc(name)}</strong> ${absent}
-                <div class="chips">${tags || '<span class="absent">Aucun tag</span>'}</div>
-                <div class="row">
-                    <input data-mesh-newtag="${esc(name)}" placeholder="Nouveau tag">
-                    <button type="button" class="ghost" data-action="add-mesh-tag" data-mesh="${esc(name)}">Ajouter</button>
-                </div>
+                <strong>${esc(name)}</strong> ${absent} ${zone}
+                <div class="chips">${slots}</div>
             </div>`;
         }).join('');
         return `
@@ -323,8 +283,7 @@
         ).join('');
         return `
             <div class="row">
-                <button type="button" data-action="add-rule" data-type="visibility">Visibilité</button>
-                <button type="button" data-action="add-rule" data-type="material">Matériau</button>
+                <button type="button" data-action="add-rule">Ajouter une règle</button>
             </div>
             <div class="chips" style="margin:10px 0">${cards}</div>
             ${renderRuleEditor()}`;
@@ -337,21 +296,10 @@
         const openingOptions = (rule.options || []).map(option =>
             `<option value="${esc(option.id)}" ${option.id === opening ? 'selected' : ''}>${esc(option.label || option.id)}</option>`
         ).join('');
-        const extra = rule.type === 'material' ? `
-            <label class="field">Tag affiché avec cette règle
-                <input data-rule-prop="showTag" value="${esc(rule.showTag || '')}" placeholder="flag">
-            </label>
-            <label class="field">Masquer ce tag pour l’option
-                <select data-rule-prop="hideWhen">
-                    <option value="">Jamais</option>
-                    ${(rule.options || []).map(option => `<option value="${esc(option.id)}" ${rule.hideWhen === option.id ? 'selected' : ''}>${esc(option.label || option.id)}</option>`).join('')}
-                </select>
-            </label>` : '';
         return `<div class="card">
             <label class="field">Nom affiché<input data-rule-prop="label" value="${esc(rule.label || '')}"></label>
             <label class="field">Identifiant<input data-rule-prop="id" data-commit="change" value="${esc(rule.id)}"></label>
             <label class="field">Option à l’ouverture du viewer<select data-default-rule="${esc(rule.id)}">${openingOptions}</select></label>
-            ${extra}
             <div class="row">
                 <button type="button" data-action="add-option">Ajouter une option</button>
                 <button type="button" class="ghost" data-action="delete-rule">Supprimer la règle</button>
@@ -361,36 +309,30 @@
     }
 
     function renderOption(rule, option) {
-        let body = '';
-        if (rule.type === 'visibility') {
-            const checks = knownTags().map(tag =>
-                `<label><input type="checkbox" data-option-tag="${esc(tag)}" data-option="${esc(option.id)}" ${(option.tags || []).includes(tag) ? 'checked' : ''}> ${esc(tag)}</label>`
-            ).join('');
-            body = `<div class="check-list">${checks}</div>
-                <div class="row">
-                    <input data-new-tag="1" data-option="${esc(option.id)}" placeholder="Tag libre">
-                    <button type="button" class="ghost" data-action="add-option-tag" data-option="${esc(option.id)}">Ajouter le tag</button>
-                </div>`;
-        } else {
-            const targets = meshNames();
-            const selected = new Set(Object.keys(option.assignments || {}));
-            const checks = targets.map(name =>
-                `<label><input type="checkbox" data-target-mesh="${esc(name)}" data-option="${esc(option.id)}" ${selected.has(name) ? 'checked' : ''}> ${esc(name)}</label>`
-            ).join('');
-            const assignments = Object.keys(option.assignments || {}).map(meshName => {
-                const selects = slotsFor(meshName).map(slot => {
-                    const value = option.assignments[meshName][slot] || '';
-                    const mats = materialNames().map(mat =>
-                        `<option value="${esc(mat)}" ${mat === value ? 'selected' : ''}>${esc(mat)}</option>`
-                    ).join('');
-                    return `<label class="field">${esc(meshName)} · ${esc(slot)}
-                        <select data-slot-mesh="${esc(meshName)}" data-slot="${esc(slot)}" data-option="${esc(option.id)}">${mats}</select>
-                    </label>`;
-                }).join('');
-                return selects;
+        const body = meshNames().map(name => {
+            const effect = (option.meshes && option.meshes[name]) || {};
+            const visible = effect.visible === true ? 'true' : effect.visible === false ? 'false' : '';
+            const slots = slotsFor(name).map(slot => {
+                const value = (effect.materials && effect.materials[slot]) || '';
+                const mats = ['<option value="">Inchangé</option>'].concat(materialNames().map(mat =>
+                    `<option value="${esc(mat)}" ${mat === value ? 'selected' : ''}>${esc(mat)}</option>`
+                )).join('');
+                return `<label class="field">${esc(slot)}
+                    <select data-effect-mesh="${esc(name)}" data-effect-slot="${esc(slot)}" data-option="${esc(option.id)}">${mats}</select>
+                </label>`;
             }).join('');
-            body = `<div class="check-list">${checks || '<span class="absent">Aucun mesh</span>'}</div>${assignments}`;
-        }
+            return `<div class="card">
+                <strong>${esc(name)}</strong>
+                <label class="field">Visibilité
+                    <select data-effect-mesh="${esc(name)}" data-effect-visible="1" data-option="${esc(option.id)}">
+                        <option value="" ${visible === '' ? 'selected' : ''}>Inchangé</option>
+                        <option value="true" ${visible === 'true' ? 'selected' : ''}>Visible</option>
+                        <option value="false" ${visible === 'false' ? 'selected' : ''}>Masqué</option>
+                    </select>
+                </label>
+                ${slots}
+            </div>`;
+        }).join('');
         return `<div class="card">
             <div class="grid-2">
                 <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
@@ -728,7 +670,7 @@
     }
 
     function renderEngraving() {
-        const selected = meshNames().find(name => (partModel().meshes[name].tags || []).includes('engraving')) || '';
+        const selected = meshNames().find(name => partModel().meshes[name].engraving) || '';
         const choices = ['', ...meshNames()].map(name =>
             `<label><input type="radio" name="engraving-zone" data-engraving-mesh="${esc(name)}" ${name === selected ? 'checked' : ''}> ${name ? esc(name) : 'Aucune'}</label>`
         ).join('');
@@ -1018,9 +960,7 @@
             if (rule) rule[target.dataset.ruleProp] = target.value;
             return;
         }
-        if (target.dataset.optionTag) return toggleOptionTag(target.dataset.option, target.dataset.optionTag, target.checked);
-        if (target.dataset.targetMesh) return toggleTarget(target.dataset.option, target.dataset.targetMesh, target.checked);
-        if (target.dataset.slotMesh) return setSlot(target.dataset.option, target.dataset.slotMesh, target.dataset.slot, target.value);
+        if (target.dataset.effectMesh) return setMeshEffect(target);
         if (target.dataset.defaultRule) {
             defaults().rules[target.dataset.defaultRule] = target.value;
             return;
@@ -1066,16 +1006,14 @@
         const action = button.dataset.action;
         if (action === 'import-bin') $('file-bin').click();
         else if (action === 'reload-model') await window.reloadModels();
-        else if (action === 'add-mesh-tag') addMeshTag(button.dataset.mesh);
-        else if (action === 'remove-tag') removeMeshTag(button.dataset.mesh, button.dataset.tag);
-        else if (action === 'add-rule') addRule(button.dataset.type);
+        else if (action === 'preview-mesh') previewMesh(button.dataset.mesh);
+        else if (action === 'add-rule') addRule();
         else if (action === 'select-rule') {
             state.rule = button.dataset.id;
             render();
         } else if (action === 'add-option') addOption();
         else if (action === 'delete-rule') deleteRule();
         else if (action === 'delete-option') deleteOption(button.dataset.option);
-        else if (action === 'add-option-tag') addOptionTag(button.dataset.option);
         else if (action === 'add-material') addMaterial();
         else if (action === 'delete-material') deleteMaterial();
         else if (action === 'inherit-material') inheritMaterial();
@@ -1096,19 +1034,6 @@
         }
     }
 
-    function addMeshTag(meshName) {
-        const input = document.querySelector(`[data-mesh-newtag="${CSS.escape(meshName)}"]`);
-        const tag = input && input.value.trim();
-        if (!tag) return;
-        const mesh = partModel().meshes[meshName];
-        mesh.tags = Array.from(new Set([...(mesh.tags || []), tag]));
-        render();
-    }
-    function removeMeshTag(meshName, tag) {
-        const mesh = partModel().meshes[meshName];
-        mesh.tags = (mesh.tags || []).filter(item => item !== tag);
-        render();
-    }
     function previewMesh(meshName) {
         if (!meshName || !window.tagManager) return;
         window.tagManager.scene.meshes.forEach(mesh => {
@@ -1119,18 +1044,14 @@
     }
     function setEngravingZone(meshName) {
         Object.entries(partModel().meshes).forEach(([name, mesh]) => {
-            const tags = new Set(mesh.tags || []);
-            if (meshName && name === meshName) tags.add('engraving');
-            else tags.delete('engraving');
-            mesh.tags = Array.from(tags);
+            mesh.engraving = !!(meshName && name === meshName);
         });
+        if (window.tagManager && window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
+        if (window.engravingManager && window.engravingManager.update) window.engravingManager.update();
     }
-    function addRule(type) {
-        const id = uniqueId(type === 'visibility' ? 'visibilite' : 'materiau', new Set(rules().map(rule => rule.id)));
-        const rule = type === 'visibility'
-            ? { id, label: 'Visibilité', type, options: [{ id: 'option1', label: 'Option 1', tags: [] }] }
-            : { id, label: 'Matériau', type, options: [{ id: 'option1', label: 'Option 1', assignments: {} }] };
-        rules().push(rule);
+    function addRule() {
+        const id = uniqueId('regle', new Set(rules().map(rule => rule.id)));
+        rules().push({ id, label: 'Règle', options: [{ id: 'option1', label: 'Option 1', meshes: {} }] });
         state.rule = id;
         render();
     }
@@ -1138,11 +1059,8 @@
         const rule = selectedRule();
         if (!rule) return;
         const id = uniqueId('option', new Set((rule.options || []).map(option => option.id)));
-        const option = { id, label: 'Option' };
-        if (rule.type === 'visibility') option.tags = [];
-        else option.assignments = {};
         rule.options = rule.options || [];
-        rule.options.push(option);
+        rule.options.push({ id, label: 'Option', meshes: {} });
         render();
     }
     function deleteRule() {
@@ -1186,45 +1104,28 @@
         if (defaults().rules[rule.id] === previous) defaults().rules[rule.id] = next;
         render();
     }
-    function toggleOptionTag(optionId, tag, enabled) {
+    function setMeshEffect(target) {
         const rule = selectedRule();
-        const option = rule && (rule.options || []).find(item => item.id === optionId);
+        const option = rule && (rule.options || []).find(item => item.id === target.dataset.option);
         if (!option) return;
-        const tags = new Set(option.tags || []);
-        if (enabled) tags.add(tag);
-        else tags.delete(tag);
-        option.tags = Array.from(tags);
-        const select = document.querySelector(`#rulebar [data-rule="${CSS.escape(rule.id)}"]`);
-        if (select) window.viewer.applyRule(rule.id, select.value);
-        renderRulebar();
-    }
-    function addOptionTag(optionId) {
-        const input = Array.from(document.querySelectorAll('[data-new-tag]')).find(item => item.dataset.option === optionId);
-        const tag = input && input.value.trim();
-        if (!tag) return;
-        toggleOptionTag(optionId, tag, true);
-        render();
-    }
-    function toggleTarget(optionId, meshName, enabled) {
-        const rule = selectedRule();
-        const option = rule && (rule.options || []).find(item => item.id === optionId);
-        if (!option) return;
-        option.assignments = option.assignments || {};
-        if (!enabled) delete option.assignments[meshName];
-        else if (!option.assignments[meshName]) {
-            const first = materialNames()[0] || '';
-            option.assignments[meshName] = {};
-            slotsFor(meshName).forEach(slot => { option.assignments[meshName][slot] = first; });
+        const meshName = target.dataset.effectMesh;
+        option.meshes = option.meshes || {};
+        const effect = Object.assign({}, option.meshes[meshName]);
+        if (target.dataset.effectVisible) {
+            if (target.value === 'true') effect.visible = true;
+            else if (target.value === 'false') effect.visible = false;
+            else delete effect.visible;
+        } else if (target.dataset.effectSlot) {
+            effect.materials = Object.assign({}, effect.materials);
+            if (target.value) effect.materials[target.dataset.effectSlot] = target.value;
+            else delete effect.materials[target.dataset.effectSlot];
+            if (!Object.keys(effect.materials).length) delete effect.materials;
         }
-        render();
-    }
-    function setSlot(optionId, meshName, slot, materialName) {
-        const rule = selectedRule();
-        const option = rule && (rule.options || []).find(item => item.id === optionId);
-        if (!option) return;
-        option.assignments[meshName] = option.assignments[meshName] || {};
-        option.assignments[meshName][slot] = materialName;
-        window.viewer.applyRule(rule.id, optionId);
+        if (effect.visible === undefined && !effect.materials) delete option.meshes[meshName];
+        else option.meshes[meshName] = effect;
+        window.viewer.applyRule(rule.id, option.id);
+        const select = document.querySelector(`#rulebar [data-rule="${CSS.escape(rule.id)}"]`);
+        if (select) select.value = option.id;
     }
     function addMaterial() {
         const input = $('new-material');
@@ -1248,9 +1149,9 @@
         });
         const fallback = materialNames()[0] || '';
         rules().forEach(rule => (rule.options || []).forEach(option => {
-            Object.values(option.assignments || {}).forEach(slots => {
-                Object.keys(slots).forEach(slot => {
-                    if (slots[slot] === name) slots[slot] = fallback;
+            Object.values(option.meshes || {}).forEach(effect => {
+                Object.entries((effect && effect.materials) || {}).forEach(([slot, materialName]) => {
+                    if (materialName === name) effect.materials[slot] = fallback;
                 });
             });
         }));
@@ -1349,7 +1250,9 @@
         if (!response.ok) throw new Error(await response.text());
     }
     function serializeAsset(config) {
-        return `const assetConfiguration = ${JSON.stringify(config, null, 2)};\n`
+        const copy = JSON.parse(JSON.stringify(config));
+        delete copy._rulesMigrated;
+        return `const assetConfiguration = ${JSON.stringify(copy, null, 2)};\n`
             + `if (typeof module !== 'undefined' && module.exports) {\n`
             + `  module.exports = assetConfiguration;\n`
             + `} else {\n`
@@ -1393,6 +1296,7 @@
             fetch('Textures/materials.json?t=' + stamp, { cache: 'no-store' }).then(response => response.json())
         ]);
         window.setAssetConfig(parseAssetScript(assetText));
+        if (window.captureImportedSlots) window.captureImportedSlots();
         replaceContents(studio(), studioData);
         replaceContents(materials(), materialsData);
         window.applyEnvironment(studio().environment || {}, { reloadTexture: true });

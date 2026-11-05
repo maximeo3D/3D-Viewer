@@ -159,9 +159,9 @@ async function loadBinaryModel(modelConfig) {
     }
 
     const blob = new Blob([data], { type: "model/gltf-binary" });
-    const file = new File([blob], modelConfig.file);
+    const file = new File([blob], binFile.replace(/\.bin$/i, '.glb'));
 
-    return BABYLON.SceneLoader.ImportMeshAsync("", "file:", file, scene);
+    return BABYLON.SceneLoader.ImportMeshAsync("", "file:", file, scene, null, ".glb");
 }
 
 // Function to load 3D models
@@ -247,6 +247,7 @@ async function loadModels() {
                     });
                 }
             });
+            captureImportedSlots();
         }
     } catch (error) {
         console.error(`❌ Error loading model ${modelFile}:`, error);
@@ -254,6 +255,51 @@ async function loadModels() {
     }
 }
 
+function captureImportedSlots() {
+    const model = assetConfig && assetConfig.models && assetConfig.models.part_model;
+    if (!model || !scene) return;
+    model.meshes = model.meshes || {};
+    const found = new Map();
+    scene.meshes.forEach(mesh => {
+        if (!mesh.name || mesh.name === '__root__' || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
+        const primitive = mesh.name.match(/_primitive(\d+)$/);
+        const base = mesh.name.replace(/_primitive\d+$/, '');
+        const index = primitive ? Number(primitive[1]) : 0;
+        const stored = mesh.metadata && mesh.metadata.importedSlot;
+        let materialName = stored || (mesh.material && mesh.material.name);
+        if (!materialName || materialName === 'default material' || materialName.startsWith('__')) {
+            materialName = `Matériau ${index + 1}`;
+        }
+        mesh.metadata = mesh.metadata || {};
+        mesh.metadata.importedSlot = materialName;
+        const list = found.get(base) || [];
+        list.push({ index, materialName });
+        found.set(base, list);
+    });
+    found.forEach((list, name) => {
+        list.sort((a, b) => a.index - b.index);
+        const previous = model.meshes[name] || {};
+        const slots = [];
+        const used = new Set();
+        list.forEach(item => {
+            if (slots[item.index]) return;
+            let label = item.materialName;
+            if (used.has(label)) label = `${item.materialName} ${item.index + 1}`;
+            used.add(label);
+            slots[item.index] = label;
+        });
+        const compact = [];
+        for (let index = 0; index < slots.length; index++) compact.push(slots[index] || `Matériau ${index + 1}`);
+        model.meshes[name] = {
+            slots: compact,
+            engraving: previous.engraving === true || (previous.tags || []).includes('engraving'),
+            tags: previous.tags,
+            materialSlots: previous.materialSlots
+        };
+    });
+}
+
+window.captureImportedSlots = captureImportedSlots;
 window.getAssetConfig = () => assetConfig;
 window.getMaterialsConfig = () => materialsConfig;
 window.getStudioConfig = () => config;
@@ -452,9 +498,7 @@ window.refreshMaterials = function() {
     if (window.tagManager) {
         window.tagManager.materialsConfig = materialsConfig;
         window.tagManager.loadTagConfiguration();
-        window.tagManager.activeMaterialConfigs.forEach((configName, meshName) => {
-            window.tagManager.applyMaterialConfig(meshName, configName);
-        });
+        if (window.tagManager.reapplyMaterials) window.tagManager.reapplyMaterials();
     }
 };
 
@@ -1177,20 +1221,92 @@ class TagManager {
         this.materialsConfig = materialsConfig;
         this.tagConfig = null;
         this.activeMaterialConfigs = new Map(); // Map<objectName, configName>
-        this.activeTags = new Set(); // Tags actifs (pour les boutons individuels)
+        this.activeTags = new Set();
+        this.ruleChoices = {};
         this.engravingText = '';
     }
     
     // Charger la configuration des tags depuis assetConfig (plus besoin de fichier séparé)
     loadTagConfiguration() {
         if (assetConfig && assetConfig.materialConfigs) {
-            this.tagConfig = {
-                materials: assetConfig.materialConfigs
-            };
-            // Configuration des tags chargée depuis assetConfig
-        } else {
-            console.warn('⚠️ assetConfig.materialConfigs non trouvé');
+            this.tagConfig = { materials: assetConfig.materialConfigs };
         }
+    }
+
+    partModel() {
+        return assetConfig && assetConfig.models && assetConfig.models.part_model;
+    }
+
+    meshConfig(meshName) {
+        const model = this.partModel();
+        return model && model.meshes && model.meshes[meshName];
+    }
+
+    partMesh(meshName, slotIndex) {
+        const numbered = this.scene.meshes.find(mesh => mesh && mesh.name === `${meshName}_primitive${slotIndex}`);
+        if (numbered) return numbered;
+        if (slotIndex === 0) {
+            return this.scene.meshes.find(mesh => mesh && mesh.name === meshName && !mesh.name.includes('_primitive')) || null;
+        }
+        return null;
+    }
+
+    setMeshEnabled(meshName, enabled) {
+        this.scene.meshes.forEach(mesh => {
+            if (!mesh || !mesh.name) return;
+            if (mesh.name === meshName || mesh.name.startsWith(meshName + '_primitive')) mesh.setEnabled(enabled);
+        });
+    }
+
+    applySceneVisibility() {
+        const model = this.partModel();
+        if (!model || !model.meshes) return;
+        const visibility = {};
+        Object.keys(model.meshes).forEach(meshName => {
+            const config = model.meshes[meshName];
+            const hasText = !!(this.engravingText && this.engravingText.trim());
+            visibility[meshName] = config.engraving || (config.tags || []).includes('engraving') ? hasText : true;
+        });
+        (assetConfig.rules || []).forEach(rule => {
+            const option = (rule.options || []).find(item => item.id === this.ruleChoices[rule.id]);
+            if (!option || !option.meshes) return;
+            Object.entries(option.meshes).forEach(([meshName, effect]) => {
+                if (effect && (effect.visible === true || effect.visible === false)) visibility[meshName] = effect.visible;
+            });
+        });
+        Object.entries(visibility).forEach(([meshName, enabled]) => {
+            const config = model.meshes[meshName];
+            const hasText = !!(this.engravingText && this.engravingText.trim());
+            if (config && (config.engraving || (config.tags || []).includes('engraving')) && !hasText) enabled = false;
+            this.setMeshEnabled(meshName, enabled);
+        });
+    }
+
+    applySlotMaterial(meshName, slotName, materialName) {
+        const config = this.meshConfig(meshName);
+        const slots = (config && config.slots) || (config && config.materialSlots) || [];
+        let slotIndex = slots.indexOf(slotName);
+        if (slotIndex < 0) {
+            const match = String(slotName || '').match(/^slot(\d+)$/);
+            slotIndex = match ? Number(match[1]) - 1 : -1;
+        }
+        if (slotIndex < 0 || !this.materialsConfig.materials[materialName]) return;
+        const mesh = this.partMesh(meshName, slotIndex);
+        if (!mesh) return;
+        mesh.material = createPBRMaterial(this.materialsConfig.materials[materialName], this.scene, materialName);
+        this.activeMaterialConfigs.set(`${meshName}:${slotName}`, materialName);
+    }
+
+    reapplyMaterials() {
+        (assetConfig.rules || []).forEach(rule => {
+            const option = (rule.options || []).find(item => item.id === this.ruleChoices[rule.id]);
+            if (!option || !option.meshes) return;
+            Object.entries(option.meshes).forEach(([meshName, effect]) => {
+                Object.entries((effect && effect.materials) || {}).forEach(([slotName, materialName]) => {
+                    if (materialName) this.applySlotMaterial(meshName, slotName, materialName);
+                });
+            });
+        });
     }
     
     
@@ -1198,51 +1314,13 @@ class TagManager {
     setOption(optionName) {
         // Vider tous les tags actifs
         this.activeTags.clear();
-        // Ajouter seulement le tag sélectionné
         this.activeTags.add(optionName);
-        this.applyActiveTags();
+        this.applySceneVisibility();
     }
     
     // Appliquer les tags actifs
     applyActiveTags() {
-        if (!assetConfig) return;
-        
-        // Parcourir tous les modèles et leurs meshes
-        Object.keys(assetConfig.models).forEach(modelKey => {
-            const model = assetConfig.models[modelKey];
-            
-            Object.keys(model.meshes).forEach(meshName => {
-                const meshConfig = model.meshes[meshName];
-                const meshTags = meshConfig.tags || [];
-                
-                // Un mesh est visible si au moins un de ses tags est actif
-                let shouldBeVisible = meshTags.some(tag => this.activeTags.has(tag));
-                // Cas particulier: les meshes 'engraving' sont invisibles tant que le texte est vide
-                if (meshTags.includes('engraving')) {
-                    if (!this.engravingText || this.engravingText.trim() === '') {
-                        shouldBeVisible = false;
-                    }
-                }
-                
-                // Appliquer la visibilité aux meshes primitifs (cas multi-matériaux)
-                let meshes = this.scene.meshes.filter(mesh => 
-                    mesh.name.startsWith(meshName + '_primitive')
-                );
-                
-                // Si aucun mesh primitif trouvé, chercher le mesh original (cas mono-matériau)
-                if (meshes.length === 0) {
-                    meshes = this.scene.meshes.filter(mesh => 
-                        mesh.name === meshName && !mesh.name.includes('_primitive')
-                    );
-                }
-                
-                meshes.forEach(mesh => {
-                    mesh.setEnabled(shouldBeVisible);
-                });
-            });
-        });
-        
-        // Tags actifs appliqués
+        this.applySceneVisibility();
     }
     
     
@@ -1306,16 +1384,10 @@ class TagManager {
     // Définir le texte d'engraving
     setEngravingText(text) {
         this.engravingText = text;
-        // Gérer automatiquement le tag 'engraving' selon la présence de texte
-        if (this.engravingText && this.engravingText.trim() !== '') {
-            this.activeTags.add('engraving');
-        } else {
-            this.activeTags.delete('engraving');
-        }
-        // Délégué au EngravingManager si disponible
         if (window.engravingManager) {
             window.engravingManager.setText(this.engravingText);
         }
+        this.applySceneVisibility();
     }
 
     // Définir manuellement le ratio largeur/hauteur (ex: 2 pour 2:1). Passer null pour revenir à l'auto.
@@ -1339,11 +1411,10 @@ class TagManager {
             outer: for (const modelKey of Object.keys(assetConfig.models)) {
                 const model = assetConfig.models[modelKey];
                 for (const meshName of Object.keys(model.meshes)) {
-                    const tags = model.meshes[meshName].tags || [];
-                    if (tags.includes('engraving')) {
-                        const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
-                        if (meshes.length > 0) { targetMesh = meshes[0]; break outer; }
-                    }
+                    const config = model.meshes[meshName];
+                    if (!(config.engraving || (config.tags || []).includes('engraving'))) continue;
+                    const meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
+                    if (meshes.length > 0) { targetMesh = meshes[0]; break outer; }
                 }
             }
         }
@@ -1365,6 +1436,7 @@ class TagManager {
         return {
             activeTags: Array.from(this.activeTags),
             materials: Object.fromEntries(this.activeMaterialConfigs),
+            rules: Object.assign({}, this.ruleChoices),
             engravingText: this.engravingText || ''
         };
     }
@@ -1377,8 +1449,7 @@ class TagManager {
             const model = assetConfig.models[modelKey];
             Object.keys(model.meshes).forEach(meshName => {
                 const meshCfg = model.meshes[meshName];
-                const tags = meshCfg.tags || [];
-                if (!tags.includes('engraving')) return;
+                if (!(meshCfg.engraving || (meshCfg.tags || []).includes('engraving'))) return;
 
                 let meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                 meshes.forEach(m => {
@@ -1407,8 +1478,7 @@ class TagManager {
             const model = assetConfig.models[modelKey];
             Object.keys(model.meshes).forEach(meshName => {
                 const meshCfg = model.meshes[meshName];
-                const tags = meshCfg.tags || [];
-                if (!tags.includes('engraving')) return;
+                if (!(meshCfg.engraving || (meshCfg.tags || []).includes('engraving'))) return;
 
                 let meshes = this.scene.meshes.filter(m => m && (m.name === meshName || m.name.startsWith(meshName + '_primitive')));
                 meshes.forEach(m => {
