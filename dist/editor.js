@@ -44,6 +44,11 @@
             };
         }
         config.models.part_model.meshes = config.models.part_model.meshes || {};
+        if (!Array.isArray(config.models.part_model.files)) {
+            config.models.part_model.files = config.models.part_model.file
+                ? [{ file: config.models.part_model.file, format: config.models.part_model.format || 'bin' }]
+                : [];
+        }
         return config.models.part_model;
     }
     function defaults() {
@@ -142,7 +147,7 @@
         const found = new Map();
         if (scene) {
             scene.meshes.forEach(mesh => {
-                if (!mesh.name || mesh.name === '__root__' || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
+        if (!mesh.name || mesh.name === '__root__' || mesh.name.endsWith('__root') || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
                 const base = mesh.name.replace(/_primitive\d+$/, '');
                 const primitive = mesh.name.match(/_primitive(\d+)$/);
                 const count = primitive ? Number(primitive[1]) + 1 : 1;
@@ -252,19 +257,26 @@
 
     function renderModel() {
         const model = partModel();
+        const files = (model.files || []).filter(item => item && item.file);
+        const fileRows = files.map(item => `<div class="row">
+                <strong>${esc(item.file)}</strong>
+                <button type="button" class="ghost" data-action="remove-model-file" data-file="${esc(item.file)}">Retirer</button>
+            </div>`).join('');
         const cards = meshNames().map(name => {
             const mesh = model.meshes[name];
             const absent = state.present.size && !state.present.has(name) ? '<span class="absent">Absent du fichier chargé</span>' : '';
             const zone = mesh.engraving ? '<span class="absent">Zone de gravure</span>' : '';
+            const origin = mesh.file ? `<span>${esc(mesh.file)}</span>` : '';
             const slots = slotsFor(name).map(slot => `<span>${esc(slot)}</span>`).join('');
             return `<div class="card">
-                <strong>${esc(name)}</strong> ${absent} ${zone}
+                <strong>${esc(name)}</strong> ${origin} ${absent} ${zone}
                 <div class="chips">${slots}</div>
             </div>`;
         }).join('');
         return `
             <div class="stack">
-                <label class="field">Fichier<input data-model="file" value="${esc(model.file || '')}" placeholder="part.glb ou part.bin"></label>
+                <div class="field">Fichiers</div>
+                ${fileRows || '<p class="help">Aucun fichier.</p>'}
                 <label class="field">Décalage XOR<input type="number" data-model="dataOffset" value="${Number(model.dataOffset || 0)}"></label>
                 <div class="row">
                     <button type="button" data-action="import-bin">Importer un .bin</button>
@@ -1006,6 +1018,10 @@
         const action = button.dataset.action;
         if (action === 'import-bin') $('file-bin').click();
         else if (action === 'reload-model') await window.reloadModels();
+        else if (action === 'remove-model-file') {
+            removeProjectFile(button.dataset.file);
+            await window.reloadModels();
+        }
         else if (action === 'preview-mesh') previewMesh(button.dataset.mesh);
         else if (action === 'add-rule') addRule();
         else if (action === 'select-rule') {
@@ -1048,6 +1064,22 @@
         });
         if (window.tagManager && window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
         if (window.engravingManager && window.engravingManager.update) window.engravingManager.update();
+    }
+    function addProjectFile(name) {
+        const model = partModel();
+        model.files = model.files || [];
+        if (!model.files.some(item => item.file === name)) {
+            model.files.push({ file: name, format: /\.bin$/i.test(name) ? 'bin' : (model.format || 'bin') });
+        }
+        model.file = model.files[0] ? model.files[0].file : '';
+    }
+    function removeProjectFile(name) {
+        const model = partModel();
+        model.files = (model.files || []).filter(item => item.file !== name);
+        model.file = model.files[0] ? model.files[0].file : '';
+        Object.keys(model.meshes).forEach(meshName => {
+            if (model.meshes[meshName] && model.meshes[meshName].file === name) delete model.meshes[meshName];
+        });
     }
     function addRule() {
         const id = uniqueId('regle', new Set(rules().map(rule => rule.id)));
@@ -1288,7 +1320,7 @@
     }
 
     async function revertAll() {
-        const savedFile = partModel().file;
+        const savedFiles = (partModel().files || []).map(item => item.file).join('\n');
         const stamp = Date.now();
         const [assetText, studioData, materialsData] = await Promise.all([
             fetch('Assets/asset.js?t=' + stamp, { cache: 'no-store' }).then(response => response.text()),
@@ -1307,7 +1339,7 @@
         }
         state.material = null;
         state.rule = null;
-        if (savedFile !== partModel().file) await window.reloadModels();
+        if (savedFiles !== (partModel().files || []).map(item => item.file).join('\n')) await window.reloadModels();
         else if (window.viewer) await window.viewer.applyDefaults();
         window.refreshMaterials();
         scanMeshes();
@@ -1391,16 +1423,19 @@
             if (event.target.id === 'live-engraving') window.viewer.setEngravingText(event.target.value);
         });
         $('file-bin').addEventListener('change', async (event) => {
-            const file = event.target.files && event.target.files[0];
+            const selected = Array.from(event.target.files || []);
             event.target.value = '';
-            if (!file) return;
+            if (!selected.length) return;
             try {
-                setStatus('Import du modèle…');
-                await upload('Assets', file);
-                const model = partModel();
-                model.file = file.name;
-                model.format = 'bin';
+                setStatus(selected.length > 1 ? 'Import des modèles…' : 'Import du modèle…');
+                for (const file of selected) {
+                    await upload('Assets', file);
+                    addProjectFile(file.name);
+                }
                 await window.reloadModels();
+                if (!window.lastModelError) {
+                    setStatus(selected.map(file => file.name).join(', ') + (selected.length > 1 ? ' ajoutés.' : ' ajouté.'));
+                }
             } catch (error) {
                 setStatus('Import impossible. Le serveur d’écriture doit être lancé. ' + error.message);
             }

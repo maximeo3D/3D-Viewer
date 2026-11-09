@@ -164,95 +164,102 @@ async function loadBinaryModel(modelConfig) {
     return BABYLON.SceneLoader.ImportMeshAsync("", "file:", file, scene, null, ".glb");
 }
 
+function modelSources(model) {
+    const offset = Number(model.dataOffset || 0);
+    const listed = Array.isArray(model.files) ? model.files : [];
+    const source = listed.length ? listed : (model.file ? [{ file: model.file, format: model.format || 'bin' }] : []);
+    return source
+        .map(item => ({
+            file: typeof item === 'string' ? item : item && item.file,
+            format: (item && item.format) || model.format || 'bin'
+        }))
+        .filter(item => item.file)
+        .map(item => ({ file: item.file, format: item.format, dataOffset: offset }));
+}
+
+function claimMeshBase(base, sourceFile, usedNames) {
+    const owner = usedNames.get(base);
+    if (!owner || owner === sourceFile) {
+        usedNames.set(base, sourceFile);
+        return base;
+    }
+    let index = 2;
+    let claimed = `${base} ${index}`;
+    while (usedNames.has(claimed) && usedNames.get(claimed) !== sourceFile) {
+        index += 1;
+        claimed = `${base} ${index}`;
+    }
+    usedNames.set(claimed, sourceFile);
+    return claimed;
+}
+
+function placeLoadedModel(result, sourceFile, usedNames) {
+    if (!result || !result.meshes || !result.meshes.length) return;
+    const stem = sourceFile.replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '_') || 'model';
+    const rootMesh = result.meshes.find(mesh => mesh.name === '__root__');
+    let modelGroup = null;
+    if (rootMesh) {
+        rootMesh.name = `${stem}__root`;
+        rootMesh.position = new BABYLON.Vector3(0, 0, 0);
+        rootMesh.rotation = new BABYLON.Vector3(0, 0, 0);
+        rootMesh.scaling = new BABYLON.Vector3(1, 1, 1);
+        result.meshes.forEach(mesh => {
+            if (mesh !== rootMesh) mesh.parent = rootMesh;
+        });
+    } else {
+        modelGroup = new BABYLON.TransformNode(`${stem}__root`, scene);
+        modelGroup.position = new BABYLON.Vector3(0, 0, 0);
+        modelGroup.rotation = new BABYLON.Vector3(0, 0, 0);
+        modelGroup.scaling = new BABYLON.Vector3(1, 1, 1);
+        result.meshes.forEach(mesh => {
+            if (mesh !== modelGroup) mesh.parent = modelGroup;
+        });
+    }
+    const group = rootMesh || modelGroup;
+    result.meshes.forEach(mesh => {
+        if (!mesh.name || mesh === modelGroup || mesh.name.endsWith('__root')) return;
+        if (mesh.scaling && (mesh.scaling.x === -1 || mesh.scaling.y === -1 || mesh.scaling.z === -1)) {
+            mesh.scaling = new BABYLON.Vector3(Math.abs(mesh.scaling.x), Math.abs(mesh.scaling.y), Math.abs(mesh.scaling.z));
+        }
+        if (mesh.getVerticesData && mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)) {
+            const uvs = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind);
+            const correctedUVs = [...uvs];
+            for (let i = 0; i < correctedUVs.length; i += 2) correctedUVs[i + 1] = 1.0 - correctedUVs[i + 1];
+            mesh.setVerticesData(BABYLON.VertexBuffer.UVKind, correctedUVs);
+        }
+        const primitive = mesh.name.match(/_primitive(\d+)$/);
+        const suffix = primitive ? primitive[0] : '';
+        const base = mesh.name.slice(0, mesh.name.length - suffix.length);
+        const claimed = claimMeshBase(base, sourceFile, usedNames);
+        if (claimed !== base) mesh.name = claimed + suffix;
+        mesh.metadata = mesh.metadata || {};
+        mesh.metadata.sourceFile = sourceFile;
+        window.loadedModels.set(mesh.name, { mesh, group });
+    });
+}
+
 // Function to load 3D models
 async function loadModels() {
     window.lastModelError = null;
     if (!assetConfig || !assetConfig.models) return;
-    
-    // Charger le modèle depuis la configuration asset.js
     const modelConfig = assetConfig.models.part_model;
     if (!modelConfig) return;
-    const modelFile = modelConfig.file;
-    
-    try {
-        let result;
-        if (modelConfig.format === "bin") {
-            result = await loadBinaryModel(modelConfig);
-        } else {
-            result = await BABYLON.SceneLoader.ImportMeshAsync("", "Assets/", modelFile, scene);
+    const sources = modelSources(modelConfig);
+    const usedNames = new Map();
+    const errors = [];
+    for (const source of sources) {
+        try {
+            const result = source.format === 'bin'
+                ? await loadBinaryModel(source)
+                : await BABYLON.SceneLoader.ImportMeshAsync('', 'Assets/', source.file, scene);
+            placeLoadedModel(result, source.file, usedNames);
+        } catch (error) {
+            console.error(`❌ Error loading model ${source.file}:`, error);
+            errors.push(`${source.file}: ${(error && error.message) ? error.message : String(error)}`);
         }
-        
-        if (result.meshes.length > 0) {
-            // Trouver le mesh __root__ qui doit être le parent principal
-            const rootMesh = result.meshes.find(mesh => mesh.name === "__root__");
-            let modelGroup = null;
-            
-            if (rootMesh) {
-                // Appliquer les transformations par défaut au root
-                rootMesh.position = new BABYLON.Vector3(0, 0, 0);
-                rootMesh.rotation = new BABYLON.Vector3(0, 0, 0);
-                rootMesh.scaling = new BABYLON.Vector3(1, 1, 1);
-                
-                // Attacher tous les autres meshes au root
-                result.meshes.forEach(mesh => {
-                    if (mesh !== rootMesh && mesh.name !== "__root__") {
-                        mesh.parent = rootMesh;
-                    }
-                });
-            } else {
-                // Fallback si pas de __root__ trouvé
-                modelGroup = new BABYLON.TransformNode("Main_Models", scene);
-                modelGroup.position = new BABYLON.Vector3(0, 0, 0);
-                modelGroup.rotation = new BABYLON.Vector3(0, 0, 0);
-                modelGroup.scaling = new BABYLON.Vector3(1, 1, 1);
-                
-                result.meshes.forEach(mesh => {
-                    if (mesh !== modelGroup) {
-                        mesh.parent = modelGroup;
-                    }
-                });
-            }
-            
-            // Appliquer les corrections recommandées par la documentation Babylon.js/Blender
-            result.meshes.forEach(mesh => {
-                if (mesh.name && mesh.name !== "Main_Models" && mesh.name !== "__root__") {
-                    // Correction des transformations non appliquées dans Blender (documentation officielle)
-                    if (mesh.scaling.x === -1 || mesh.scaling.y === -1 || mesh.scaling.z === -1) {
-                        mesh.scaling = new BABYLON.Vector3(
-                            Math.abs(mesh.scaling.x),
-                            Math.abs(mesh.scaling.y), 
-                            Math.abs(mesh.scaling.z)
-                        );
-                    }
-                    
-                    // Correction des UVs (inversion axe V)
-                    if (mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)) {
-                        const uvs = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind);
-                        const correctedUVs = [...uvs];
-                        for (let i = 0; i < correctedUVs.length; i += 2) {
-                            correctedUVs[i + 1] = 1.0 - correctedUVs[i + 1]; // Inverser axe V
-                        }
-                        mesh.setVerticesData(BABYLON.VertexBuffer.UVKind, correctedUVs);
-                    }
-                }
-            });
-            
-            // Stocker les références des meshes pour le système de tags
-            result.meshes.forEach(mesh => {
-                if (mesh.name && mesh.name !== "Main_Models" && mesh.name !== "__root__") {
-                    // Stocker les meshes pour le système de tags
-                    window.loadedModels.set(mesh.name, {
-                        mesh: mesh,
-                        group: rootMesh || modelGroup
-                    });
-                }
-            });
-            captureImportedSlots();
-        }
-    } catch (error) {
-        console.error(`❌ Error loading model ${modelFile}:`, error);
-        window.lastModelError = (error && error.message) ? error.message : String(error);
     }
+    if (errors.length) window.lastModelError = errors.join(' ');
+    captureImportedSlots();
 }
 
 function captureImportedSlots() {
@@ -261,7 +268,7 @@ function captureImportedSlots() {
     model.meshes = model.meshes || {};
     const found = new Map();
     scene.meshes.forEach(mesh => {
-        if (!mesh.name || mesh.name === '__root__' || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
+        if (!mesh.name || mesh.name === '__root__' || mesh.name.endsWith('__root') || mesh.name === 'Main_Models' || mesh.name === 'hdrSkyBox') return;
         const primitive = mesh.name.match(/_primitive(\d+)$/);
         const base = mesh.name.replace(/_primitive\d+$/, '');
         const index = primitive ? Number(primitive[1]) : 0;
@@ -273,7 +280,7 @@ function captureImportedSlots() {
         mesh.metadata = mesh.metadata || {};
         mesh.metadata.importedSlot = materialName;
         const list = found.get(base) || [];
-        list.push({ index, materialName });
+        list.push({ index, materialName, source: mesh.metadata && mesh.metadata.sourceFile });
         found.set(base, list);
     });
     found.forEach((list, name) => {
@@ -293,6 +300,7 @@ function captureImportedSlots() {
         model.meshes[name] = {
             slots: compact,
             engraving: previous.engraving === true || (previous.tags || []).includes('engraving'),
+            file: (list.find(item => item.source) || {}).source || previous.file,
             tags: previous.tags,
             materialSlots: previous.materialSlots
         };
