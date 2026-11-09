@@ -333,15 +333,22 @@
                     <select data-effect-mesh="${esc(name)}" data-effect-slot="${esc(slot)}" data-option="${esc(option.id)}">${mats}</select>
                 </label>`;
             }).join('');
+            const dash = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+            const eye = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.4 8S3.7 4.2 8 4.2 14.6 8 14.6 8 12.3 11.8 8 11.8 1.4 8 1.4 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+            const eyeOff = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.4 8S3.7 4.2 8 4.2 14.6 8 14.6 8 12.3 11.8 8 11.8 1.4 8 1.4 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M3.2 12.8 12.8 3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+            const visButton = (value, label, icon) => {
+                const on = visible === value;
+                return `<button type="button" class="icon-btn vis-btn${on ? ' active' : ''}" data-action="set-visible" data-effect-mesh="${esc(name)}" data-option="${esc(option.id)}" data-value="${value}" title="${label}" aria-label="${label}" aria-pressed="${on ? 'true' : 'false'}">${icon}</button>`;
+            };
             return `<div class="card">
-                <strong>${esc(name)}</strong>
-                <label class="field">Visibilité
-                    <select data-effect-mesh="${esc(name)}" data-effect-visible="1" data-option="${esc(option.id)}">
-                        <option value="" ${visible === '' ? 'selected' : ''}>Inchangé</option>
-                        <option value="true" ${visible === 'true' ? 'selected' : ''}>Visible</option>
-                        <option value="false" ${visible === 'false' ? 'selected' : ''}>Masqué</option>
-                    </select>
-                </label>
+                <div class="mesh-row">
+                    <strong>${esc(name)}</strong>
+                    <div class="vis-group" role="group" aria-label="Visibilité de ${esc(name)}">
+                        ${visButton('', 'Inchangé', dash)}
+                        ${visButton('true', 'Visible', eye)}
+                        ${visButton('false', 'Masqué', eyeOff)}
+                    </div>
+                </div>
                 ${slots}
             </div>`;
         }).join('');
@@ -1034,6 +1041,14 @@
         } else if (action === 'add-option') addOption();
         else if (action === 'delete-rule') deleteRule();
         else if (action === 'toggle-option') toggleOption(button.dataset.option);
+        else if (action === 'set-visible') {
+            setMeshEffect(button);
+            button.parentElement.querySelectorAll('.vis-btn').forEach(item => {
+                const on = item === button;
+                item.classList.toggle('active', on);
+                item.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+        }
         else if (action === 'delete-option') deleteOption(button.dataset.option);
         else if (action === 'add-material') addMaterial();
         else if (action === 'delete-material') deleteMaterial();
@@ -1128,9 +1143,9 @@
         const meshName = target.dataset.effectMesh;
         option.meshes = option.meshes || {};
         const effect = Object.assign({}, option.meshes[meshName]);
-        if (target.dataset.effectVisible) {
-            if (target.value === 'true') effect.visible = true;
-            else if (target.value === 'false') effect.visible = false;
+        if (target.dataset.action === 'set-visible') {
+            if (target.dataset.value === 'true') effect.visible = true;
+            else if (target.dataset.value === 'false') effect.visible = false;
             else delete effect.visible;
         } else if (target.dataset.effectSlot) {
             effect.materials = Object.assign({}, effect.materials);

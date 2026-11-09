@@ -51,15 +51,12 @@ const assetConfiguration = {
   "rules": [
     {
       "id": "option",
-      "label": "Options",
+      "label": "Objects",
       "options": [
         {
           "id": "base",
-          "label": "Option 1",
+          "label": "Object 1",
           "meshes": {
-            "bloc": {
-              "visible": true
-            },
             "Cube": {
               "visible": false
             }
@@ -67,7 +64,7 @@ const assetConfiguration = {
         },
         {
           "id": "option",
-          "label": "Option 2",
+          "label": "Object 2",
           "meshes": {
             "bloc": {
               "visible": false
@@ -99,6 +96,12 @@ const assetConfiguration = {
               "materials": {
                 "Matériau 1": "engraving_red"
               }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "red",
+                "mat2": "red"
+              }
             }
           }
         },
@@ -115,6 +118,12 @@ const assetConfiguration = {
               "materials": {
                 "Matériau 1": "engraving_blue"
               }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "blue",
+                "mat2": "blue"
+              }
             }
           }
         },
@@ -130,6 +139,12 @@ const assetConfiguration = {
             "engraving": {
               "materials": {
                 "Matériau 1": "engraving_green"
+              }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "green",
+                "mat2": "green"
               }
             }
           }
@@ -198,7 +213,7 @@ const assetConfiguration = {
   ],
   "defaults": {
     "rules": {
-      "option": "base",
+      "option": "option",
       "color": "red",
       "flag": "france"
     },
