@@ -570,6 +570,58 @@
     margin-bottom: 8px;
 }
 
+.editor-panel .rule-card {
+    position: relative;
+    background: #e5e5e5;
+}
+
+.rule-head {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.rule-head .field {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.editor-panel .rule-card .rule-delete {
+    box-sizing: border-box;
+    width: 29px;
+    height: 29px;
+    flex: 0 0 29px;
+    padding: 3px;
+}
+
+.editor-panel .rule-card .rule-delete svg {
+    width: 100%;
+    height: 100%;
+}
+
+.editor-panel .option-card {
+    background: #cccccc;
+}
+
+.editor-panel button.dashed-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    margin-bottom: 8px;
+    background: transparent;
+    color: #000;
+    border: 1px dashed #000;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 500;
+}
+
 .card.active {
     background: #000;
     color: #fff;
@@ -586,6 +638,16 @@
     color: #000;
     border-radius: 0;
     padding: 4px 8px;
+}
+
+.editor-panel .chips button.dashed-chip {
+    background: transparent;
+    color: #000;
+    border: 1px dashed #000;
+    min-width: 34px;
+    padding: 4px 8px;
+    font-size: 16px;
+    line-height: 1.2;
 }
 
 .absent {

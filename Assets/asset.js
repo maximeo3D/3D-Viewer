@@ -10,28 +10,42 @@ const assetConfiguration = {
           "slots": [
             "Matériau 1"
           ],
-          "engraving": false
+          "engraving": false,
+          "file": "part.bin"
         },
         "flag": {
           "slots": [
             "Matériau 1"
           ],
-          "engraving": false
+          "engraving": false,
+          "file": "part.bin"
         },
         "engraving": {
           "slots": [
             "Matériau 1"
           ],
-          "engraving": true
+          "engraving": true,
+          "file": "part.bin"
         },
         "Cube": {
           "slots": [
             "mat1",
             "mat2"
           ],
-          "engraving": false
+          "engraving": false,
+          "file": "model.bin"
         }
-      }
+      },
+      "files": [
+        {
+          "file": "model.bin",
+          "format": "bin"
+        },
+        {
+          "file": "part.bin",
+          "format": "bin"
+        }
+      ]
     }
   },
   "rules": [

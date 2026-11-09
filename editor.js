@@ -294,10 +294,10 @@
             `<button type="button" class="ghost ${rule.id === state.rule ? 'active' : ''}" data-action="select-rule" data-id="${esc(rule.id)}">${esc(rule.label || rule.id)}</button>`
         ).join('');
         return `
-            <div class="row">
-                <button type="button" data-action="add-rule">Ajouter une règle</button>
+            <div class="chips" style="margin:10px 0">
+                <button type="button" class="dashed-chip" data-action="add-rule" aria-label="Ajouter une règle">+</button>
+                ${cards}
             </div>
-            <div class="chips" style="margin:10px 0">${cards}</div>
             ${renderRuleEditor()}`;
     }
 
@@ -308,14 +308,13 @@
         const openingOptions = (rule.options || []).map(option =>
             `<option value="${esc(option.id)}" ${option.id === opening ? 'selected' : ''}>${esc(option.label || option.id)}</option>`
         ).join('');
-        return `<div class="card">
-            <label class="field">Nom affiché<input data-rule-prop="label" value="${esc(rule.label || '')}"></label>
-            <label class="field">Identifiant<input data-rule-prop="id" data-commit="change" value="${esc(rule.id)}"></label>
-            <label class="field">Option à l’ouverture du viewer<select data-default-rule="${esc(rule.id)}">${openingOptions}</select></label>
-            <div class="row">
-                <button type="button" data-action="add-option">Ajouter une option</button>
-                <button type="button" class="ghost" data-action="delete-rule">Supprimer la règle</button>
+        return `<div class="card rule-card">
+            <div class="rule-head">
+                <label class="field">Nom affiché<input data-rule-prop="label" value="${esc(rule.label || '')}"></label>
+                <button type="button" class="icon-btn rule-delete" data-action="delete-rule" title="Supprimer la règle" aria-label="Supprimer la règle"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
             </div>
+            <label class="field">Choix par défaut<select data-default-rule="${esc(rule.id)}">${openingOptions}</select></label>
+            <button type="button" class="dashed-add" data-action="add-option" aria-label="Ajouter une option">+</button>
             ${(rule.options || []).map(option => renderOption(rule, option)).join('')}
         </div>`;
     }
@@ -345,11 +344,8 @@
                 ${slots}
             </div>`;
         }).join('');
-        return `<div class="card">
-            <div class="grid-2">
-                <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
-                <label class="field">Identifiant<input data-option-prop="id" data-option="${esc(option.id)}" data-commit="change" value="${esc(option.id)}"></label>
-            </div>
+        return `<div class="card option-card">
+            <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
             ${body}
             <button type="button" class="ghost" data-action="delete-option" data-option="${esc(option.id)}">Supprimer l’option</button>
         </div>`;
@@ -895,7 +891,7 @@
             applyCameraField(target.dataset.camera, Number(target.value));
             return;
         }
-        if (target.dataset.ruleProp && target.dataset.ruleProp !== 'id') {
+        if (target.dataset.ruleProp) {
             const rule = selectedRule();
             if (rule) {
                 rule[target.dataset.ruleProp] = target.value;
@@ -965,8 +961,6 @@
             toggleInherit(target.dataset.inheritKey, target.checked);
             return;
         }
-        if (target.dataset.commit === 'change' && target.dataset.ruleProp === 'id') return renameRule(target.value);
-        if (target.dataset.commit === 'change' && target.dataset.optionProp === 'id') return renameOption(target.dataset.option, target.value);
         if (target.dataset.ruleProp) {
             const rule = selectedRule();
             if (rule) rule[target.dataset.ruleProp] = target.value;
@@ -1105,35 +1099,6 @@
         const rule = selectedRule();
         if (!rule) return;
         rule.options = (rule.options || []).filter(option => option.id !== optionId);
-        render();
-    }
-    function renameRule(nextId) {
-        const rule = selectedRule();
-        const id = slug(nextId);
-        if (!rule || !id || id === rule.id) return render();
-        if (rules().some(item => item.id === id)) {
-            setStatus('Cet identifiant de règle existe déjà.');
-            return render();
-        }
-        if (defaults().rules[rule.id]) {
-            defaults().rules[id] = defaults().rules[rule.id];
-            delete defaults().rules[rule.id];
-        }
-        rule.id = id;
-        state.rule = id;
-        render();
-    }
-    function renameOption(previous, nextRaw) {
-        const rule = selectedRule();
-        const next = slug(nextRaw);
-        const option = rule && (rule.options || []).find(item => item.id === previous);
-        if (!option || !next || next === previous) return render();
-        if (rule.options.some(item => item.id === next)) {
-            setStatus('Cet identifiant d’option existe déjà.');
-            return render();
-        }
-        option.id = next;
-        if (defaults().rules[rule.id] === previous) defaults().rules[rule.id] = next;
         render();
     }
     function setMeshEffect(target) {
