@@ -851,6 +851,19 @@ const createScene = async function() {
     }
     
     
+    function objectRoots() {
+        const roots = [];
+        const take = (node) => {
+            if (node && node.name && (node.name === '__root__' || node.name.endsWith('__root'))) roots.push(node);
+        };
+        if (scene.transformNodes) scene.transformNodes.forEach(take);
+        if (scene.meshes) scene.meshes.forEach(take);
+        return roots;
+    }
+    function applyObjectTilt(radians) {
+        objectRoots().forEach(root => { root.rotation.x = radians; });
+    }
+
     // Add object rotation elasticity in the render loop
     scene.onBeforeRenderObservable.add(() => {
         
@@ -862,11 +875,7 @@ const createScene = async function() {
             // Interpolation douce vers la rotation cible (0°)
             currentObjectRotationX += rotationDelta * elasticityFactor;
             
-            // Appliquer la rotation au groupe __root__
-            const rootGroup = scene.getMeshByName("__root__");
-            if (rootGroup) {
-                rootGroup.rotation.x = currentObjectRotationX;
-            }
+            applyObjectTilt(currentObjectRotationX);
         }
     });
     
@@ -1067,12 +1076,7 @@ const createScene = async function() {
                 // Calculer la nouvelle rotation avec limites
                 const newRotationX = currentObjectRotationX + rotationDelta;
                 const clampedRotationX = Math.max(minObjectRotationX, Math.min(maxObjectRotationX, newRotationX));
-                
-                // Appliquer la rotation limitée au groupe __root__
-                const rootGroup = scene.getMeshByName("__root__");
-                if (rootGroup) {
-                    rootGroup.rotation.x = clampedRotationX;
-                }
+                applyObjectTilt(clampedRotationX);
                 
                             // Mettre à jour la rotation actuelle
             currentObjectRotationX = clampedRotationX;
