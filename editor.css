@@ -575,20 +575,58 @@
     background: #e5e5e5;
 }
 
-.rule-head {
+.rule-head,
+.option-head {
     display: flex;
-    align-items: flex-end;
     gap: 8px;
     margin-bottom: 8px;
 }
 
-.rule-head .field {
+.rule-head {
+    align-items: flex-end;
+}
+
+.option-head {
+    align-items: stretch;
+}
+
+.option-tools {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex: 0 0 29px;
+}
+
+.editor-panel .option-card .option-toggle {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #000;
+}
+
+.editor-panel .option-card .option-toggle svg {
+    width: 12px;
+    height: 12px;
+}
+
+.option-card.is-collapsed .option-head {
+    margin-bottom: 0;
+}
+
+.rule-head .field,
+.option-head .field {
     flex: 1;
     min-width: 0;
     margin-bottom: 0;
 }
 
-.editor-panel .rule-card .rule-delete {
+.editor-panel .rule-card .rule-delete,
+.editor-panel .option-card .option-delete {
     box-sizing: border-box;
     width: 29px;
     height: 29px;
@@ -596,7 +634,8 @@
     padding: 3px;
 }
 
-.editor-panel .rule-card .rule-delete svg {
+.editor-panel .rule-card .rule-delete svg,
+.editor-panel .option-card .option-delete svg {
     width: 100%;
     height: 100%;
 }

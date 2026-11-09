@@ -21,6 +21,7 @@
         material: null,
         rule: null,
         present: new Set(),
+        openOptions: new Set(),
         textures: ['None'],
         environments: [],
         started: false
@@ -344,10 +345,19 @@
                 ${slots}
             </div>`;
         }).join('');
-        return `<div class="card option-card">
-            <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
-            ${body}
-            <button type="button" class="ghost" data-action="delete-option" data-option="${esc(option.id)}">Supprimer l’option</button>
+        const open = state.openOptions.has(rule.id + '\0' + option.id);
+        const chevron = open
+            ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2 8 11 12.8 6.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 3.2 11 8 6.2 12.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        return `<div class="card option-card ${open ? 'is-open' : 'is-collapsed'}">
+            <div class="option-head">
+                <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
+                <div class="option-tools">
+                    <button type="button" class="icon-btn option-toggle" data-action="toggle-option" data-option="${esc(option.id)}" title="${open ? 'Réduire' : 'Agrandir'}" aria-label="${open ? 'Réduire l’option' : 'Agrandir l’option'}" aria-expanded="${open ? 'true' : 'false'}">${chevron}</button>
+                    <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                </div>
+            </div>
+            ${open ? body : ''}
         </div>`;
     }
 
@@ -1023,6 +1033,7 @@
             render();
         } else if (action === 'add-option') addOption();
         else if (action === 'delete-rule') deleteRule();
+        else if (action === 'toggle-option') toggleOption(button.dataset.option);
         else if (action === 'delete-option') deleteOption(button.dataset.option);
         else if (action === 'add-material') addMaterial();
         else if (action === 'delete-material') deleteMaterial();
@@ -1087,6 +1098,15 @@
         const id = uniqueId('option', new Set((rule.options || []).map(option => option.id)));
         rule.options = rule.options || [];
         rule.options.push({ id, label: 'Option', meshes: {} });
+        state.openOptions.add(rule.id + '\0' + id);
+        render();
+    }
+    function toggleOption(optionId) {
+        const rule = selectedRule();
+        if (!rule || !optionId) return;
+        const key = rule.id + '\0' + optionId;
+        if (state.openOptions.has(key)) state.openOptions.delete(key);
+        else state.openOptions.add(key);
         render();
     }
     function deleteRule() {
