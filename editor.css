@@ -107,6 +107,33 @@
     font-weight: 600;
 }
 
+#save-all {
+    position: relative;
+}
+
+.save-check {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.save-check.is-visible {
+    opacity: 1;
+}
+
+.save-check i {
+    font-size: 12px;
+    line-height: 1;
+}
+
 .editor-footer #status {
     flex: 1 0 100%;
 }

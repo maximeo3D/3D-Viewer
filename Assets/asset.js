@@ -235,7 +235,7 @@ const assetConfiguration = {
       "id": "engraving",
       "label": "Gravure",
       "mesh": "engraving",
-      "text": "123",
+      "text": "Test",
       "font": "Futuristic",
       "fonts": [
         "Futuristic"
@@ -245,7 +245,7 @@ const assetConfiguration = {
       "id": "gravure",
       "label": "Gravure 2",
       "mesh": "flag",
-      "text": "123",
+      "text": "Test",
       "font": "GODOFWAR",
       "fonts": [
         "Stencil",

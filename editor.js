@@ -110,6 +110,16 @@
         return id;
     }
     let statusTimer = 0;
+    let saveCheckTimer = 0;
+    function flashSaveCheck() {
+        const mark = $('save-check');
+        if (!mark) return;
+        window.clearTimeout(saveCheckTimer);
+        mark.classList.remove('is-visible');
+        void mark.offsetWidth;
+        mark.classList.add('is-visible');
+        saveCheckTimer = window.setTimeout(() => mark.classList.remove('is-visible'), 2000);
+    }
     function setStatus(message) {
         const status = $('status');
         if (!status) return;
@@ -1667,6 +1677,7 @@
             await postText('studio.json', JSON.stringify(studio(), null, 2));
             await postText('materials.json', JSON.stringify(materials(), null, 2));
             setStatus('');
+            flashSaveCheck();
         } catch (error) {
             setStatus('Enregistrement impossible. Lancez start-server.bat (le serveur Python ne peut pas écrire les fichiers). ' + error.message);
         }
