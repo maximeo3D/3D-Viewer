@@ -208,6 +208,22 @@ class EngravingManager {
         this.applyNormal(this.normalDT);
     }
 
+    reapply() {
+        const hasText = !!(this.text && this.text.trim());
+        if (!hasText) return;
+        if (!this.alphaDT || !this.aoDT || !this.normalDT) {
+            this.update();
+            return;
+        }
+        this.applyOpacity(this.alphaDT);
+        this.applyAmbient(this.aoDT);
+        this.applyNormal(this.normalDT);
+        if (window.tagManager) {
+            window.tagManager.engravingText = this.text;
+            if (window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
+        }
+    }
+
     getAspect() {
         if (this.aspectOverride && this.aspectOverride > 0) return this.aspectOverride;
         // Find first engraving mesh and compute aspect from bounding box

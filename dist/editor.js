@@ -1444,8 +1444,30 @@
         return (new Function('return (' + body + ')'))();
     }
 
+    function selectedViewpointName() {
+        const views = (studio() && studio().viewpoints) || {};
+        if (state.viewpoint && views[state.viewpoint]) return state.viewpoint;
+        if (state.viewpoint === '') return '';
+        const live = $('live-viewpoint');
+        if (live && views[live.value]) return live.value;
+        if (studio().defaultViewpoint && views[studio().defaultViewpoint]) return studio().defaultViewpoint;
+        return '';
+    }
+
+    function restoreSelectedViewpoint(name) {
+        const views = studio().viewpoints || {};
+        if (name && views[name]) {
+            state.viewpoint = name;
+            if (window.applyViewpointNow) window.applyViewpointNow(views[name]);
+            return;
+        }
+        if (name) state.viewpoint = '';
+        else window.applyCameraState(studio().camera || {});
+    }
+
     async function revertAll() {
         const savedFiles = (partModel().files || []).map(item => item.file).join('\n');
+        const keptViewpoint = selectedViewpointName();
         const stamp = Date.now();
         const [assetText, studioData, materialsData] = await Promise.all([
             fetch('Assets/asset.js?t=' + stamp, { cache: 'no-store' }).then(response => response.text()),
@@ -1457,7 +1479,7 @@
         replaceContents(studio(), studioData);
         replaceContents(materials(), materialsData);
         window.applyEnvironment(studio().environment || {}, { reloadTexture: true });
-        window.applyCameraState(studio().camera || {});
+        restoreSelectedViewpoint(keptViewpoint);
         if (window.tagManager) {
             window.tagManager.materialsConfig = materials();
             window.tagManager.loadTagConfiguration();

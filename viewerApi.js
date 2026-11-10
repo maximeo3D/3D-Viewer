@@ -100,6 +100,7 @@
             });
         });
         tagManager.applySceneVisibility();
+        if (window.engravingManager && window.engravingManager.reapply) window.engravingManager.reapply();
     }
 
     async function applyDefaults() {

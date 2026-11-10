@@ -337,6 +337,13 @@ window.reloadModels = async function() {
     window.dispatchEvent(new CustomEvent('viewer-model-loaded'));
 };
 
+function isEngravingTexture(texture) {
+    if (!texture) return false;
+    const manager = window.engravingManager;
+    if (manager && (texture === manager.alphaDT || texture === manager.aoDT || texture === manager.normalDT)) return true;
+    return texture.name === 'engravingDT' || texture.name === 'engravingAODT' || texture.name === 'engravingNormalDT';
+}
+
 // Function to create PBR material according to Babylon.js documentation
 function createPBRMaterial(materialConfig, scene, materialName) {
     // Handle parent-child material inheritance
@@ -388,7 +395,7 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     }
     
     // Normal/Bump texture
-    if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None') {
+    if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None' && !isEngravingTexture(pbr.bumpTexture)) {
         if (!pbr.bumpTexture || pbr.bumpTexture.name !== finalMaterialConfig.bumpTexture) {
             if (pbr.bumpTexture) { try { pbr.bumpTexture.dispose(); } catch(_){} }
             pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
@@ -408,7 +415,7 @@ function createPBRMaterial(materialConfig, scene, materialName) {
                 console.error(`❌ Failed to load bump texture: ${finalMaterialConfig.bumpTexture}`);
             });
         }
-    } else if (pbr.bumpTexture) { try { pbr.bumpTexture.dispose(); } catch(_){} pbr.bumpTexture = null; }
+    } else if (pbr.bumpTexture && !isEngravingTexture(pbr.bumpTexture)) { try { pbr.bumpTexture.dispose(); } catch(_){} pbr.bumpTexture = null; }
     
     // === SEPARATE TEXTURES ===
     // Metallic texture
@@ -432,17 +439,17 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     } else if (pbr.microSurfaceTexture) { try { pbr.microSurfaceTexture.dispose(); } catch(_){} pbr.microSurfaceTexture = null; }
     
     // Ambient occlusion texture
-    if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture.trim() !== '' && finalMaterialConfig.ambientTexture !== 'None') {
+    if (finalMaterialConfig.ambientTexture && finalMaterialConfig.ambientTexture.trim() !== '' && finalMaterialConfig.ambientTexture !== 'None' && !isEngravingTexture(pbr.ambientTexture)) {
         if (!pbr.ambientTexture || pbr.ambientTexture.name !== finalMaterialConfig.ambientTexture) {
             if (pbr.ambientTexture) { try { pbr.ambientTexture.dispose(); } catch(_){} }
             pbr.ambientTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.ambientTexture}`, scene);
             pbr.ambientTexture.name = finalMaterialConfig.ambientTexture;
         }
         pbr.ambientTexture.vFlip = false; // Corriger l'effet miroir
-    } else if (pbr.ambientTexture) { try { pbr.ambientTexture.dispose(); } catch(_){} pbr.ambientTexture = null; }
+    } else if (pbr.ambientTexture && !isEngravingTexture(pbr.ambientTexture)) { try { pbr.ambientTexture.dispose(); } catch(_){} pbr.ambientTexture = null; }
     
     // Opacity texture for local transparency control
-    if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None') {
+    if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None' && !isEngravingTexture(pbr.opacityTexture)) {
         if (!pbr.opacityTexture || pbr.opacityTexture.name !== finalMaterialConfig.opacityTexture) {
             if (pbr.opacityTexture) { try { pbr.opacityTexture.dispose(); } catch(_){} }
             pbr.opacityTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.opacityTexture}`, scene);
@@ -453,7 +460,7 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         
         // When opacity texture is present, DON'T set pbr.opacity - let the texture handle it
         // The alpha slider will control the overall transparency of the visible parts
-    } else {
+    } else if (!isEngravingTexture(pbr.opacityTexture)) {
         if (pbr.opacityTexture) { try { pbr.opacityTexture.dispose(); } catch(_){} }
         pbr.opacityTexture = null;
         // When no opacity texture, use alpha for global transparency
@@ -508,6 +515,7 @@ window.refreshMaterials = function() {
         window.tagManager.loadTagConfiguration();
         if (window.tagManager.reapplyMaterials) window.tagManager.reapplyMaterials();
     }
+    if (window.engravingManager && window.engravingManager.reapply) window.engravingManager.reapply();
 };
 
 // Function to apply texture transformations to all textures except lightmap
@@ -519,7 +527,7 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
         pbr.ambientTexture,
         pbr.opacityTexture,
         pbr.bumpTexture
-    ].filter(texture => texture && texture !== pbr.lightmapTexture); // Exclude lightmap
+    ].filter(texture => texture && texture !== pbr.lightmapTexture && !isEngravingTexture(texture));
     
     textures.forEach(texture => {
         if (texture) {
@@ -848,6 +856,7 @@ const createScene = async function() {
         if (vp.minDistance !== undefined) camera.lowerRadiusLimit = vp.minDistance;
         if (vp.maxDistance !== undefined) camera.upperRadiusLimit = vp.maxDistance;
     }
+    window.applyViewpointNow = applyViewpointNow;
 
     const openingViewpoint = config.defaultViewpoint && config.viewpoints && config.viewpoints[config.defaultViewpoint];
     if (openingViewpoint) applyViewpointNow(openingViewpoint);
