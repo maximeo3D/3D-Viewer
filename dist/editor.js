@@ -321,8 +321,15 @@
     }
 
     function renderOption(rule, option) {
-        const body = meshNames().map(name => {
-            const effect = (option.meshes && option.meshes[name]) || {};
+        const chosen = option.meshes || {};
+        const catalog = meshNames();
+        const selected = catalog.filter(name => Object.prototype.hasOwnProperty.call(chosen, name))
+            .concat(Object.keys(chosen).filter(name => !catalog.includes(name)));
+        const available = catalog.filter(name => !Object.prototype.hasOwnProperty.call(chosen, name));
+        const meshChoices = available.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
+        const picker = `<label class="field">Meshes<select data-add-mesh="${esc(option.id)}" ${available.length ? '' : 'disabled'}><option value="">${available.length ? 'Ajouter un mesh' : 'Tous les meshes sont ajoutés'}</option>${meshChoices}</select></label>`;
+        const body = selected.map(name => {
+            const effect = chosen[name] || {};
             const visible = effect.visible === true ? 'true' : effect.visible === false ? 'false' : '';
             const slots = slotsFor(name).map(slot => {
                 const value = (effect.materials && effect.materials[slot]) || '';
@@ -343,10 +350,13 @@
             return `<div class="card">
                 <div class="mesh-row">
                     <strong>${esc(name)}</strong>
-                    <div class="vis-group" role="group" aria-label="Visibilité de ${esc(name)}">
-                        ${visButton('', 'Inchangé', dash)}
-                        ${visButton('true', 'Visible', eye)}
-                        ${visButton('false', 'Masqué', eyeOff)}
+                    <div class="mesh-actions">
+                        <button type="button" class="icon-btn mesh-remove" data-action="remove-option-mesh" data-option="${esc(option.id)}" data-mesh="${esc(name)}" title="Retirer ce mesh" aria-label="Retirer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4 4 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+                        <div class="vis-group" role="group" aria-label="Visibilité de ${esc(name)}">
+                            ${visButton('', 'Inchangé', dash)}
+                            ${visButton('true', 'Visible', eye)}
+                            ${visButton('false', 'Masqué', eyeOff)}
+                        </div>
                     </div>
                 </div>
                 ${slots}
@@ -364,7 +374,7 @@
                     <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
                 </div>
             </div>
-            ${open ? body : ''}
+            ${open ? picker + body : ''}
         </div>`;
     }
 
@@ -983,6 +993,10 @@
             if (rule) rule[target.dataset.ruleProp] = target.value;
             return;
         }
+        if (target.dataset.addMesh) {
+            addOptionMesh(target.dataset.addMesh, target.value);
+            return;
+        }
         if (target.dataset.effectMesh) return setMeshEffect(target);
         if (target.dataset.defaultRule) {
             defaults().rules[target.dataset.defaultRule] = target.value;
@@ -1041,6 +1055,7 @@
         } else if (action === 'add-option') addOption();
         else if (action === 'delete-rule') deleteRule();
         else if (action === 'toggle-option') toggleOption(button.dataset.option);
+        else if (action === 'remove-option-mesh') removeOptionMesh(button.dataset.option, button.dataset.mesh);
         else if (action === 'set-visible') {
             setMeshEffect(button);
             button.parentElement.querySelectorAll('.vis-btn').forEach(item => {
@@ -1130,6 +1145,26 @@
         state.rule = asset().rules[0] && asset().rules[0].id;
         render();
     }
+    function optionById(optionId) {
+        const rule = selectedRule();
+        const option = rule && (rule.options || []).find(item => item.id === optionId);
+        return { rule, option };
+    }
+    function addOptionMesh(optionId, meshName) {
+        if (!meshName) return;
+        const { rule, option } = optionById(optionId);
+        if (!rule || !option || !partModel().meshes[meshName]) return;
+        option.meshes = option.meshes || {};
+        if (!Object.prototype.hasOwnProperty.call(option.meshes, meshName)) option.meshes[meshName] = {};
+        render();
+    }
+    function removeOptionMesh(optionId, meshName) {
+        const { rule, option } = optionById(optionId);
+        if (!rule || !option || !option.meshes || !meshName) return;
+        delete option.meshes[meshName];
+        if (window.viewer) window.viewer.applyRule(rule.id, option.id);
+        render();
+    }
     function deleteOption(optionId) {
         const rule = selectedRule();
         if (!rule) return;
@@ -1153,7 +1188,7 @@
             else delete effect.materials[target.dataset.effectSlot];
             if (!Object.keys(effect.materials).length) delete effect.materials;
         }
-        if (effect.visible === undefined && !effect.materials) delete option.meshes[meshName];
+        if (effect.visible === undefined && !effect.materials) option.meshes[meshName] = {};
         else option.meshes[meshName] = effect;
         window.viewer.applyRule(rule.id, option.id);
         const select = document.querySelector(`#rulebar [data-rule="${CSS.escape(rule.id)}"]`);

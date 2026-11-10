@@ -55,7 +55,7 @@ const assetConfiguration = {
       "options": [
         {
           "id": "base",
-          "label": "Object 1",
+          "label": "Rectangle",
           "meshes": {
             "Cube": {
               "visible": false
@@ -64,7 +64,7 @@ const assetConfiguration = {
         },
         {
           "id": "option",
-          "label": "Object 2",
+          "label": "Cube",
           "meshes": {
             "bloc": {
               "visible": false
@@ -161,11 +161,6 @@ const assetConfiguration = {
           "meshes": {
             "flag": {
               "visible": false,
-              "materials": {
-                "Matériau 1": "red"
-              }
-            },
-            "bloc": {
               "materials": {
                 "Matériau 1": "red"
               }

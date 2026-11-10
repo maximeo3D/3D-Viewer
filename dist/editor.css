@@ -659,6 +659,28 @@
     white-space: nowrap;
 }
 
+.mesh-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+}
+
+.editor-panel .option-card .mesh-remove {
+    box-sizing: border-box;
+    width: 29px;
+    height: 29px;
+    flex: 0 0 29px;
+    padding: 4px;
+    background: #fff;
+    color: #000;
+}
+
+.editor-panel .option-card .mesh-remove svg {
+    width: 100%;
+    height: 100%;
+}
+
 .vis-group {
     display: flex;
     gap: 4px;
