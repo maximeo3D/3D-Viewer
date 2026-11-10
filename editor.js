@@ -143,6 +143,12 @@
         const value = radians * 180 / Math.PI;
         return Math.round(value * 100) / 100;
     }
+    function wrap180(degrees) {
+        let value = degrees % 360;
+        if (value > 180) value -= 360;
+        if (value < -180) value += 360;
+        return value;
+    }
 
     function scanMeshes() {
         const scene = window.tagManager && window.tagManager.scene;
@@ -702,8 +708,15 @@
 
     function renderCamera() {
         const camera = studio().camera || {};
-        const alpha = deg(camera.alpha || 0);
-        const fov = camera.fov > 2 ? camera.fov : deg(camera.fov || 0.8);
+        const live = window.captureViewpoint ? window.captureViewpoint() : null;
+        const alpha = wrap180(deg(live ? live.alpha : (camera.alpha || 0)));
+        const radius = live ? live.radius : (camera.radius ?? 10);
+        const fov = live ? live.fov : (camera.fov > 2 ? camera.fov : deg(camera.fov || 0.8));
+        const minDistance = live ? live.minDistance : (camera.minDistance ?? 1);
+        const maxDistance = live ? live.maxDistance : (camera.maxDistance ?? 100);
+        const targetX = live ? live.targetX : (camera.targetX ?? 0);
+        const targetY = live ? live.targetY : (camera.targetY ?? 0);
+        const targetZ = live ? live.targetZ : (camera.targetZ ?? 0);
         const slider = (key, label, min, max, step, value) =>
             sliderField(label, `data-camera="${key}"`, min, max, step, value, `out-${key}`);
         const views = studio().viewpoints || {};
@@ -726,13 +739,13 @@
             <div class="stack">
                 ${slider('alphaDeg', 'Rotation', -180, 180, 1, alpha)}
                 ${slider('initialPitch', 'Inclinaison', 5, 175, 0.5, camera.initialPitch ?? 60)}
-                ${slider('radius', 'Distance', 0.5, 200, 0.1, camera.radius ?? 10)}
-                ${slider('minDistance', 'Distance min', 0.1, 100, 0.1, camera.minDistance ?? 1)}
-                ${slider('maxDistance', 'Distance max', 1, 300, 0.5, camera.maxDistance ?? 100)}
+                ${slider('radius', 'Distance', 0.1, 100, 0.1, radius)}
+                ${slider('minDistance', 'Distance min', 0.1, 100, 0.1, minDistance)}
+                ${slider('maxDistance', 'Distance max', 0.1, 100, 0.1, maxDistance)}
                 ${slider('fov', 'FOV', 10, 120, 1, fov)}
-                ${slider('targetX', 'Cible X', -20, 20, 0.1, camera.targetX ?? 0)}
-                ${slider('targetY', 'Cible Y', -20, 20, 0.1, camera.targetY ?? 0)}
-                ${slider('targetZ', 'Cible Z', -20, 20, 0.1, camera.targetZ ?? 0)}
+                ${slider('targetX', 'Cible X', -20, 20, 0.1, targetX)}
+                ${slider('targetY', 'Cible Y', -20, 20, 0.1, targetY)}
+                ${slider('targetZ', 'Cible Z', -20, 20, 0.1, targetZ)}
                 <button type="button" class="ghost" data-action="read-camera">Lire la vue actuelle</button>
                 <label class="field">Viewpoint par défaut<select data-default-viewpoint>${defaultOptions}</select></label>
             </div>
@@ -977,7 +990,43 @@
         }
     }
 
+    function syncLiveCameraFields() {
+        if (state.tab !== 'camera' || !window.captureViewpoint) return;
+        const shot = window.captureViewpoint();
+        paintCameraField('alphaDeg', wrap180(deg(shot.alpha)), 1);
+        paintCameraField('radius', shot.radius, 0.1);
+        paintCameraField('minDistance', shot.minDistance, 0.1);
+        paintCameraField('maxDistance', shot.maxDistance, 0.1);
+        paintCameraField('fov', shot.fov, 1);
+        paintCameraField('targetX', shot.targetX, 0.1);
+        paintCameraField('targetY', shot.targetY, 0.1);
+        paintCameraField('targetZ', shot.targetZ, 0.1);
+    }
+    function paintCameraField(key, value, step) {
+        const range = document.querySelector(`#panel input[type="range"][data-camera="${key}"]`);
+        if (!range) return;
+        const readout = document.getElementById(range.dataset.readout);
+        if (readout && document.activeElement === readout) return;
+        const limited = Math.min(Number(range.max), Math.max(Number(range.min), value));
+        const shown = formatNum(limited, step);
+        if (range.value !== shown) range.value = shown;
+        if (readout && readout.value !== shown) readout.value = shown;
+    }
     function applyCameraField(key, value) {
+        if (key === 'minDistance' || key === 'maxDistance') {
+            const shot = window.captureViewpoint ? window.captureViewpoint() : null;
+            const cam = studio().camera || {};
+            const minLimit = shot ? shot.minDistance : (cam.minDistance ?? 0.1);
+            const maxLimit = shot ? shot.maxDistance : (cam.maxDistance ?? 100);
+            if (key === 'maxDistance') value = Math.max(value, minLimit);
+            if (key === 'minDistance') value = Math.min(value, maxLimit);
+            value = Math.min(100, Math.max(0.1, value));
+            const shown = formatNum(value, 0.1);
+            const range = document.querySelector(`#panel input[type="range"][data-camera="${key}"]`);
+            if (range && range.value !== shown) range.value = shown;
+            const readout = range && document.getElementById(range.dataset.readout);
+            if (readout && document.activeElement !== readout && readout.value !== shown) readout.value = shown;
+        }
         if (key === 'alphaDeg') window.applyCameraState({ alpha: value * Math.PI / 180 });
         else if (key === 'fov') window.applyCameraState({ fov: value });
         else if (key === 'initialPitch') window.applyCameraState({ initialPitch: value });
@@ -1535,6 +1584,11 @@
         if (state.started || !window.viewerReady || !window.getAssetConfig()) return;
         state.started = true;
         scanMeshes();
+        const watchCamera = () => {
+            syncLiveCameraFields();
+            requestAnimationFrame(watchCamera);
+        };
+        watchCamera();
         $('tabs').addEventListener('click', onClick);
         $('panel').addEventListener('click', onClick);
         $('panel').addEventListener('input', onInput);

@@ -790,6 +790,7 @@ const createScene = async function() {
                 // Radius clampé
                 const desiredRadius = s2.radius + (end.radius - s2.radius) * k;
                 camera.radius = Math.max(curMin, Math.min(curMax, desiredRadius));
+                if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
 
                 if (t < 1) requestAnimationFrame(tick); else resolve();
             };
@@ -835,6 +836,7 @@ const createScene = async function() {
             phase2Promise = startZoomPhase(restDuration, null);
         }
         await phase2Promise;
+        if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
     }
 
     window.gotoViewpoint = (name) => {
@@ -855,6 +857,7 @@ const createScene = async function() {
         );
         if (vp.minDistance !== undefined) camera.lowerRadiusLimit = vp.minDistance;
         if (vp.maxDistance !== undefined) camera.upperRadiusLimit = vp.maxDistance;
+        if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
     }
     window.applyViewpointNow = applyViewpointNow;
 
@@ -926,6 +929,10 @@ const createScene = async function() {
     // Variables pour le zoom fluide
     let targetRadius = camera.radius;
     let currentRadius = camera.radius;
+    window.commitCameraRadius = (radius) => {
+        currentRadius = radius;
+        targetRadius = radius;
+    };
     const zoomSmoothness = 0.15; // Plus élevé = plus fluide (0.1 = très fluide, 0.9 = instant)
     
     // Listener de zoom fluide (molette de souris)
