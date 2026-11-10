@@ -10,7 +10,7 @@ class TweakpaneManager {
         this.tweakpaneOpenByDefault = true; // Changez true/false pour ouvrir/fermer Tweakpane par défaut
         // Paramètre pour contrôler la visibilité initiale (évite le clignotement)
         this.initialVisibility = true;
-        // false en local (serve.ps1). Le build Pages passe cette valeur à true dans dist/.
+        // false en local (serve.ps1). true seulement si un export/Pages statique est généré.
         this.useStaticTextureIndex = false;
         
         this.pane = null;
