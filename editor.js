@@ -44,6 +44,13 @@
         started: false
     };
 
+    const ENGINE_CDN = 'https://cdn.jsdelivr.net/gh/maximeo3D/3D-Viewer@v1.0.0';
+    const BABYLON_CDN = 'https://cdn.babylonjs.com/v7.54.2';
+    const TEXTURE_SLOTS = [
+        'albedoTexture', 'metallicTexture', 'microSurfaceTexture',
+        'ambientTexture', 'opacityTexture', 'bumpTexture', 'lightmapTexture'
+    ];
+
     const $ = (id) => document.getElementById(id);
 
     function asset() { return window.getAssetConfig(); }
@@ -1683,6 +1690,272 @@
         }
     }
 
+    function exportZipName() {
+        const raw = partModel().name || 'viewer';
+        const slugName = String(raw).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
+        return (slugName || 'viewer') + '.zip';
+    }
+
+    function collectExportPaths(assetConfig, studioConfig, materialsConfig) {
+        const paths = new Set();
+        const model = assetConfig && assetConfig.models && assetConfig.models.part_model;
+        if (model) {
+            if (model.file) paths.add('Assets/' + model.file);
+            (model.files || []).forEach(item => {
+                const name = typeof item === 'string' ? item : item && item.file;
+                if (name) paths.add('Assets/' + name);
+            });
+            Object.values(model.meshes || {}).forEach(mesh => {
+                if (mesh && mesh.file) paths.add('Assets/' + mesh.file);
+            });
+        }
+        Object.values((materialsConfig && materialsConfig.materials) || {}).forEach(mat => {
+            TEXTURE_SLOTS.forEach(slot => {
+                const value = mat && mat[slot];
+                if (value && value !== 'None') paths.add('Textures/' + value);
+            });
+        });
+        const envFile = studioConfig && studioConfig.environment && studioConfig.environment.file;
+        if (envFile) paths.add('Textures/HDR/' + envFile);
+        usedFontEntries(assetConfig).forEach(font => paths.add('fonts/' + font.file));
+        return Array.from(paths);
+    }
+
+    function usedFontEntries(assetConfig) {
+        const used = new Set();
+        (assetConfig.engravings || []).forEach(zone => {
+            (zone.fonts || []).forEach(name => used.add(name));
+            if (zone.font) used.add(zone.font);
+        });
+        return (assetConfig.fonts || []).filter(font => font && font.file && font.name && used.has(font.name));
+    }
+
+    function fontFaceFormat(file) {
+        const ext = String(file || '').toLowerCase();
+        if (ext.endsWith('.otf')) return 'opentype';
+        if (ext.endsWith('.woff2')) return 'woff2';
+        if (ext.endsWith('.woff')) return 'woff';
+        return 'truetype';
+    }
+
+    function exportedFontFaces(assetConfig) {
+        return usedFontEntries(assetConfig).map(font => {
+            const name = String(font.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const file = String(font.file).replace(/\\/g, '/');
+            return `@font-face{font-family:'${name}';src:url('fonts/${file}') format('${fontFaceFormat(file)}');}`;
+        }).join('\n');
+    }
+
+    function exportedApiJson(assetConfig, studioConfig) {
+        const rules = (assetConfig.rules || []).map(rule => ({
+            id: rule.id,
+            label: rule.label || rule.id,
+            options: (rule.options || []).map(option => ({
+                id: option.id,
+                label: option.label || option.id
+            }))
+        }));
+        const engravings = (assetConfig.engravings || []).map(zone => ({
+            id: zone.id,
+            label: zone.label || zone.id,
+            fonts: (zone.fonts && zone.fonts.length) ? zone.fonts.slice() : (zone.font ? [zone.font] : [])
+        }));
+        const fonts = usedFontEntries(assetConfig).map(font => ({
+            name: font.name,
+            file: font.file
+        }));
+        const viewpointIds = Object.keys((studioConfig && studioConfig.viewpoints) || {});
+        const viewpoints = viewpointIds.map(id => ({ id, label: id }));
+        const defaultViewpoint = (studioConfig && studioConfig.defaultViewpoint) || viewpointIds[0] || '';
+        const defaults = assetConfig.defaults || {};
+        const examples = [];
+        rules.forEach(rule => {
+            const option = rule.options[0];
+            if (option) examples.push(`viewer.applyRule('${rule.id}', '${option.id}')`);
+        });
+        engravings.forEach(zone => {
+            examples.push(`viewer.setEngravingText('${zone.id}', 'Texte')`);
+            if (zone.fonts[0]) examples.push(`viewer.setEngravingFont('${zone.id}', '${zone.fonts[0]}')`);
+        });
+        if (defaultViewpoint) examples.push(`viewer.gotoViewpoint('${defaultViewpoint}')`);
+        return JSON.stringify({
+            description: "Contrat d'intégration du viewer. Attendre l'événement viewer-api-ready, puis appeler window.viewer. Les identifiants de la section project sont ceux de ce zip.",
+            ready: {
+                event: 'viewer-api-ready',
+                flag: 'window.viewerReady',
+                object: 'window.viewer',
+                listen: "window.addEventListener('viewer-api-ready', function () { var viewer = window.viewer; });"
+            },
+            methods: {
+                applyRule: {
+                    call: 'viewer.applyRule(ruleId, optionId)',
+                    args: ['ruleId', 'optionId'],
+                    description: 'Applique une option de règle (matériau, visibilité, etc.).'
+                },
+                setEngravingText: {
+                    call: 'viewer.setEngravingText(engravingId, text)',
+                    args: ['engravingId', 'text'],
+                    description: 'Change le texte d’une zone de gravure.'
+                },
+                setEngravingFont: {
+                    call: 'viewer.setEngravingFont(engravingId, fontName)',
+                    args: ['engravingId', 'fontName'],
+                    description: 'Change la police d’une zone de gravure. fontName doit figurer dans project.engravings[].fonts.'
+                },
+                gotoViewpoint: {
+                    call: 'viewer.gotoViewpoint(viewpointId)',
+                    args: ['viewpointId'],
+                    description: 'Place la caméra sur un point de vue.'
+                },
+                getRules: {
+                    call: 'viewer.getRules()',
+                    description: 'Liste les règles et leurs options.'
+                },
+                getEngravings: {
+                    call: 'viewer.getEngravings()',
+                    description: 'Liste les zones de gravure.'
+                },
+                getFonts: {
+                    call: 'viewer.getFonts()',
+                    description: 'Liste les polices disponibles.'
+                },
+                getViewpoints: {
+                    call: 'viewer.getViewpoints()',
+                    description: 'Liste les points de vue.'
+                },
+                getDefaultViewpoint: {
+                    call: 'viewer.getDefaultViewpoint()',
+                    description: 'Identifiant du point de vue par défaut.'
+                },
+                getDefaults: {
+                    call: 'viewer.getDefaults()',
+                    description: 'Valeurs par défaut (règles, gravure).'
+                }
+            },
+            project: {
+                rules,
+                engravings,
+                fonts,
+                viewpoints,
+                defaultViewpoint,
+                defaults: {
+                    rules: defaults.rules || {},
+                    engravingText: defaults.engravingText || '',
+                    engravingFont: defaults.engravingFont || ''
+                }
+            },
+            examples
+        }, null, 2);
+    }
+
+    function exportedIndexHtml(assetConfig) {
+        const title = esc(partModel().name || '3D Viewer');
+        const faces = exportedFontFaces(assetConfig);
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- Intégration : api.json — window.viewer après l'événement viewer-api-ready -->
+    <title>${title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">
+    <link rel="stylesheet" href="${ENGINE_CDN}/styles.css">
+    ${faces ? `<style id="engraving-font-faces">${faces}</style>` : ''}
+    <script src="${BABYLON_CDN}/babylon.js"><\/script>
+    <script src="${BABYLON_CDN}/loaders/babylonjs.loaders.min.js"><\/script>
+    <script>
+        if (window.BABYLON && BABYLON.DracoCompression) {
+            BABYLON.DracoCompression.Configuration = {
+                decoder: {
+                    wasmUrl: '${BABYLON_CDN}/draco_wasm_wrapper_gltf.js',
+                    wasmBinaryUrl: '${BABYLON_CDN}/draco_decoder_gltf.wasm',
+                    fallbackUrl: '${BABYLON_CDN}/draco_decoder_gltf.js'
+                }
+            };
+        }
+        if (window.BABYLON && BABYLON.MeshoptCompression) {
+            BABYLON.MeshoptCompression.Configuration = {
+                decoder: { url: '${BABYLON_CDN}/meshopt_decoder.js' }
+            };
+        }
+    <\/script>
+    <script src="${BABYLON_CDN}/materialsLibrary/babylonjs.materials.min.js"><\/script>
+    <script src="${BABYLON_CDN}/hdr/babylonjs.hdr.min.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.10/dist/tweakpane.min.js"><\/script>
+    <script src="${ENGINE_CDN}/tweakpaneManager.js"><\/script>
+    <script src="${ENGINE_CDN}/engravingManager.js"><\/script>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
+    <script>
+        window.showTweakpane = false;
+        window.viewerApplyDefaults = true;
+    <\/script>
+    <script src="${ENGINE_CDN}/scene.js"><\/script>
+    <script src="${ENGINE_CDN}/viewerApi.js"><\/script>
+</body>
+</html>
+`;
+    }
+
+    async function fetchExportBlob(path) {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(path + ' introuvable');
+        return response.blob();
+    }
+
+    async function exportProject() {
+        if (!window.JSZip) {
+            setStatus('Export impossible : JSZip n’est pas chargé.');
+            return;
+        }
+        if (!window.viewerReady || !window.getAssetConfig) {
+            setStatus('Export impossible : le viewer n’est pas prêt.');
+            return;
+        }
+        const button = $('export-project');
+        if (button) button.disabled = true;
+        try {
+            if (window.viewer && window.viewer.sync) window.viewer.sync();
+            setStatus('Export du projet…');
+            const assetConfig = JSON.parse(JSON.stringify(asset()));
+            delete assetConfig._rulesMigrated;
+            assetConfig.fonts = usedFontEntries(assetConfig);
+            const studioConfig = JSON.parse(JSON.stringify(studio()));
+            const materialsConfig = JSON.parse(JSON.stringify(materials()));
+            const zip = new window.JSZip();
+            zip.file('index.html', exportedIndexHtml(assetConfig));
+            zip.file('api.json', exportedApiJson(assetConfig, studioConfig));
+            zip.file('studio.json', JSON.stringify(studioConfig, null, 2));
+            zip.file('Assets/asset.js', serializeAsset(assetConfig));
+            zip.file('Textures/materials.json', JSON.stringify(materialsConfig, null, 2));
+            const paths = collectExportPaths(assetConfig, studioConfig, materialsConfig);
+            for (const path of paths) {
+                zip.file(path, await fetchExportBlob(path));
+            }
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = exportZipName();
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+            setStatus('Projet exporté.');
+        } catch (error) {
+            setStatus('Export impossible. ' + error.message);
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     function replaceContents(target, source) {
         Object.keys(target).forEach(key => delete target[key]);
         Object.assign(target, source);
@@ -1831,6 +2104,9 @@
             }
         });
         $('save-all').addEventListener('click', saveAll);
+        $('export-project').addEventListener('click', () => {
+            exportProject().catch(error => setStatus('Export impossible. ' + error.message));
+        });
         $('revert-all').addEventListener('click', () => {
             revertAll().catch(error => setStatus('Annulation impossible. ' + error.message));
         });

@@ -105,6 +105,12 @@
     flex: 1;
     width: auto;
     font-weight: 600;
+    white-space: nowrap;
+}
+
+.editor-footer button:disabled {
+    opacity: 0.35;
+    cursor: default;
 }
 
 #save-all {
@@ -1058,7 +1064,7 @@
 }
 
 .editor-tabs button:hover,
-.editor-footer button:hover,
+.editor-footer button:hover:not(:disabled),
 .editor-panel button:hover:not(:disabled),
 .rulebar button:hover:not(:disabled),
 .rulebar-viewer:hover,
