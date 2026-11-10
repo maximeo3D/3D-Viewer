@@ -340,8 +340,8 @@ window.reloadModels = async function() {
 function isEngravingTexture(texture) {
     if (!texture) return false;
     const manager = window.engravingManager;
-    if (manager && (texture === manager.alphaDT || texture === manager.aoDT || texture === manager.normalDT)) return true;
-    return texture.name === 'engravingDT' || texture.name === 'engravingAODT' || texture.name === 'engravingNormalDT';
+    if (manager && manager.isEngravingTexture) return manager.isEngravingTexture(texture);
+    return !!(texture.name && /^engraving(DT|AODT|NormalDT)/.test(texture.name));
 }
 
 // Function to create PBR material according to Babylon.js documentation
@@ -1288,6 +1288,18 @@ class TagManager {
         });
     }
 
+    isEngravingMesh(meshName, config) {
+        if (config && (config.engraving || (config.tags || []).includes('engraving'))) return true;
+        return ((assetConfig && assetConfig.engravings) || []).some(zone => zone.mesh === meshName);
+    }
+
+    engravingHasText(meshName) {
+        if (window.engravingManager && window.engravingManager.textForMesh) {
+            return !!(window.engravingManager.textForMesh(meshName) || '').trim();
+        }
+        return !!(this.engravingText && this.engravingText.trim());
+    }
+
     optionDefinesVisibleSet(option) {
         const entries = Object.values((option && option.meshes) || {});
         if (!entries.length) return false;
@@ -1300,8 +1312,7 @@ class TagManager {
         const visibility = {};
         Object.keys(model.meshes).forEach(meshName => {
             const config = model.meshes[meshName];
-            const hasText = !!(this.engravingText && this.engravingText.trim());
-            visibility[meshName] = config.engraving || (config.tags || []).includes('engraving') ? hasText : true;
+            visibility[meshName] = this.isEngravingMesh(meshName, config) ? this.engravingHasText(meshName) : true;
         });
         (assetConfig.rules || []).forEach(rule => {
             const option = (rule.options || []).find(item => item.id === this.ruleChoices[rule.id]);
@@ -1319,8 +1330,7 @@ class TagManager {
         });
         Object.entries(visibility).forEach(([meshName, enabled]) => {
             const config = model.meshes[meshName];
-            const hasText = !!(this.engravingText && this.engravingText.trim());
-            if (config && (config.engraving || (config.tags || []).includes('engraving')) && !hasText) enabled = false;
+            if (this.isEngravingMesh(meshName, config) && !this.engravingHasText(meshName)) enabled = false;
             this.setMeshEnabled(meshName, enabled);
         });
     }
@@ -1441,7 +1451,7 @@ class TagManager {
             const a = Number(aspectOrNull);
             if (!isNaN(a) && a > 0) this.engravingAspectOverride = a;
         }
-        this.updateEngravingTextures();
+        if (window.engravingManager && window.engravingManager.applyAll) window.engravingManager.applyAll();
     }
 
     // Calcul automatique du ratio à partir des dimensions du mesh taggé 'engraving'

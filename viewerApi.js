@@ -1,8 +1,9 @@
 // API du viewer embarqué.
 // La page hôte appelle ces méthodes après l'événement viewer-api-ready :
 //   viewer.applyRule('color', 'blue')
-//   viewer.setEngravingText('Hello')
-//   viewer.setEngravingFont('Stencil')
+//   viewer.setEngravingText('gravure', 'Hello')
+//   viewer.setEngravingFont('gravure', 'Stencil')
+//   viewer.getEngravings()
 //   viewer.gotoViewpoint('viewpoint_1')
 //   viewer.getViewpoints()
 //   viewer.getRules()
@@ -76,12 +77,73 @@
         asset._rulesMigrated = true;
     }
 
+    function defaultFonts() {
+        return [
+            { name: 'Stencil', file: 'stencil.ttf' },
+            { name: 'Futuristic', file: 'futuristic.otf' },
+            { name: 'Western', file: 'western.ttf' }
+        ];
+    }
+
+    function syncMeshEngraving(asset) {
+        const meshes = (asset.models && asset.models.part_model && asset.models.part_model.meshes) || {};
+        const marked = new Set((asset.engravings || []).map(zone => zone.mesh).filter(Boolean));
+        Object.entries(meshes).forEach(([name, mesh]) => {
+            if (mesh) mesh.engraving = marked.has(name);
+        });
+    }
+
+    function ensureEngravings(asset) {
+        if (!asset) return;
+        if (!Array.isArray(asset.fonts) || !asset.fonts.length) asset.fonts = defaultFonts();
+        if (!Array.isArray(asset.engravings)) {
+            asset.engravings = [];
+            const meshes = (asset.models && asset.models.part_model && asset.models.part_model.meshes) || {};
+            const text = (asset.defaults && asset.defaults.engravingText) || '';
+            const font = (asset.defaults && asset.defaults.engravingFont) || (asset.fonts[0] && asset.fonts[0].name) || 'Stencil';
+            const used = new Set();
+            Object.entries(meshes).forEach(([name, mesh]) => {
+                if (!mesh || !mesh.engraving) return;
+                let id = String(name || 'gravure').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'gravure';
+                let index = 2;
+                while (used.has(id)) id = `gravure${index++}`;
+                used.add(id);
+                asset.engravings.push({
+                    id,
+                    label: name === 'engraving' ? 'Gravure' : name,
+                    mesh: name,
+                    text,
+                    font
+                });
+            });
+        }
+        const used = new Set();
+        asset.engravings.forEach(zone => {
+            let id = zone.id || 'gravure';
+            let index = 2;
+            while (used.has(id)) id = `${zone.id || 'gravure'}${index++}`;
+            zone.id = id;
+            used.add(id);
+            zone.label = zone.label || zone.id;
+            zone.mesh = zone.mesh || '';
+            zone.text = zone.text || '';
+            const catalog = (asset.fonts || []).map(font => font && font.name).filter(Boolean);
+            if (!Array.isArray(zone.fonts)) zone.fonts = zone.font ? [zone.font] : [];
+            zone.fonts = zone.fonts.filter(name => catalog.includes(name));
+            if (zone.font && catalog.includes(zone.font) && !zone.fonts.includes(zone.font)) zone.fonts.unshift(zone.font);
+            zone.font = zone.fonts.includes(zone.font) ? zone.font : (zone.fonts[0] || '');
+        });
+        syncMeshEngraving(asset);
+        if (window.applyEngravingFontFaces) window.applyEngravingFontFaces(asset.fonts);
+    }
+
     function ensureRules(asset) {
         if (!asset) return;
         migrateAsset(asset);
         asset.rules = asset.rules || [];
         asset.defaults = asset.defaults || { rules: {}, engravingText: '', engravingFont: 'Stencil' };
         asset.defaults.rules = asset.defaults.rules || {};
+        ensureEngravings(asset);
     }
 
     function applyRule(ruleId, optionId) {
@@ -115,8 +177,8 @@
             if (optionId) applyRule(rule.id, optionId);
         });
         if (window.engravingManager) {
-            if (defaults.engravingFont) await window.engravingManager.setFont(defaults.engravingFont);
-            window.engravingManager.setText(defaults.engravingText || '');
+            window.engravingManager.assetConfig = asset;
+            if (window.engravingManager.applyAll) await window.engravingManager.applyAll();
         }
     }
 
@@ -134,13 +196,14 @@
                 sync: () => {
                     if (window.tagManager && window.tagManager.reapplyMaterials) window.tagManager.reapplyMaterials();
                 },
-                setEngravingText: (text) => {
-                    if (window.engravingManager) window.engravingManager.setText(text || '');
-                    else if (window.tagManager && window.tagManager.setEngravingText) window.tagManager.setEngravingText(text || '');
+                setEngravingText: (idOrText, maybeText) => {
+                    if (window.engravingManager) window.engravingManager.setText(idOrText, maybeText);
                 },
-                setEngravingFont: async (font) => {
-                    if (window.engravingManager) await window.engravingManager.setFont(font);
+                setEngravingFont: async (idOrFont, maybeFont) => {
+                    if (window.engravingManager) await window.engravingManager.setFont(idOrFont, maybeFont);
                 },
+                getEngravings: () => (window.assetConfig && window.assetConfig.engravings) || [],
+                getFonts: () => (window.assetConfig && window.assetConfig.fonts) || [],
                 gotoViewpoint: (name) => {
                     if (window.gotoViewpoint) window.gotoViewpoint(name);
                 },

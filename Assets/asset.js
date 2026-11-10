@@ -17,7 +17,7 @@ const assetConfiguration = {
           "slots": [
             "Matériau 1"
           ],
-          "engraving": false,
+          "engraving": true,
           "file": "part.bin"
         },
         "engraving": {
@@ -211,7 +211,48 @@ const assetConfiguration = {
     },
     "engravingText": "Test",
     "engravingFont": "Stencil"
-  }
+  },
+  "fonts": [
+    {
+      "name": "Stencil",
+      "file": "stencil.ttf"
+    },
+    {
+      "name": "Futuristic",
+      "file": "futuristic.otf"
+    },
+    {
+      "name": "Western",
+      "file": "western.ttf"
+    },
+    {
+      "name": "GODOFWAR",
+      "file": "GODOFWAR.TTF"
+    }
+  ],
+  "engravings": [
+    {
+      "id": "engraving",
+      "label": "Gravure",
+      "mesh": "engraving",
+      "text": "123",
+      "font": "Futuristic",
+      "fonts": [
+        "Futuristic"
+      ]
+    },
+    {
+      "id": "gravure",
+      "label": "Gravure 2",
+      "mesh": "flag",
+      "text": "123",
+      "font": "GODOFWAR",
+      "fonts": [
+        "Stencil",
+        "GODOFWAR"
+      ]
+    }
+  ]
 };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = assetConfiguration;

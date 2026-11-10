@@ -370,7 +370,7 @@ try {
                 $reader.Close()
                 $payload = ConvertFrom-JsonLarge $content
                 $folder = [string](Get-JsonProp $payload 'folder')
-                $allowedFolders = @('Assets', 'Textures', 'Textures/HDR')
+                $allowedFolders = @('Assets', 'Textures', 'Textures/HDR', 'fonts')
                 if ($allowedFolders -notcontains $folder) { throw "Dossier non autorise: $folder" }
                 $name = [System.IO.Path]::GetFileName([string](Get-JsonProp $payload 'filename'))
                 if ([string]::IsNullOrWhiteSpace($name) -or $name.Contains('..')) { throw 'Nom de fichier invalide' }
@@ -379,6 +379,7 @@ try {
                     'Assets' = @('.bin', '.glb', '.gltf')
                     'Textures' = @('.png', '.jpg', '.jpeg', '.webp')
                     'Textures/HDR' = @('.hdr', '.env')
+                    'fonts' = @('.ttf', '.otf', '.woff', '.woff2')
                 }
                 if ($allowedExt[$folder] -notcontains $ext) { throw "Extension non autorisee: $ext" }
                 $dir = Join-Path $PSScriptRoot ($folder -replace '/', '\')

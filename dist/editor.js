@@ -23,6 +23,7 @@
         present: new Set(),
         confirmRule: null,
         openOptions: new Set(),
+        fontPicker: null,
         textures: ['None'],
         environments: [],
         started: false
@@ -64,10 +65,23 @@
         config.rules = config.rules || [];
         return config.rules;
     }
+    function engravings() {
+        const config = asset();
+        config.engravings = config.engravings || [];
+        return config.engravings;
+    }
+    function fontList() {
+        const config = asset();
+        config.fonts = config.fonts || [];
+        return config.fonts;
+    }
     function esc(value) {
         return String(value ?? '').replace(/[&<>"']/g, (char) => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[char]));
+    }
+    function cssFontFamily(name) {
+        return `'${String(name || '').replace(/\\/g, '').replace(/'/g, '')}'`;
     }
     function slug(value) {
         const text = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -136,8 +150,58 @@
         return ['Matériau 1'];
     }
     function fontNames() {
-        const configs = window.engravingManager && window.engravingManager.fontConfigs;
-        return configs ? Object.keys(configs) : ['Stencil', 'Futuristic', 'Western'];
+        const names = fontList().map(font => font.name).filter(Boolean);
+        return names.length ? names : ['Stencil', 'Futuristic', 'Western'];
+    }
+    function zoneFonts(zone) {
+        const names = fontNames();
+        const listed = Array.isArray(zone && zone.fonts) ? zone.fonts.filter(name => names.includes(name)) : [];
+        if (!listed.length && zone && zone.font && names.includes(zone.font)) listed.push(zone.font);
+        return listed;
+    }
+    function addZoneFont(id, name) {
+        const zone = engravings().find(item => item.id === id);
+        if (!zone || !name) return;
+        zone.fonts = zoneFonts(zone);
+        if (!zone.fonts.includes(name)) zone.fonts.push(name);
+        if (!zone.font) {
+            zone.font = name;
+            if (window.viewer) window.viewer.setEngravingFont(zone.id, zone.font);
+        }
+        state.fontPicker = null;
+        render();
+    }
+    function removeZoneFont(id, name) {
+        const zone = engravings().find(item => item.id === id);
+        if (!zone) return;
+        zone.fonts = zoneFonts(zone).filter(font => font !== name);
+        if (zone.font === name) {
+            zone.font = zone.fonts[0] || '';
+            if (window.viewer && zone.font) window.viewer.setEngravingFont(zone.id, zone.font);
+            else refreshEngraving();
+        }
+        render();
+    }
+    function placeFontPicker() {
+        if (!state.fontPicker) return;
+        const wrap = document.querySelector(`[data-font-picker="${CSS.escape(state.fontPicker)}"]`);
+        const menu = wrap && wrap.querySelector('.font-picker');
+        const button = wrap && wrap.querySelector('[data-action="open-font-picker"]');
+        if (!menu || !button) return;
+        const rect = button.getBoundingClientRect();
+        const width = Math.max(160, menu.offsetWidth);
+        let left = rect.left;
+        let top = rect.bottom + 4;
+        if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+        const height = menu.offsetHeight || 160;
+        if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - 4 - height);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+    function closeFontPicker() {
+        if (!state.fontPicker) return;
+        state.fontPicker = null;
+        render();
     }
     function deg(radians) {
         const value = radians * 180 / Math.PI;
@@ -201,11 +265,15 @@
             ).join('');
             return `<label>${esc(rule.label || rule.id)}<select data-rule="${esc(rule.id)}">${options}</select></label>`;
         }).join('');
-        const text = (window.tagManager && window.tagManager.engravingText) || '';
-        const font = (window.engravingManager && window.engravingManager.currentFont) || defaults().engravingFont;
-        const fonts = fontNames().map(name =>
-            `<option value="${esc(name)}" ${name === font ? 'selected' : ''}>${esc(name)}</option>`
-        ).join('');
+        const engravingFields = engravings().map(zone => {
+            const allowed = zoneFonts(zone);
+            const active = allowed.includes(zone.font) ? zone.font : allowed[0];
+            const fontField = allowed.length ? `<label>Police<select data-live-engraving-font="${esc(zone.id)}">${allowed.map(name =>
+                `<option value="${esc(name)}" ${name === active ? 'selected' : ''}>${esc(name)}</option>`
+            ).join('')}</select></label>` : '';
+            return `<label>${esc(zone.label || zone.id)}<input data-live-engraving="${esc(zone.id)}" value="${esc(zone.text || '')}" placeholder="Texte"></label>
+            ${fontField}`;
+        }).join('');
         const views = studio().viewpoints || {};
         const active = (state.viewpoint && views[state.viewpoint])
             ? state.viewpoint
@@ -216,8 +284,7 @@
         $('rulebar').innerHTML = `
             <label>Viewpoint<select id="live-viewpoint">${viewpointOptions}</select></label>
             ${selects}
-            <label>Aperçu gravure<input id="live-engraving" value="${esc(text)}" placeholder="Texte"></label>
-            <label>Police<select id="live-font">${fonts}</select></label>`;
+            ${engravingFields}`;
     }
 
     function formatNum(value, step) {
@@ -271,6 +338,7 @@
         const scroll = panel.scrollTop;
         panel.innerHTML = builders[state.tab]();
         panel.scrollTop = scroll;
+        placeFontPicker();
         if (state.tab === 'light') mountEnvPreview();
         else disposeEnvPreview();
     }
@@ -754,20 +822,63 @@
     }
 
     function renderEngraving() {
-        const selected = meshNames().find(name => partModel().meshes[name].engraving) || '';
-        const choices = ['', ...meshNames()].map(name =>
-            `<label><input type="radio" name="engraving-zone" data-engraving-mesh="${esc(name)}" ${name === selected ? 'checked' : ''}> ${name ? esc(name) : 'Aucune'}</label>`
-        ).join('');
-        const fonts = fontNames().map(name =>
-            `<option value="${esc(name)}" ${name === defaults().engravingFont ? 'selected' : ''}>${esc(name)}</option>`
-        ).join('');
-        return `
-            <div class="check-list">${choices}</div>
-            <button type="button" class="ghost" data-action="preview-mesh" data-mesh="${esc(selected)}">Isoler la zone</button>
-            <div class="stack">
-                <label class="field">Texte<input data-default="engravingText" value="${esc(defaults().engravingText || '')}"></label>
-                <label class="field">Police<select data-default="engravingFont">${fonts}</select></label>
+        const catalog = meshNames();
+        const used = new Set(engravings().map(zone => zone.mesh).filter(Boolean));
+        const fonts = fontNames();
+        if (document.fonts && document.fonts.load) {
+            fontList().forEach(font => {
+                if (font && font.name) {
+                    try { document.fonts.load(`16px "${font.name}"`); } catch (_) {}
+                }
+            });
+        }
+        const fontCards = fontList().map(font => `<div class="font-chip">
+            <span class="font-sample" title="${esc(font.name)}" style="font-family:${cssFontFamily(font.name)},sans-serif">${esc(font.name)}</span>
+            <button type="button" class="icon-btn mesh-remove" data-action="delete-font" data-name="${esc(font.name)}" title="Retirer la police" aria-label="Retirer ${esc(font.name)}" ${fontList().length < 2 ? 'disabled' : ''}>${icon('xmark')}</button>
+        </div>`).join('');
+        const zones = engravings().map(zone => {
+            const available = catalog.filter(name => name === zone.mesh || !used.has(name));
+            const meshOptions = ['<option value="">Choisir un mesh</option>'].concat(available.map(name =>
+                `<option value="${esc(name)}" ${name === zone.mesh ? 'selected' : ''}>${esc(name)}</option>`
+            )).join('');
+            const assigned = zoneFonts(zone);
+            const remaining = fonts.filter(name => !assigned.includes(name));
+            const chips = assigned.map(name => `<div class="font-chip">
+                <span title="${esc(name)}">${esc(name)}</span>
+                <button type="button" class="icon-btn mesh-remove" data-action="remove-zone-font" data-id="${esc(zone.id)}" data-name="${esc(name)}" title="Retirer la police" aria-label="Retirer ${esc(name)}">${icon('xmark')}</button>
+            </div>`).join('');
+            const picker = state.fontPicker === zone.id
+                ? `<div class="font-picker" role="menu">${remaining.length
+                    ? remaining.map(name => `<button type="button" role="menuitem" data-action="pick-zone-font" data-id="${esc(zone.id)}" data-name="${esc(name)}">${esc(name)}</button>`).join('')
+                    : '<div class="font-picker-empty">Toutes les polices sont déjà ajoutées.</div>'
+                }</div>`
+                : '';
+            return `<div class="card engraving-card">
+                <div class="rule-head">
+                    <label class="field">Nom affiché<input data-engraving-prop="label" data-engraving="${esc(zone.id)}" value="${esc(zone.label || '')}"></label>
+                    <button type="button" class="icon-btn rule-delete" data-action="delete-engraving" data-id="${esc(zone.id)}" title="Supprimer la zone" aria-label="Supprimer ${esc(zone.label || zone.id)}">${icon('trash')}</button>
+                </div>
+                <label class="field">Mesh<select data-engraving-mesh="${esc(zone.id)}">${meshOptions}</select></label>
+                <div class="field">
+                    Police
+                    <div class="font-grid">
+                        ${chips}
+                        <div class="font-picker-wrap" data-font-picker="${esc(zone.id)}">
+                            <button type="button" class="font-add" data-action="open-font-picker" data-id="${esc(zone.id)}" title="Ajouter une police" aria-label="Ajouter une police" aria-expanded="${state.fontPicker === zone.id ? 'true' : 'false'}">${icon('plus')}</button>
+                            ${picker}
+                        </div>
+                    </div>
+                </div>
             </div>`;
+        }).join('');
+        return `
+            <div class="stack">
+                <div class="field">Polices</div>
+                ${fontCards ? `<div class="font-grid">${fontCards}</div>` : '<p class="help">Aucune police.</p>'}
+                <button type="button" data-action="import-font">Importer une police</button>
+            </div>
+            <button type="button" class="dashed-add" data-action="add-engraving" aria-label="Ajouter une zone">${icon('plus')}</button>
+            ${zones}`;
     }
 
     function selectedRule() {
@@ -975,6 +1086,14 @@
             }
             return;
         }
+        if (target.dataset.engravingProp === 'label') {
+            const zone = engravings().find(item => item.id === target.dataset.engraving);
+            if (zone) {
+                zone.label = target.value;
+                renderRulebar();
+            }
+            return;
+        }
         if (target.dataset.optionProp === 'label') {
             const rule = selectedRule();
             const option = rule && (rule.options || []).find(item => item.id === target.dataset.option);
@@ -1087,9 +1206,14 @@
             defaults().rules[target.dataset.defaultRule] = target.value;
             return;
         }
-        if (target.dataset.default === 'engravingFont') {
-            defaults().engravingFont = target.value;
-            window.viewer.setEngravingFont(target.value);
+        if (target.dataset.engravingMesh) {
+            const zone = engravings().find(item => item.id === target.dataset.engravingMesh);
+            if (zone) {
+                zone.mesh = target.value;
+                syncEngravingMeshes();
+                refreshEngraving();
+                render();
+            }
             return;
         }
         if (target.dataset.env === 'visible') {
@@ -1109,11 +1233,6 @@
             if (target.dataset.mat === 'parent' || target.dataset.tex) render();
             return;
         }
-        if (target.dataset.engravingMesh !== undefined) {
-            setEngravingZone(target.dataset.engravingMesh);
-            render();
-            return;
-        }
         if (target.dataset.defaultViewpoint !== undefined) {
             studio().defaultViewpoint = target.value;
             return;
@@ -1123,9 +1242,13 @@
 
     async function onClick(event) {
         const button = event.target.closest('[data-action], [data-tab]');
-        if (!button) return;
+        if (!button) {
+            closeFontPicker();
+            return;
+        }
         if (button.dataset.tab) {
             state.tab = button.dataset.tab;
+            state.fontPicker = null;
             render();
             return;
         }
@@ -1136,7 +1259,16 @@
             removeProjectFile(button.dataset.file);
             await window.reloadModels();
         }
-        else if (action === 'preview-mesh') previewMesh(button.dataset.mesh);
+        else if (action === 'import-font') $('file-font').click();
+        else if (action === 'add-engraving') addEngraving();
+        else if (action === 'delete-engraving') deleteEngraving(button.dataset.id);
+        else if (action === 'delete-font') deleteFont(button.dataset.name);
+        else if (action === 'open-font-picker') {
+            state.fontPicker = state.fontPicker === button.dataset.id ? null : button.dataset.id;
+            render();
+        }
+        else if (action === 'pick-zone-font') addZoneFont(button.dataset.id, button.dataset.name);
+        else if (action === 'remove-zone-font') removeZoneFont(button.dataset.id, button.dataset.name);
         else if (action === 'add-rule') addRule();
         else if (action === 'select-rule') {
             state.rule = button.dataset.id;
@@ -1192,20 +1324,52 @@
         }
     }
 
-    function previewMesh(meshName) {
-        if (!meshName || !window.tagManager) return;
-        window.tagManager.scene.meshes.forEach(mesh => {
-            if (!mesh.name || mesh.name === '__root__' || mesh.name === 'hdrSkyBox') return;
-            const base = mesh.name.replace(/_primitive\d+$/, '');
-            mesh.setEnabled(base === meshName);
+    function refreshEngraving() {
+        if (window.engravingManager) {
+            window.engravingManager.assetConfig = asset();
+            if (window.engravingManager.applyAll) window.engravingManager.applyAll();
+            else if (window.engravingManager.update) window.engravingManager.update();
+        } else if (window.tagManager && window.tagManager.applySceneVisibility) {
+            window.tagManager.applySceneVisibility();
+        }
+    }
+    function syncEngravingMeshes() {
+        const meshes = partModel().meshes || {};
+        const marked = new Set(engravings().map(zone => zone.mesh).filter(Boolean));
+        Object.entries(meshes).forEach(([name, mesh]) => {
+            if (mesh) mesh.engraving = marked.has(name);
         });
     }
-    function setEngravingZone(meshName) {
-        Object.entries(partModel().meshes).forEach(([name, mesh]) => {
-            mesh.engraving = !!(meshName && name === meshName);
+    function addEngraving() {
+        const id = uniqueId('gravure', new Set(engravings().map(zone => zone.id)));
+        const index = engravings().length + 1;
+        engravings().push({
+            id,
+            label: index === 1 ? 'Gravure' : `Gravure ${index}`,
+            mesh: '',
+            text: '',
+            font: '',
+            fonts: []
         });
-        if (window.tagManager && window.tagManager.applySceneVisibility) window.tagManager.applySceneVisibility();
-        if (window.engravingManager && window.engravingManager.update) window.engravingManager.update();
+        render();
+    }
+    function deleteEngraving(id) {
+        asset().engravings = engravings().filter(zone => zone.id !== id);
+        syncEngravingMeshes();
+        refreshEngraving();
+        render();
+    }
+    function deleteFont(name) {
+        if (fontList().length < 2) return;
+        asset().fonts = fontList().filter(font => font.name !== name);
+        const fallback = fontNames()[0] || '';
+        engravings().forEach(zone => {
+            zone.fonts = zoneFonts(zone).filter(font => font !== name);
+            if (zone.font === name) zone.font = zone.fonts[0] || fallback;
+        });
+        if (window.engravingManager && window.engravingManager.syncFonts) window.engravingManager.syncFonts();
+        refreshEngraving();
+        render();
     }
     function addProjectFile(name) {
         const model = partModel();
@@ -1591,6 +1755,17 @@
         watchCamera();
         $('tabs').addEventListener('click', onClick);
         $('panel').addEventListener('click', onClick);
+        $('panel').addEventListener('scroll', () => {
+            if (state.fontPicker) placeFontPicker();
+        });
+        document.addEventListener('click', (event) => {
+            if (!state.fontPicker) return;
+            if (event.target.closest('[data-font-picker], [data-action="open-font-picker"]')) return;
+            closeFontPicker();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeFontPicker();
+        });
         $('panel').addEventListener('input', onInput);
         $('panel').addEventListener('change', onChange);
         $('panel').addEventListener('keydown', (event) => {
@@ -1618,14 +1793,18 @@
         $('rulebar').addEventListener('change', (event) => {
             const select = event.target.closest('[data-rule]');
             if (select) window.viewer.applyRule(select.dataset.rule, select.value);
-            if (event.target.id === 'live-font') window.viewer.setEngravingFont(event.target.value);
+            if (event.target.dataset.liveEngravingFont) {
+                window.viewer.setEngravingFont(event.target.dataset.liveEngravingFont, event.target.value);
+            }
             if (event.target.id === 'live-viewpoint') {
                 state.viewpoint = event.target.value;
                 if (state.viewpoint) window.viewer.gotoViewpoint(state.viewpoint);
             }
         });
         $('rulebar').addEventListener('input', (event) => {
-            if (event.target.id === 'live-engraving') window.viewer.setEngravingText(event.target.value);
+            if (event.target.dataset.liveEngraving) {
+                window.viewer.setEngravingText(event.target.dataset.liveEngraving, event.target.value);
+            }
         });
         $('file-bin').addEventListener('change', async (event) => {
             const selected = Array.from(event.target.files || []);
@@ -1657,6 +1836,25 @@
                 setStatus(`${file.name} importé.`);
             } catch (error) {
                 setStatus('Import d’image impossible. ' + error.message);
+            }
+        });
+        $('file-font').addEventListener('change', async (event) => {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            try {
+                await upload('fonts', file);
+                const base = file.name.replace(/\.[^.]+$/, '');
+                let name = base || 'Police';
+                const used = new Set(fontList().map(font => font.name));
+                let index = 2;
+                while (used.has(name)) name = `${base} ${index++}`;
+                fontList().push({ name, file: file.name });
+                if (window.engravingManager && window.engravingManager.syncFonts) window.engravingManager.syncFonts();
+                render();
+                setStatus(`${file.name} importé.`);
+            } catch (error) {
+                setStatus('Import de police impossible. ' + error.message);
             }
         });
         $('file-env').addEventListener('change', async (event) => {

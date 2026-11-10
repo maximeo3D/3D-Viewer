@@ -607,8 +607,124 @@
     background: #e5e5e5;
 }
 
-.editor-panel .viewpoint-card {
+.editor-panel .engraving-card {
     background: #e5e5e5;
+}
+
+.editor-panel .engraving-card .rule-head {
+    margin-bottom: 8px;
+}
+
+.font-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.font-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 4px 6px;
+    background: #e5e5e5;
+    border: 1px solid #000;
+}
+
+.font-chip span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.font-chip .font-sample {
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.font-chip .mesh-remove {
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    padding: 2px;
+    background: #fff;
+    color: #000;
+}
+
+.font-chip .mesh-remove svg,
+.font-chip .mesh-remove i {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.font-picker-wrap {
+    position: relative;
+    justify-self: start;
+    align-self: center;
+}
+
+.editor-panel button.font-add {
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+}
+
+.editor-panel button.font-add i {
+    font-size: 12px;
+    line-height: 1;
+}
+
+.font-picker {
+    position: fixed;
+    z-index: 40;
+    min-width: 160px;
+    max-height: 180px;
+    overflow: auto;
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+}
+
+.editor-panel .font-picker button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    background: #fff;
+    color: #000;
+    border: 0;
+    border-radius: 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.editor-panel .font-picker button + button {
+    border-top: 1px solid #e5e5e5;
+}
+
+.editor-panel .font-picker button:hover {
+    background: #8ec5ff;
+    color: #000;
+}
+
+.font-picker-empty {
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 400;
 }
 
 .viewpoint-head {
@@ -918,6 +1034,7 @@
 }
 
 .editor-panel button.icon-btn.rule-delete:hover,
+.editor-panel button.icon-btn[data-action="delete-engraving"]:hover,
 .editor-panel button.icon-btn.option-delete:hover,
 .editor-panel button.icon-btn.mesh-remove:hover,
 .editor-panel button.icon-btn[data-action="clear-texture"]:hover,
