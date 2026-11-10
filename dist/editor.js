@@ -1,11 +1,11 @@
 (function () {
     const tabs = [
-        ['model', 'Modèles'],
-        ['rules', 'Règles'],
-        ['materials', 'Matériaux'],
-        ['light', 'Éclairage'],
-        ['camera', 'Caméra'],
-        ['engraving', 'Gravure']
+        ['model', 'Modèles', 'cube'],
+        ['rules', 'Règles', 'list-check'],
+        ['materials', 'Matériaux', 'swatchbook'],
+        ['light', 'Éclairage', 'lightbulb'],
+        ['camera', 'Caméra', 'camera'],
+        ['engraving', 'Gravure', 'pen-nib']
     ];
     const textureSlots = [
         ['albedoTexture', 'Base Color Map'],
@@ -177,9 +177,13 @@
         renderRulebar();
     }
 
+    function icon(name) {
+        return `<i class="fa-solid fa-${name}" aria-hidden="true"></i>`;
+    }
+
     function renderTabs() {
-        $('tabs').innerHTML = tabs.map(([id, label]) =>
-            `<button type="button" data-tab="${id}" class="${state.tab === id ? 'active' : ''}">${label}</button>`
+        $('tabs').innerHTML = tabs.map(([id, label, symbol]) =>
+            `<button type="button" data-tab="${id}" class="${state.tab === id ? 'active' : ''}">${icon(symbol)}<span>${label}</span></button>`
         ).join('');
     }
 
@@ -196,7 +200,15 @@
         const fonts = fontNames().map(name =>
             `<option value="${esc(name)}" ${name === font ? 'selected' : ''}>${esc(name)}</option>`
         ).join('');
+        const views = studio().viewpoints || {};
+        const active = (state.viewpoint && views[state.viewpoint])
+            ? state.viewpoint
+            : ((studio().defaultViewpoint && views[studio().defaultViewpoint]) ? studio().defaultViewpoint : '');
+        const viewpointOptions = ['<option value="">Aucun</option>'].concat(Object.keys(views).map(name =>
+            `<option value="${esc(name)}" ${name === active ? 'selected' : ''}>${esc(name)}</option>`
+        )).join('');
         $('rulebar').innerHTML = `
+            <label>Viewpoint<select id="live-viewpoint">${viewpointOptions}</select></label>
             ${selects}
             <label>Aperçu gravure<input id="live-engraving" value="${esc(text)}" placeholder="Texte"></label>
             <label>Police<select id="live-font">${fonts}</select></label>`;
@@ -297,7 +309,7 @@
         ).join('');
         return `
             <div class="chips" style="margin:10px 0">
-                <button type="button" class="dashed-chip" data-action="add-rule" aria-label="Ajouter une règle">+</button>
+                <button type="button" class="dashed-chip" data-action="add-rule" aria-label="Ajouter une règle">${icon('plus')}</button>
                 ${cards}
             </div>
             ${renderRuleEditor()}`;
@@ -322,10 +334,10 @@
         return `<div class="card rule-card">
             <div class="rule-head">
                 <label class="field">Nom affiché<input data-rule-prop="label" value="${esc(rule.label || '')}"></label>
-                <button type="button" class="icon-btn rule-delete" data-action="delete-rule" title="Supprimer la règle" aria-label="Supprimer la règle"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                <button type="button" class="icon-btn rule-delete" data-action="delete-rule" title="Supprimer la règle" aria-label="Supprimer la règle">${icon('trash')}</button>
             </div>
             <label class="field">Choix par défaut<select data-default-rule="${esc(rule.id)}">${openingOptions}</select></label>
-            <button type="button" class="dashed-add" data-action="add-option" aria-label="Ajouter une option">+</button>
+            <button type="button" class="dashed-add" data-action="add-option" aria-label="Ajouter une option">${icon('plus')}</button>
             ${(rule.options || []).map(option => renderOption(rule, option)).join('')}
         </div>`;
     }
@@ -356,9 +368,9 @@
                     <select data-effect-mesh="${esc(name)}" data-effect-slot="${esc(slot)}" data-option="${esc(option.id)}">${mats}</select>
                 </label>`;
             }).join('');
-            const dash = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-            const eye = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.4 8S3.7 4.2 8 4.2 14.6 8 14.6 8 12.3 11.8 8 11.8 1.4 8 1.4 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
-            const eyeOff = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.4 8S3.7 4.2 8 4.2 14.6 8 14.6 8 12.3 11.8 8 11.8 1.4 8 1.4 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M3.2 12.8 12.8 3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+            const dash = icon('minus');
+            const eye = icon('eye');
+            const eyeOff = icon('eye-slash');
             const visButton = (value, label, icon) => {
                 const on = visible === value;
                 return `<button type="button" class="icon-btn vis-btn${on ? ' active' : ''}" data-action="set-visible" data-effect-mesh="${esc(name)}" data-option="${esc(option.id)}" data-value="${value}" title="${label}" aria-label="${label}" aria-pressed="${on ? 'true' : 'false'}">${icon}</button>`;
@@ -367,7 +379,7 @@
                 <div class="mesh-row">
                     <strong>${esc(name)}</strong>
                     <div class="mesh-actions">
-                        <button type="button" class="icon-btn mesh-remove" data-action="remove-option-mesh" data-option="${esc(option.id)}" data-mesh="${esc(name)}" title="Retirer ce mesh" aria-label="Retirer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4 4 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+                        <button type="button" class="icon-btn mesh-remove" data-action="remove-option-mesh" data-option="${esc(option.id)}" data-mesh="${esc(name)}" title="Retirer ce mesh" aria-label="Retirer ${esc(name)}">${icon('xmark')}</button>
                         <div class="vis-group" role="group" aria-label="Visibilité de ${esc(name)}">
                             ${visButton('', 'Inchangé', dash)}
                             ${visButton('true', 'Visible', eye)}
@@ -380,16 +392,16 @@
         }).join('');
         const open = state.openOptions.has(rule.id + '\0' + option.id);
         const chevron = open
-            ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2 8 11 12.8 6.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-            : '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 3.2 11 8 6.2 12.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            ? icon('chevron-down')
+            : icon('chevron-right');
         return `<div class="card option-card ${open ? 'is-open' : 'is-collapsed'}">
             <div class="option-head">
                 <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
                 <div class="option-tools">
                     <button type="button" class="icon-btn option-toggle" data-action="toggle-option" data-option="${esc(option.id)}" title="${open ? 'Réduire' : 'Agrandir'}" aria-label="${open ? 'Réduire l’option' : 'Agrandir l’option'}" aria-expanded="${open ? 'true' : 'false'}">${chevron}</button>
                     <div class="option-actions">
-                        <button type="button" class="icon-btn option-duplicate" data-action="duplicate-option" data-option="${esc(option.id)}" title="Dupliquer l’option" aria-label="Dupliquer l’option">&#x1F5D0;</button>
-                        <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                        <button type="button" class="icon-btn option-duplicate" data-action="duplicate-option" data-option="${esc(option.id)}" title="Dupliquer l’option" aria-label="Dupliquer l’option">${icon('clone')}</button>
+                        <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option">${icon('trash')}</button>
                     </div>
                 </div>
             </div>
@@ -442,8 +454,8 @@
                     <div class="thumb${current ? '' : ' empty'}">
                         ${thumb}
                         <div class="thumb-actions">
-                            <button type="button" class="ghost icon-btn" data-action="import-image" data-slot="${key}" title="Ajouter" aria-label="Ajouter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
-                            <button type="button" class="ghost icon-btn" data-action="clear-texture" data-slot="${key}" title="Supprimer" aria-label="Supprimer" ${current ? '' : 'disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                            <button type="button" class="ghost icon-btn" data-action="import-image" data-slot="${key}" title="Ajouter" aria-label="Ajouter">${icon('plus')}</button>
+                            <button type="button" class="ghost icon-btn" data-action="clear-texture" data-slot="${key}" title="Supprimer" aria-label="Supprimer" ${current ? '' : 'disabled'}>${icon('trash')}</button>
                         </div>
                     </div>
                     <select data-mat="${key}" data-tex="1">${options}</select>
@@ -695,14 +707,18 @@
         const slider = (key, label, min, max, step, value) =>
             sliderField(label, `data-camera="${key}"`, min, max, step, value, `out-${key}`);
         const views = studio().viewpoints || {};
+        const currentDefault = studio().defaultViewpoint || '';
+        const defaultOptions = ['<option value="">Aucun</option>'].concat(Object.keys(views).map(name =>
+            `<option value="${esc(name)}" ${name === currentDefault ? 'selected' : ''}>${esc(name)}</option>`
+        )).join('');
         const cards = Object.keys(views).map(name => `<div class="card viewpoint-card">
             <div class="viewpoint-head">
                 <input data-viewpoint-name="${esc(name)}" value="${esc(name)}" aria-label="Nom de la vue">
                 <div class="viewpoint-actions">
-                    <button type="button" class="view-btn" data-action="goto-view" data-id="${esc(name)}" title="Aller" aria-label="Aller à ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.2 12.8 8 8.5 11.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-                    <button type="button" class="view-btn view-replace" data-action="replace-view" data-id="${esc(name)}" title="Remplacer" aria-label="Remplacer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 2.8 13.2 6.6 5.6 14.2 1.8 14.6 2.2 10.8z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="m8.2 4 4 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-                    <button type="button" class="view-btn view-duplicate" data-action="duplicate-view" data-id="${esc(name)}" title="Dupliquer" aria-label="Dupliquer ${esc(name)}">&#x1F5D0;</button>
-                    <button type="button" class="view-btn view-delete" data-action="delete-view" data-id="${esc(name)}" title="Supprimer" aria-label="Supprimer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                    <button type="button" class="view-btn" data-action="goto-view" data-id="${esc(name)}" title="Aller" aria-label="Aller à ${esc(name)}">${icon('arrow-right')}</button>
+                    <button type="button" class="view-btn view-replace" data-action="replace-view" data-id="${esc(name)}" title="Remplacer" aria-label="Remplacer ${esc(name)}">${icon('pencil')}</button>
+                    <button type="button" class="view-btn view-duplicate" data-action="duplicate-view" data-id="${esc(name)}" title="Dupliquer" aria-label="Dupliquer ${esc(name)}">${icon('clone')}</button>
+                    <button type="button" class="view-btn view-delete" data-action="delete-view" data-id="${esc(name)}" title="Supprimer" aria-label="Supprimer ${esc(name)}">${icon('trash')}</button>
                 </div>
             </div>
         </div>`).join('');
@@ -718,11 +734,9 @@
                 ${slider('targetY', 'Cible Y', -20, 20, 0.1, camera.targetY ?? 0)}
                 ${slider('targetZ', 'Cible Z', -20, 20, 0.1, camera.targetZ ?? 0)}
                 <button type="button" class="ghost" data-action="read-camera">Lire la vue actuelle</button>
+                <label class="field">Viewpoint par défaut<select data-default-viewpoint>${defaultOptions}</select></label>
             </div>
-            <div class="row">
-                <input id="new-viewpoint" placeholder="Nom">
-                <button type="button" data-action="add-viewpoint">Ajouter</button>
-            </div>
+            <button type="button" class="dashed-add" data-action="add-viewpoint" aria-label="Ajouter un viewpoint">${icon('plus')}</button>
             ${cards}`;
     }
 
@@ -1051,6 +1065,10 @@
             render();
             return;
         }
+        if (target.dataset.defaultViewpoint !== undefined) {
+            studio().defaultViewpoint = target.value;
+            return;
+        }
         if (target.dataset.viewpointName) renameViewpoint(target.dataset.viewpointName, target.value.trim());
     }
 
@@ -1109,11 +1127,18 @@
         } else if (action === 'import-env') $('file-env').click();
         else if (action === 'read-camera') readCamera();
         else if (action === 'add-viewpoint') addViewpoint();
-        else if (action === 'goto-view') window.viewer.gotoViewpoint(button.dataset.id);
+        else if (action === 'goto-view') {
+            state.viewpoint = button.dataset.id;
+            const live = $('live-viewpoint');
+            if (live) live.value = state.viewpoint;
+            window.viewer.gotoViewpoint(button.dataset.id);
+        }
         else if (action === 'replace-view') replaceViewpoint(button.dataset.id);
         else if (action === 'duplicate-view') duplicateViewpoint(button.dataset.id);
         else if (action === 'delete-view') {
             delete studio().viewpoints[button.dataset.id];
+            if (studio().defaultViewpoint === button.dataset.id) studio().defaultViewpoint = '';
+            if (state.viewpoint === button.dataset.id) state.viewpoint = '';
             render();
         }
     }
@@ -1311,15 +1336,17 @@
         });
         render();
     }
+    function nextViewpointName() {
+        const used = new Set(Object.keys(studio().viewpoints || {}).map(name => name.toLowerCase()));
+        let index = 1;
+        while (used.has(`viewpoint_${index}`)) index += 1;
+        return `viewpoint_${index}`;
+    }
     function addViewpoint() {
-        const input = $('new-viewpoint');
-        const name = (input && input.value.trim()) || `Viewpoint${Object.keys(studio().viewpoints || {}).length + 1}`;
+        const name = nextViewpointName();
         studio().viewpoints = studio().viewpoints || {};
-        if (studio().viewpoints[name]) {
-            setStatus('Ce viewpoint existe déjà.');
-            return;
-        }
         studio().viewpoints[name] = window.captureViewpoint();
+        state.viewpoint = name;
         render();
     }
     function replaceViewpoint(name) {
@@ -1348,6 +1375,8 @@
         const ordered = {};
         Object.keys(views).forEach(key => { ordered[key === previous ? next : key] = views[key]; });
         studio().viewpoints = ordered;
+        if (studio().defaultViewpoint === previous) studio().defaultViewpoint = next;
+        if (state.viewpoint === previous) state.viewpoint = next;
         render();
     }
 
@@ -1514,6 +1543,10 @@
             const select = event.target.closest('[data-rule]');
             if (select) window.viewer.applyRule(select.dataset.rule, select.value);
             if (event.target.id === 'live-font') window.viewer.setEngravingFont(event.target.value);
+            if (event.target.id === 'live-viewpoint') {
+                state.viewpoint = event.target.value;
+                if (state.viewpoint) window.viewer.gotoViewpoint(state.viewpoint);
+            }
         });
         $('rulebar').addEventListener('input', (event) => {
             if (event.target.id === 'live-engraving') window.viewer.setEngravingText(event.target.value);

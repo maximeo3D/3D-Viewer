@@ -834,9 +834,8 @@ const createScene = async function() {
         if (vp) animateToViewpoint(vp, 800);
     };
 
-    // Apply default viewpoint on init if present
-    if (config.viewpoints && config.viewpoints.Viewpoint1) {
-        const vp = config.viewpoints.Viewpoint1;
+    function applyViewpointNow(vp) {
+        if (!vp) return;
         camera.alpha = (vp.alpha !== undefined ? vp.alpha : camera.alpha);
         if (vp.beta !== undefined) camera.beta = vp.beta;
         camera.radius = (vp.radius !== undefined ? vp.radius : camera.radius);
@@ -849,6 +848,9 @@ const createScene = async function() {
         if (vp.minDistance !== undefined) camera.lowerRadiusLimit = vp.minDistance;
         if (vp.maxDistance !== undefined) camera.upperRadiusLimit = vp.maxDistance;
     }
+
+    const openingViewpoint = config.defaultViewpoint && config.viewpoints && config.viewpoints[config.defaultViewpoint];
+    if (openingViewpoint) applyViewpointNow(openingViewpoint);
     
     
     function objectRoots() {

@@ -3,7 +3,8 @@
 //   viewer.applyRule('color', 'blue')
 //   viewer.setEngravingText('Hello')
 //   viewer.setEngravingFont('Stencil')
-//   viewer.gotoViewpoint('Viewpoint1')
+//   viewer.gotoViewpoint('viewpoint_1')
+//   viewer.getViewpoints()
 //   viewer.getRules()
 (function () {
     let booting = false;
@@ -141,6 +142,14 @@
                 },
                 gotoViewpoint: (name) => {
                     if (window.gotoViewpoint) window.gotoViewpoint(name);
+                },
+                getViewpoints: () => {
+                    const studio = window.getStudioConfig ? window.getStudioConfig() : null;
+                    return (studio && studio.viewpoints) || {};
+                },
+                getDefaultViewpoint: () => {
+                    const studio = window.getStudioConfig ? window.getStudioConfig() : null;
+                    return (studio && studio.defaultViewpoint) || '';
                 },
                 getState: () => window.tagManager.getActiveTags()
             };

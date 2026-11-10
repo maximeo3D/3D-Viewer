@@ -48,13 +48,25 @@
 }
 
 .editor-tabs button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     background: #fff;
     color: #000;
     border: 0;
     border-right: 1px solid #000;
     border-radius: 0;
-    padding: 10px 4px;
+    padding: 8px 4px;
+    font-size: 11px;
+    line-height: 1.15;
     cursor: pointer;
+}
+
+.editor-tabs button i {
+    font-size: 14px;
+    line-height: 1;
 }
 
 .editor-tabs button:nth-child(3n) {
@@ -529,6 +541,13 @@
     display: block;
 }
 
+.editor-panel button.icon-btn i,
+.editor-panel .viewpoint-card .view-btn i,
+.editor-panel .option-card .option-toggle i {
+    font-size: 13px;
+    line-height: 1;
+}
+
 .thumb.empty {
     background:
         linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%),
@@ -629,9 +648,9 @@
     display: block;
 }
 
-.editor-panel .viewpoint-card .view-duplicate {
+.editor-panel .viewpoint-card .view-duplicate,
+.editor-panel .option-card .option-duplicate {
     padding: 0;
-    font-size: 16px;
     line-height: 1;
 }
 
@@ -676,12 +695,6 @@
     color: #000;
 }
 
-.editor-panel .option-card .option-duplicate {
-    padding: 0;
-    font-size: 16px;
-    line-height: 1;
-}
-
 .editor-panel .option-card .option-toggle {
     box-sizing: border-box;
     width: 16px;
@@ -696,6 +709,11 @@
 .editor-panel .option-card .option-toggle svg {
     width: 12px;
     height: 12px;
+}
+
+.editor-panel .option-card .option-toggle i {
+    font-size: 11px;
+    line-height: 1;
 }
 
 .option-card.is-collapsed .option-head {
@@ -826,9 +844,14 @@
     background: transparent;
     color: #000;
     border: 1px dashed #000;
-    font-size: 28px;
+    font-size: 16px;
     line-height: 1;
     font-weight: 500;
+}
+
+.editor-panel button.dashed-add i {
+    font-size: 16px;
+    line-height: 1;
 }
 
 .card.active {
