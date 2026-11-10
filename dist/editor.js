@@ -1,12 +1,27 @@
 (function () {
     const tabs = [
-        ['model', 'Modèles', 'cube'],
-        ['rules', 'Règles', 'list-check'],
-        ['materials', 'Matériaux', 'swatchbook'],
-        ['light', 'Éclairage', 'lightbulb'],
-        ['camera', 'Caméra', 'camera'],
-        ['engraving', 'Gravure', 'pen-nib']
+        ['model', 'Modèles', 'cube', 'models'],
+        ['rules', 'Règles', 'list-check', 'rules'],
+        ['materials', 'Matériaux', 'swatchbook', 'materials'],
+        ['light', 'Éclairage', 'lightbulb', 'light'],
+        ['camera', 'Caméra', 'camera', 'camera'],
+        ['engraving', 'Gravure', 'pen-nib', 'engraving']
     ];
+    const hashByTab = Object.fromEntries(tabs.map(([id, , , hash]) => [id, hash]));
+    const tabByHash = {
+        models: 'model',
+        model: 'model',
+        modeles: 'model',
+        rules: 'rules',
+        regles: 'rules',
+        materials: 'materials',
+        materiaux: 'materials',
+        light: 'light',
+        eclairage: 'light',
+        camera: 'camera',
+        engraving: 'engraving',
+        gravure: 'engraving'
+    };
     const textureSlots = [
         ['albedoTexture', 'Base Color Map'],
         ['metallicTexture', 'Metalness Map'],
@@ -241,6 +256,22 @@
         return rule.options && rule.options[0] && rule.options[0].id;
     }
 
+    function tabFromHash(hash) {
+        const key = String(hash || '').replace(/^#/, '').trim().toLowerCase();
+        return tabByHash[key] || null;
+    }
+    function syncTabHash() {
+        const slug = hashByTab[state.tab] || state.tab;
+        const next = '#' + slug;
+        if (location.hash !== next) history.replaceState(null, '', location.pathname + location.search + next);
+    }
+    function setTab(id) {
+        if (!hashByTab[id]) return;
+        state.tab = id;
+        state.fontPicker = null;
+        syncTabHash();
+        render();
+    }
     function render() {
         renderTabs();
         renderPanel();
@@ -284,7 +315,8 @@
         $('rulebar').innerHTML = `
             <label>Viewpoint<select id="live-viewpoint">${viewpointOptions}</select></label>
             ${selects}
-            ${engravingFields}`;
+            ${engravingFields}
+            <a class="rulebar-viewer" href="index.html" target="_blank" rel="noopener" title="Viewer" aria-label="Ouvrir le viewer dans un nouvel onglet">${icon('arrow-up-right-from-square')}</a>`;
     }
 
     function formatNum(value, step) {
@@ -1247,9 +1279,7 @@
             return;
         }
         if (button.dataset.tab) {
-            state.tab = button.dataset.tab;
-            state.fontPicker = null;
-            render();
+            setTab(button.dataset.tab);
             return;
         }
         const action = button.dataset.action;
@@ -1747,6 +1777,9 @@
     function start() {
         if (state.started || !window.viewerReady || !window.getAssetConfig()) return;
         state.started = true;
+        const fromHash = tabFromHash(location.hash);
+        if (fromHash) state.tab = fromHash;
+        else syncTabHash();
         scanMeshes();
         const watchCamera = () => {
             syncLiveCameraFields();
@@ -1871,6 +1904,14 @@
                 setStatus('Import d’environnement impossible. ' + error.message);
             }
         });
+        window.addEventListener('hashchange', () => {
+            const tab = tabFromHash(location.hash);
+            if (tab && tab !== state.tab) {
+                state.tab = tab;
+                state.fontPicker = null;
+                render();
+            }
+        });
         window.addEventListener('viewer-model-loaded', () => {
             scanMeshes();
             setStatus(window.lastModelError ? window.lastModelError : 'Modèle rechargé.');
@@ -1888,6 +1929,10 @@
         let down = null;
         scene.onPointerObservable.add((evt) => {
             if (!evt.event || evt.event.button !== 0) return;
+            if (state.tab !== 'materials') {
+                down = null;
+                return;
+            }
             if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
                 const pick = scene.pick(scene.pointerX, scene.pointerY);
                 const mesh = pick && pick.hit && pick.pickedMesh;
@@ -1902,9 +1947,8 @@
                 down = null;
                 if ((dx * dx) + (dy * dy) > 25) return;
                 if (!materialNames().includes(name)) return;
-                if (state.tab === 'materials' && state.material === name) return;
+                if (state.material === name) return;
                 state.material = name;
-                state.tab = 'materials';
                 render();
             }
         });

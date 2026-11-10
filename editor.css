@@ -26,24 +26,11 @@
     font-family: inherit;
 }
 
-.editor-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 14px 8px;
-}
-
-.editor-title a {
-    color: #000;
-    text-decoration: none;
-}
-
 .editor-tabs {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0;
     padding: 0;
-    border-top: 1px solid #000;
     border-bottom: 1px solid #000;
 }
 
@@ -164,6 +151,28 @@
     border-left: 1px solid #d5dbe3;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+.rulebar-viewer {
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    align-self: flex-start;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+    text-decoration: none;
+}
+
+.rulebar-viewer i {
+    font-size: 14px;
+    line-height: 1;
 }
 
 .rulebar label {
@@ -1025,6 +1034,7 @@
 .editor-footer button:hover,
 .editor-panel button:hover:not(:disabled),
 .rulebar button:hover:not(:disabled),
+.rulebar-viewer:hover,
 .editor-panel .option-card .vis-btn:hover,
 .editor-panel .chips button:hover,
 .editor-panel button.dashed-add:hover,
