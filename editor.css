@@ -4,7 +4,7 @@
     height: 100%;
     background: #111418;
     color: #e8eaed;
-    font-family: "Segoe UI", sans-serif;
+    font-family: Inter, sans-serif;
     font-size: 13px;
 }
 
@@ -17,6 +17,13 @@
     color: #000;
     border-right: 1px solid #000;
     min-height: 0;
+}
+
+.editor button,
+.editor input,
+.editor select,
+.editor textarea {
+    font-family: inherit;
 }
 
 .editor-title {

@@ -18,18 +18,19 @@ html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    font-family: Inter, sans-serif;
 }
 
 
 /* Amélioration simple de l'interface Tweakpane */
 .tp-dfwv {
-    font-family: Arial, sans-serif !important;
+    font-family: Inter, sans-serif !important;
     font-size: 12px !important;
     color: white !important;
 }
 
 .tp-dfwv * {
-    font-family: Arial, sans-serif !important;
+    font-family: Inter, sans-serif !important;
     color: white !important;
 }
 
