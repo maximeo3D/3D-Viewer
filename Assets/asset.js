@@ -57,8 +57,14 @@ const assetConfiguration = {
           "id": "base",
           "label": "Rectangle",
           "meshes": {
-            "Cube": {
-              "visible": false
+            "bloc": {
+              "visible": true
+            },
+            "flag": {
+              "visible": true
+            },
+            "engraving": {
+              "visible": true
             }
           }
         },
@@ -66,14 +72,8 @@ const assetConfiguration = {
           "id": "option",
           "label": "Cube",
           "meshes": {
-            "bloc": {
-              "visible": false
-            },
-            "flag": {
-              "visible": false
-            },
-            "engraving": {
-              "visible": false
+            "Cube": {
+              "visible": true
             }
           }
         }
@@ -172,7 +172,6 @@ const assetConfiguration = {
           "label": "France",
           "meshes": {
             "flag": {
-              "visible": true,
               "materials": {
                 "Matériau 1": "flag_fr"
               }
@@ -184,7 +183,6 @@ const assetConfiguration = {
           "label": "United States",
           "meshes": {
             "flag": {
-              "visible": true,
               "materials": {
                 "Matériau 1": "flag_us"
               }
@@ -196,7 +194,6 @@ const assetConfiguration = {
           "label": "Germany",
           "meshes": {
             "flag": {
-              "visible": true,
               "materials": {
                 "Matériau 1": "flag_ger"
               }
@@ -208,7 +205,7 @@ const assetConfiguration = {
   ],
   "defaults": {
     "rules": {
-      "option": "option",
+      "option": "base",
       "color": "red",
       "flag": "france"
     },

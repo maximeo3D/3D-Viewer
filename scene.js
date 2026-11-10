@@ -1270,6 +1270,12 @@ class TagManager {
         });
     }
 
+    optionDefinesVisibleSet(option) {
+        const entries = Object.values((option && option.meshes) || {});
+        if (!entries.length) return false;
+        return !entries.some(effect => effect && effect.materials && Object.keys(effect.materials).length);
+    }
+
     applySceneVisibility() {
         const model = this.partModel();
         if (!model || !model.meshes) return;
@@ -1282,6 +1288,13 @@ class TagManager {
         (assetConfig.rules || []).forEach(rule => {
             const option = (rule.options || []).find(item => item.id === this.ruleChoices[rule.id]);
             if (!option || !option.meshes) return;
+            if (this.optionDefinesVisibleSet(option)) {
+                Object.keys(model.meshes).forEach(meshName => { visibility[meshName] = false; });
+                Object.entries(option.meshes).forEach(([meshName, effect]) => {
+                    if (!effect || effect.visible !== false) visibility[meshName] = true;
+                });
+                return;
+            }
             Object.entries(option.meshes).forEach(([meshName, effect]) => {
                 if (effect && (effect.visible === true || effect.visible === false)) visibility[meshName] = effect.visible;
             });

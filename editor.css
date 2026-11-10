@@ -72,7 +72,8 @@
 
 .editor-footer {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 12px;
     border-top: 1px solid #000;
@@ -95,8 +96,13 @@
 }
 
 .editor-footer button {
-    width: 100%;
+    flex: 1;
+    width: auto;
     font-weight: 600;
+}
+
+.editor-footer #status {
+    flex: 1 0 100%;
 }
 
 .editor-panel button.ghost,
@@ -575,6 +581,53 @@
     background: #e5e5e5;
 }
 
+.editor-panel .viewpoint-card {
+    background: #e5e5e5;
+}
+
+.viewpoint-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.editor-panel .viewpoint-head input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+}
+
+.viewpoint-actions {
+    display: flex;
+    gap: 4px;
+    flex: none;
+}
+
+.editor-panel .viewpoint-card .view-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 29px;
+    height: 29px;
+    flex: 0 0 29px;
+    padding: 4px;
+    background: #fff;
+    color: #000;
+}
+
+.editor-panel .viewpoint-card .view-btn svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.editor-panel .viewpoint-card .view-duplicate {
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+}
+
 .rule-head,
 .option-head {
     display: flex;
@@ -595,7 +648,31 @@
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-end;
+    flex: 0 0 auto;
+}
+
+.option-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.editor-panel .option-card .option-duplicate,
+.editor-panel .option-card .option-delete,
+.editor-panel .rule-card .rule-delete {
+    box-sizing: border-box;
+    width: 29px;
+    height: 29px;
     flex: 0 0 29px;
+    padding: 3px;
+    background: #fff;
+    color: #000;
+}
+
+.editor-panel .option-card .option-duplicate {
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
 }
 
 .editor-panel .option-card .option-toggle {
@@ -625,19 +702,42 @@
     margin-bottom: 0;
 }
 
-.editor-panel .rule-card .rule-delete,
-.editor-panel .option-card .option-delete {
-    box-sizing: border-box;
-    width: 29px;
-    height: 29px;
-    flex: 0 0 29px;
-    padding: 3px;
-}
-
 .editor-panel .rule-card .rule-delete svg,
 .editor-panel .option-card .option-delete svg {
     width: 100%;
     height: 100%;
+}
+
+.editor-panel:has(.rule-confirm) {
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-panel .rule-card.rule-confirm {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 220px;
+    margin-bottom: 0;
+    text-align: center;
+}
+
+.editor-panel .rule-confirm p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-panel .confirm-actions button {
+    min-width: 72px;
 }
 
 .editor-panel .option-card {
@@ -773,4 +873,32 @@
 
 .editor .tp-dfwv {
     display: none !important;
+}
+
+.editor-tabs button:hover,
+.editor-footer button:hover,
+.editor-panel button:hover:not(:disabled),
+.rulebar button:hover:not(:disabled),
+.editor-panel .option-card .vis-btn:hover,
+.editor-panel .chips button:hover,
+.editor-panel button.dashed-add:hover,
+.editor-panel button.icon-btn:hover:not(:disabled) {
+    background: #8ec5ff;
+    color: #000;
+}
+
+.editor-panel button.icon-btn.rule-delete:hover,
+.editor-panel button.icon-btn.option-delete:hover,
+.editor-panel button.icon-btn.mesh-remove:hover,
+.editor-panel button.icon-btn[data-action="clear-texture"]:hover,
+.editor-panel button[data-action="remove-model-file"]:hover,
+.editor-panel button[data-action="delete-view"]:hover,
+.editor-footer button#revert-all:hover {
+    background: #e1464d;
+    color: #fff;
+}
+
+.editor-panel .viewpoint-card button.view-replace:hover {
+    background: #ffe14d;
+    color: #000;
 }

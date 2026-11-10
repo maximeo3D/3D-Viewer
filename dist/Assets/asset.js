@@ -1,106 +1,216 @@
 const assetConfiguration = {
-  models: {
+  "models": {
     "part_model": {
-      name: "Modèle Part",
-      file: "model.glb",
-      format: "bin",
-      dataOffset: 66,
-      meshes: {
+      "name": "Modèle Part",
+      "file": "model.bin",
+      "format": "bin",
+      "dataOffset": 66,
+      "meshes": {
         "bloc": {
-          materialSlots: ["slot1"],
-          tags: ["base"]
+          "slots": [
+            "Matériau 1"
+          ],
+          "engraving": false,
+          "file": "part.bin"
         },
         "flag": {
-          materialSlots: ["slot1"],
-          tags: ["flag"]
+          "slots": [
+            "Matériau 1"
+          ],
+          "engraving": false,
+          "file": "part.bin"
         },
         "engraving": {
-          materialSlots: ["slot1"],
-          tags: ["engraving"]
+          "slots": [
+            "Matériau 1"
+          ],
+          "engraving": true,
+          "file": "part.bin"
+        },
+        "Cube": {
+          "slots": [
+            "mat1",
+            "mat2"
+          ],
+          "engraving": false,
+          "file": "model.bin"
         }
-      }
-    }
-  },
-  materialConfigs: {
-    "bloc": {
-      "red": { "slot1": "red" },
-      "blue": { "slot1": "blue" },
-      "green": { "slot1": "green" }
-    },
-    "flag": {
-      "none": { "slot1": "red" },
-      "france": { "slot1": "flag_fr" },
-      "unitedstates": { "slot1": "flag_us" },
-      "germany": { "slot1": "flag_ger" }
-    },
-    "engraving": {
-      "red": { "slot1": "engraving_red" },
-      "blue": { "slot1": "engraving_blue" },
-      "green": { "slot1": "engraving_green" }
-    }
-  },
-  rules: [
-    {
-      id: "option",
-      label: "Options",
-      type: "visibility",
-      options: [
-        { id: "base", label: "Option 1", tags: ["base"] }
+      },
+      "files": [
+        {
+          "file": "model.bin",
+          "format": "bin"
+        },
+        {
+          "file": "part.bin",
+          "format": "bin"
+        }
       ]
-    },
+    }
+  },
+  "rules": [
     {
-      id: "color",
-      label: "Couleur",
-      type: "material",
-      options: [
+      "id": "option",
+      "label": "Objects",
+      "options": [
         {
-          id: "red",
-          label: "Red",
-          assignments: {
-            bloc: { slot1: "red" },
-            engraving: { slot1: "engraving_red" }
+          "id": "base",
+          "label": "Rectangle",
+          "meshes": {
+            "bloc": {
+              "visible": true
+            },
+            "flag": {
+              "visible": true
+            },
+            "engraving": {
+              "visible": true
+            }
           }
         },
         {
-          id: "blue",
-          label: "Blue",
-          assignments: {
-            bloc: { slot1: "blue" },
-            engraving: { slot1: "engraving_blue" }
-          }
-        },
-        {
-          id: "green",
-          label: "Green",
-          assignments: {
-            bloc: { slot1: "green" },
-            engraving: { slot1: "engraving_green" }
+          "id": "option",
+          "label": "Cube",
+          "meshes": {
+            "Cube": {
+              "visible": true
+            }
           }
         }
       ]
     },
     {
-      id: "flag",
-      label: "Drapeau",
-      type: "material",
-      showTag: "flag",
-      hideWhen: "none",
-      options: [
-        { id: "none", label: "Aucun", assignments: { flag: { slot1: "red" } } },
-        { id: "france", label: "France", assignments: { flag: { slot1: "flag_fr" } } },
-        { id: "unitedstates", label: "United States", assignments: { flag: { slot1: "flag_us" } } },
-        { id: "germany", label: "Germany", assignments: { flag: { slot1: "flag_ger" } } }
+      "id": "color",
+      "label": "Couleur",
+      "options": [
+        {
+          "id": "red",
+          "label": "Red",
+          "meshes": {
+            "bloc": {
+              "materials": {
+                "Matériau 1": "red"
+              }
+            },
+            "engraving": {
+              "materials": {
+                "Matériau 1": "engraving_red"
+              }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "red",
+                "mat2": "red"
+              }
+            }
+          }
+        },
+        {
+          "id": "blue",
+          "label": "Blue",
+          "meshes": {
+            "bloc": {
+              "materials": {
+                "Matériau 1": "blue"
+              }
+            },
+            "engraving": {
+              "materials": {
+                "Matériau 1": "engraving_blue"
+              }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "blue",
+                "mat2": "blue"
+              }
+            }
+          }
+        },
+        {
+          "id": "green",
+          "label": "Green",
+          "meshes": {
+            "bloc": {
+              "materials": {
+                "Matériau 1": "green"
+              }
+            },
+            "engraving": {
+              "materials": {
+                "Matériau 1": "engraving_green"
+              }
+            },
+            "Cube": {
+              "materials": {
+                "mat1": "green",
+                "mat2": "green"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "flag",
+      "label": "Drapeau",
+      "options": [
+        {
+          "id": "none",
+          "label": "Aucun",
+          "meshes": {
+            "flag": {
+              "visible": false,
+              "materials": {
+                "Matériau 1": "red"
+              }
+            }
+          }
+        },
+        {
+          "id": "france",
+          "label": "France",
+          "meshes": {
+            "flag": {
+              "materials": {
+                "Matériau 1": "flag_fr"
+              }
+            }
+          }
+        },
+        {
+          "id": "unitedstates",
+          "label": "United States",
+          "meshes": {
+            "flag": {
+              "materials": {
+                "Matériau 1": "flag_us"
+              }
+            }
+          }
+        },
+        {
+          "id": "germany",
+          "label": "Germany",
+          "meshes": {
+            "flag": {
+              "materials": {
+                "Matériau 1": "flag_ger"
+              }
+            }
+          }
+        }
       ]
     }
   ],
-  defaults: {
-    rules: {
-      option: "base",
-      color: "red",
-      flag: "france"
+  "defaults": {
+    "rules": {
+      "option": "base",
+      "color": "red",
+      "flag": "france"
     },
-    engravingText: "Test Reso",
-    engravingFont: "Stencil"
+    "engravingText": "Test",
+    "engravingFont": "Stencil"
   }
 };
 if (typeof module !== 'undefined' && module.exports) {

@@ -1,6 +1,6 @@
 (function () {
     const tabs = [
-        ['model', 'Modèle'],
+        ['model', 'Modèles'],
         ['rules', 'Règles'],
         ['materials', 'Matériaux'],
         ['light', 'Éclairage'],
@@ -21,6 +21,7 @@
         material: null,
         rule: null,
         present: new Set(),
+        confirmRule: null,
         openOptions: new Set(),
         textures: ['None'],
         environments: [],
@@ -305,6 +306,15 @@
     function renderRuleEditor() {
         const rule = rules().find(item => item.id === state.rule);
         if (!rule) return '';
+        if (state.confirmRule === rule.id) {
+            return `<div class="card rule-card rule-confirm">
+                <p>Supprimer la règle ?</p>
+                <div class="confirm-actions">
+                    <button type="button" data-action="confirm-delete-rule">Oui</button>
+                    <button type="button" class="ghost" data-action="cancel-delete-rule">Non</button>
+                </div>
+            </div>`;
+        }
         const opening = defaults().rules[rule.id] || (rule.options[0] && rule.options[0].id) || '';
         const openingOptions = (rule.options || []).map(option =>
             `<option value="${esc(option.id)}" ${option.id === opening ? 'selected' : ''}>${esc(option.label || option.id)}</option>`
@@ -320,6 +330,12 @@
         </div>`;
     }
 
+    function optionReplacesVisibility(option) {
+        const entries = Object.values((option && option.meshes) || {});
+        if (!entries.length) return false;
+        return !entries.some(effect => effect && effect.materials && Object.keys(effect.materials).length);
+    }
+
     function renderOption(rule, option) {
         const chosen = option.meshes || {};
         const catalog = meshNames();
@@ -327,7 +343,7 @@
             .concat(Object.keys(chosen).filter(name => !catalog.includes(name)));
         const available = catalog.filter(name => !Object.prototype.hasOwnProperty.call(chosen, name));
         const meshChoices = available.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
-        const picker = `<label class="field">Meshes<select data-add-mesh="${esc(option.id)}" ${available.length ? '' : 'disabled'}><option value="">${available.length ? 'Ajouter un mesh' : 'Tous les meshes sont ajoutés'}</option>${meshChoices}</select></label>`;
+        const picker = `<label class="field">Meshes<select data-add-mesh="${esc(option.id)}" ${available.length ? '' : 'disabled'}><option value="">${available.length ? 'Ajouter un mesh' : 'Tous les meshes sont ajoutés'}</option>${meshChoices}</select></label>${optionReplacesVisibility(option) ? '<p class="help">Les meshes non ajoutés sont masqués.</p>' : ''}`;
         const body = selected.map(name => {
             const effect = chosen[name] || {};
             const visible = effect.visible === true ? 'true' : effect.visible === false ? 'false' : '';
@@ -371,7 +387,10 @@
                 <label class="field">Libellé<input data-option-prop="label" data-option="${esc(option.id)}" value="${esc(option.label || '')}"></label>
                 <div class="option-tools">
                     <button type="button" class="icon-btn option-toggle" data-action="toggle-option" data-option="${esc(option.id)}" title="${open ? 'Réduire' : 'Agrandir'}" aria-label="${open ? 'Réduire l’option' : 'Agrandir l’option'}" aria-expanded="${open ? 'true' : 'false'}">${chevron}</button>
-                    <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                    <div class="option-actions">
+                        <button type="button" class="icon-btn option-duplicate" data-action="duplicate-option" data-option="${esc(option.id)}" title="Dupliquer l’option" aria-label="Dupliquer l’option">&#x1F5D0;</button>
+                        <button type="button" class="icon-btn option-delete" data-action="delete-option" data-option="${esc(option.id)}" title="Supprimer l’option" aria-label="Supprimer l’option"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                    </div>
                 </div>
             </div>
             ${open ? picker + body : ''}
@@ -676,12 +695,15 @@
         const slider = (key, label, min, max, step, value) =>
             sliderField(label, `data-camera="${key}"`, min, max, step, value, `out-${key}`);
         const views = studio().viewpoints || {};
-        const cards = Object.keys(views).map(name => `<div class="card">
-            <input data-viewpoint-name="${esc(name)}" value="${esc(name)}">
-            <div class="row">
-                <button type="button" class="ghost" data-action="goto-view" data-id="${esc(name)}">Aller</button>
-                <button type="button" class="ghost" data-action="replace-view" data-id="${esc(name)}">Remplacer</button>
-                <button type="button" class="ghost" data-action="delete-view" data-id="${esc(name)}">Supprimer</button>
+        const cards = Object.keys(views).map(name => `<div class="card viewpoint-card">
+            <div class="viewpoint-head">
+                <input data-viewpoint-name="${esc(name)}" value="${esc(name)}" aria-label="Nom de la vue">
+                <div class="viewpoint-actions">
+                    <button type="button" class="view-btn" data-action="goto-view" data-id="${esc(name)}" title="Aller" aria-label="Aller à ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.2 12.8 8 8.5 11.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <button type="button" class="view-btn view-replace" data-action="replace-view" data-id="${esc(name)}" title="Remplacer" aria-label="Remplacer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 2.8 13.2 6.6 5.6 14.2 1.8 14.6 2.2 10.8z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="m8.2 4 4 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                    <button type="button" class="view-btn view-duplicate" data-action="duplicate-view" data-id="${esc(name)}" title="Dupliquer" aria-label="Dupliquer ${esc(name)}">&#x1F5D0;</button>
+                    <button type="button" class="view-btn view-delete" data-action="delete-view" data-id="${esc(name)}" title="Supprimer" aria-label="Supprimer ${esc(name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.2 4.5V3.2h3.6v1.3M4.6 4.5l.5 8.2h5.8l.5-8.2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                </div>
             </div>
         </div>`).join('');
         return `
@@ -1051,9 +1073,19 @@
         else if (action === 'add-rule') addRule();
         else if (action === 'select-rule') {
             state.rule = button.dataset.id;
+            state.confirmRule = null;
             render();
         } else if (action === 'add-option') addOption();
-        else if (action === 'delete-rule') deleteRule();
+        else if (action === 'delete-rule') {
+            state.confirmRule = state.rule;
+            render();
+        }
+        else if (action === 'confirm-delete-rule') deleteRule();
+        else if (action === 'cancel-delete-rule') {
+            state.confirmRule = null;
+            render();
+        }
+        else if (action === 'duplicate-option') duplicateOption(button.dataset.option);
         else if (action === 'toggle-option') toggleOption(button.dataset.option);
         else if (action === 'remove-option-mesh') removeOptionMesh(button.dataset.option, button.dataset.mesh);
         else if (action === 'set-visible') {
@@ -1079,6 +1111,7 @@
         else if (action === 'add-viewpoint') addViewpoint();
         else if (action === 'goto-view') window.viewer.gotoViewpoint(button.dataset.id);
         else if (action === 'replace-view') replaceViewpoint(button.dataset.id);
+        else if (action === 'duplicate-view') duplicateViewpoint(button.dataset.id);
         else if (action === 'delete-view') {
             delete studio().viewpoints[button.dataset.id];
             render();
@@ -1142,7 +1175,21 @@
     function deleteRule() {
         asset().rules = rules().filter(rule => rule.id !== state.rule);
         delete defaults().rules[state.rule];
+        state.confirmRule = null;
         state.rule = asset().rules[0] && asset().rules[0].id;
+        render();
+    }
+    function duplicateOption(optionId) {
+        const rule = selectedRule();
+        const source = rule && (rule.options || []).find(item => item.id === optionId);
+        if (!rule || !source) return;
+        const id = uniqueId(source.id || 'option', new Set((rule.options || []).map(option => option.id)));
+        const copy = JSON.parse(JSON.stringify(source));
+        copy.id = id;
+        copy.label = source.label || 'Option';
+        const index = rule.options.findIndex(item => item.id === optionId);
+        rule.options.splice(index + 1, 0, copy);
+        state.openOptions.add(rule.id + '\0' + id);
         render();
     }
     function optionById(optionId) {
@@ -1280,6 +1327,20 @@
             studio().viewpoints[name] = window.captureViewpoint();
             setStatus(`Viewpoint ${name} mis à jour.`);
         }
+    }
+    function duplicateViewpoint(name) {
+        const views = studio().viewpoints || {};
+        if (!views[name]) return;
+        let copyName = `${name} 2`;
+        let index = 3;
+        while (views[copyName]) copyName = `${name} ${index++}`;
+        const ordered = {};
+        Object.keys(views).forEach(key => {
+            ordered[key] = views[key];
+            if (key === name) ordered[copyName] = JSON.parse(JSON.stringify(views[key]));
+        });
+        studio().viewpoints = ordered;
+        render();
     }
     function renameViewpoint(previous, next) {
         const views = studio().viewpoints || {};
