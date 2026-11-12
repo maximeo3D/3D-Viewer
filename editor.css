@@ -866,7 +866,8 @@
 .editor-panel .option-card .option-duplicate,
 .editor-panel .option-card .option-delete,
 .editor-panel .rule-card .rule-delete,
-.editor-panel .rule-head .rule-delete {
+.editor-panel .rule-head .rule-delete,
+.editor-panel .rule-head .material-tools .icon-btn {
     box-sizing: border-box;
     width: 29px;
     height: 29px;
@@ -874,6 +875,13 @@
     padding: 3px;
     background: #fff;
     color: #000;
+}
+
+.material-tools {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    flex: 0 0 auto;
 }
 
 .editor-panel .option-card .option-toggle {

@@ -36,6 +36,7 @@
     const state = {
         tab: 'model',
         material: null,
+        renameMaterial: false,
         rule: null,
         present: new Set(),
         confirmRule: null,
@@ -293,6 +294,7 @@
         if (!hashByTab[id]) return;
         state.tab = id;
         state.fontPicker = null;
+        state.renameMaterial = false;
         syncTabHash();
         render();
     }
@@ -409,6 +411,13 @@
         panel.innerHTML = builders[state.tab]();
         panel.scrollTop = scroll;
         placeFontPicker();
+        if (state.tab === 'materials' && state.renameMaterial) {
+            const input = $('rename-material');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
         if (state.tab === 'light') mountEnvPreview();
         else disposeEnvPreview();
     }
@@ -571,8 +580,13 @@
                 <button type="button" data-action="add-material">Créer</button>
             </div>
             <div class="rule-head">
-                <label class="field">Matériau<select id="material-select">${options}</select></label>
-                ${state.material ? `<button type="button" class="icon-btn rule-delete" data-action="delete-material" title="Supprimer le matériau" aria-label="Supprimer le matériau">${icon('trash')}</button>` : ''}
+                <label class="field">Matériau${state.renameMaterial && state.material
+                    ? `<input id="rename-material" type="text" value="${esc(state.material)}" autocomplete="off" spellcheck="false" aria-label="Nouveau nom du matériau">`
+                    : `<select id="material-select">${options}</select>`}</label>
+                ${state.material ? `<div class="material-tools">
+                    <button type="button" class="icon-btn" data-action="rename-material" title="Renommer le matériau" aria-label="Renommer le matériau">${icon('pencil')}</button>
+                    <button type="button" class="icon-btn rule-delete" data-action="delete-material" title="Supprimer le matériau" aria-label="Supprimer le matériau">${icon('trash')}</button>
+                </div>` : ''}
             </div>
             ${state.material ? renderMaterialForm(state.material) : ''}`;
     }
@@ -1417,6 +1431,7 @@
         }
         else if (action === 'delete-option') deleteOption(button.dataset.option);
         else if (action === 'add-material') addMaterial();
+        else if (action === 'rename-material') startRenameMaterial();
         else if (action === 'delete-material') deleteMaterial();
         else if (action === 'clear-texture') {
             writeMaterial(state.material, button.dataset.slot, 'None');
@@ -1611,11 +1626,66 @@
         }
         all[name] = blankMaterial();
         state.material = name;
+        state.renameMaterial = false;
+        render();
+    }
+    function startRenameMaterial() {
+        if (!state.material) return;
+        if (state.renameMaterial) {
+            const input = $('rename-material');
+            renameMaterial(state.material, input ? input.value : state.material);
+            return;
+        }
+        state.renameMaterial = true;
+        render();
+    }
+    function retargetMaterialInstance(previous, next) {
+        const instances = window.materialInstances;
+        if (!instances || !instances[previous]) return;
+        instances[previous].forEach(mat => { if (mat) mat.name = next; });
+        instances[next] = instances[previous];
+        delete instances[previous];
+        const scene = instances[next][0] && instances[next][0].getScene && instances[next][0].getScene();
+        if (!scene || !scene.materials) return;
+        scene.materials.forEach(mat => { if (mat && mat.name === previous) mat.name = next; });
+    }
+    function renameMaterial(previous, next) {
+        state.renameMaterial = false;
+        next = String(next || '').trim();
+        if (!previous || !next || next === previous) {
+            render();
+            return;
+        }
+        const all = materials().materials;
+        if (all[next]) {
+            setStatus('Ce matériau existe déjà.');
+            render();
+            return;
+        }
+        const ordered = {};
+        Object.keys(all).forEach(key => { ordered[key === previous ? next : key] = all[key]; });
+        Object.keys(all).forEach(key => delete all[key]);
+        Object.assign(all, ordered);
+        Object.values(all).forEach(mat => {
+            if (mat && mat.parent === previous) mat.parent = next;
+        });
+        rules().forEach(rule => (rule.options || []).forEach(option => {
+            Object.values(option.meshes || {}).forEach(effect => {
+                Object.entries((effect && effect.materials) || {}).forEach(([slot, materialName]) => {
+                    if (materialName === previous) effect.materials[slot] = next;
+                });
+            });
+        }));
+        retargetMaterialInstance(previous, next);
+        state.material = next;
+        if (window.viewer && window.viewer.sync) window.viewer.sync();
+        window.refreshMaterials();
         render();
     }
     function deleteMaterial() {
         const name = state.material;
         if (!name) return;
+        state.renameMaterial = false;
         delete materials().materials[name];
         materialNames().forEach(item => {
             if (materials().materials[item].parent === name) materials().materials[item].parent = 'none';
@@ -2318,17 +2388,33 @@
             closeFontPicker();
         });
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') closeFontPicker();
+            if (event.key !== 'Escape') return;
+            closeFontPicker();
+            if (state.renameMaterial) {
+                state.renameMaterial = false;
+                render();
+            }
         });
         $('panel').addEventListener('input', onInput);
         $('panel').addEventListener('change', onChange);
         $('panel').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && event.target.id === 'rename-material') {
+                event.preventDefault();
+                renameMaterial(state.material, event.target.value);
+                return;
+            }
             if (event.key !== 'Enter' || !event.target.classList.contains('slider-readout')) return;
             event.preventDefault();
             event.target.blur();
         });
         $('panel').addEventListener('pointerdown', onColorPointerDown);
         $('panel').addEventListener('focusout', (event) => {
+            if (event.target.id === 'rename-material') {
+                const next = event.relatedTarget;
+                if (next && next.closest && next.closest('[data-action="rename-material"]')) return;
+                renameMaterial(state.material, event.target.value);
+                return;
+            }
             if (event.target.dataset.hex === undefined) return;
             const root = event.target.closest('[data-color-picker]');
             if (!root) return;
