@@ -566,10 +566,13 @@
             `<option value="${esc(name)}" ${name === state.material ? 'selected' : ''}>${esc(name)}</option>`
         ).join('');
         return `
-            <label class="field">Matériau<select id="material-select">${options}</select></label>
-            <div class="row">
+            <div class="row material-create">
                 <input id="new-material" placeholder="Nom du matériau">
                 <button type="button" data-action="add-material">Créer</button>
+            </div>
+            <div class="rule-head">
+                <label class="field">Matériau<select id="material-select">${options}</select></label>
+                ${state.material ? `<button type="button" class="icon-btn rule-delete" data-action="delete-material" title="Supprimer le matériau" aria-label="Supprimer le matériau">${icon('trash')}</button>` : ''}
             </div>
             ${state.material ? renderMaterialForm(state.material) : ''}`;
     }
@@ -601,6 +604,10 @@
             const thumb = current ? `<img src="Textures/${esc(encodeURIComponent(current))}" alt="">` : '';
             const locked = paramLocked(raw, key);
             const lockAttr = locked ? ' disabled' : '';
+            const extra = key === 'lightmapTexture' ? `<div class="field ${paramClass(raw, 'lightmapUVSet')}" data-param="lightmapUVSet">
+                    <div class="param-head"><span>Lightmap UV</span>${inheritButton(raw, 'lightmapUVSet')}</div>
+                    <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}"${paramLocked(raw, 'lightmapUVSet') ? ' disabled' : ''}>
+                </div>` : '';
             return `<div class="${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body tex-block">
@@ -613,9 +620,9 @@
                     </div>
                     <select data-mat="${key}" data-tex="1"${lockAttr}>${options}</select>
                 </div>
-            </div>`;
+            </div>${extra}`;
         }).join('');
-        const uvLabels = { uOffset: 'U Offset', vOffset: 'V Offset', uScale: 'U Scale', vScale: 'V Scale', wRotation: 'Rotation' };
+        const uvLabels = { uScale: 'U Scale', vScale: 'V Scale' };
         const numbers = Object.keys(uvLabels).map(key =>
             `<div class="field ${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${uvLabels[key]}</span>${inheritButton(raw, key)}</div>
@@ -633,24 +640,15 @@
             ${slider('alpha', 'Opacity', 0, 1, 0.01)}
             ${slider('bumpTextureIntensity', 'Normal Strength', 0, 5, 0.05)}
             ${textures}
-            <details>
-                <summary>UV et lightmap</summary>
+            <details open>
+                <summary>Transformations</summary>
+                ${slider('uOffset', 'U Offset', 0, 1, 0.01)}
+                ${slider('vOffset', 'V Offset', 0, 1, 0.01)}
+                ${slider('wRotation', 'Rotation', -180, 180, 1)}
                 <div class="grid-2">
                     ${numbers}
-                    <div class="field ${paramClass(raw, 'lightmapUVSet')}" data-param="lightmapUVSet">
-                        <div class="param-head"><span>Lightmap UV</span>${inheritButton(raw, 'lightmapUVSet')}</div>
-                        <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}"${paramLocked(raw, 'lightmapUVSet') ? ' disabled' : ''}>
-                    </div>
-                </div>
-                <div class="${paramClass(raw, 'useLightmapAsShadowmap')}" data-param="useLightmapAsShadowmap">
-                    <div class="param-head"><span>Lightmap en ombre</span>${inheritButton(raw, 'useLightmapAsShadowmap')}</div>
-                    <div class="param-body"><input type="checkbox" data-mat="useLightmapAsShadowmap" ${view.useLightmapAsShadowmap ? 'checked' : ''}${paramLocked(raw, 'useLightmapAsShadowmap') ? ' disabled' : ''}></div>
                 </div>
             </details>
-            <div class="row">
-                <button type="button" class="ghost" data-action="inherit-material">Tout hériter</button>
-                <button type="button" class="ghost" data-action="delete-material">Supprimer</button>
-            </div>
         </div>`;
     }
 
@@ -1145,6 +1143,14 @@
             return;
         }
         if (hasParent(mat) && !isOwn(mat, key)) return;
+        if (key === 'uOffset' || key === 'vOffset') {
+            const number = Number(value);
+            value = Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0;
+        }
+        if (key === 'wRotation') {
+            const number = Number(value);
+            value = Number.isFinite(number) ? Math.min(180, Math.max(-180, number)) : 0;
+        }
         mat[key] = value;
         window.refreshMaterials();
         markOwn(key);
@@ -1412,7 +1418,6 @@
         else if (action === 'delete-option') deleteOption(button.dataset.option);
         else if (action === 'add-material') addMaterial();
         else if (action === 'delete-material') deleteMaterial();
-        else if (action === 'inherit-material') inheritMaterial();
         else if (action === 'clear-texture') {
             writeMaterial(state.material, button.dataset.slot, 'None');
             render();
@@ -1625,14 +1630,6 @@
         }));
         state.material = materialNames()[0] || null;
         window.viewer.sync();
-        window.refreshMaterials();
-        render();
-    }
-    function inheritMaterial() {
-        const name = state.material;
-        const mat = name && materials().materials[name];
-        if (!mat || !hasParent(mat)) return;
-        materials().materials[name] = { type: mat.type || 'pbr', parent: mat.parent };
         window.refreshMaterials();
         render();
     }

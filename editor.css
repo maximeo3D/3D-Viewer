@@ -637,6 +637,22 @@
     flex: 1;
 }
 
+.material-create {
+    margin-bottom: 8px;
+}
+
+.material-create > input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.material-create > button {
+    flex: 0 0 auto;
+    width: auto;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
 .project-actions button {
     white-space: nowrap;
     font-weight: 600;
@@ -849,7 +865,8 @@
 
 .editor-panel .option-card .option-duplicate,
 .editor-panel .option-card .option-delete,
-.editor-panel .rule-card .rule-delete {
+.editor-panel .rule-card .rule-delete,
+.editor-panel .rule-head .rule-delete {
     box-sizing: border-box;
     width: 29px;
     height: 29px;
@@ -1083,6 +1100,7 @@
 }
 
 .editor-panel button.icon-btn.rule-delete:hover,
+.editor-panel button.icon-btn[data-action="delete-material"]:hover,
 .editor-panel button.icon-btn[data-action="delete-engraving"]:hover,
 .editor-panel button.icon-btn.option-delete:hover,
 .editor-panel button.icon-btn.mesh-remove:hover,

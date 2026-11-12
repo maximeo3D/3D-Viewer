@@ -499,7 +499,7 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         pbr.lightmapTexture.coordinatesIndex = lmUV;
         
         // Enable lightmap as shadowmap by default for better performance
-        pbr.useLightmapAsShadowmap = finalMaterialConfig.useLightmapAsShadowmap !== undefined ? finalMaterialConfig.useLightmapAsShadowmap : true;
+        pbr.useLightmapAsShadowmap = true;
     } else if (pbr.lightmapTexture) { try { pbr.lightmapTexture.dispose(); } catch(_){} pbr.lightmapTexture = null; }
     
     // === TEXTURE TRANSFORMATIONS ===
