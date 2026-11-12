@@ -1,6 +1,6 @@
 (function () {
     const tabs = [
-        ['model', 'Modèles', 'cube', 'models'],
+        ['model', 'Projet', 'cube', 'projet'],
         ['rules', 'Règles', 'list-check', 'rules'],
         ['materials', 'Matériaux', 'swatchbook', 'materials'],
         ['light', 'Éclairage', 'lightbulb', 'light'],
@@ -9,6 +9,8 @@
     ];
     const hashByTab = Object.fromEntries(tabs.map(([id, , , hash]) => [id, hash]));
     const tabByHash = {
+        projet: 'model',
+        project: 'model',
         models: 'model',
         model: 'model',
         modeles: 'model',
@@ -413,6 +415,11 @@
         return `
             <div class="stack">
                 <label class="field">Nom du projet<input type="text" data-model="name" value="${esc(model.name || '')}" placeholder="Nouveau projet"></label>
+                <div class="row project-actions">
+                    <button type="button" class="ghost" data-action="new-project" id="new-project">Nouveau projet</button>
+                    <button type="button" class="ghost" data-action="import-project" id="import-project">Importer</button>
+                    <button type="button" data-action="export-project" id="export-project">Exporter</button>
+                </div>
                 <div class="field">Fichiers</div>
                 ${fileRows || '<p class="help">Aucun fichier.</p>'}
                 <label class="field">Décalage XOR<input type="number" data-model="dataOffset" value="${Number(model.dataOffset || 0)}"></label>
@@ -1301,6 +1308,18 @@
             return;
         }
         const action = button.dataset.action;
+        if (action === 'new-project') {
+            await newProject();
+            return;
+        }
+        else if (action === 'import-project') {
+            $('file-project').click();
+            return;
+        }
+        else if (action === 'export-project') {
+            await exportProject();
+            return;
+        }
         if (action === 'import-bin') $('file-bin').click();
         else if (action === 'reload-model') await window.reloadModels();
         else if (action === 'remove-model-file') {
@@ -2236,7 +2255,7 @@
         state.started = true;
         const fromHash = tabFromHash(location.hash);
         if (fromHash) state.tab = fromHash;
-        else syncTabHash();
+        syncTabHash();
         scanMeshes();
         const watchCamera = () => {
             syncLiveCameraFields();
@@ -2277,9 +2296,6 @@
             }
         });
         $('save-all').addEventListener('click', saveAll);
-        $('export-project').addEventListener('click', () => {
-            exportProject().catch(error => setStatus('Export impossible. ' + error.message));
-        });
         $('revert-all').addEventListener('click', () => {
             revertAll().catch(error => setStatus('Annulation impossible. ' + error.message));
         });
@@ -2421,10 +2437,6 @@
         });
     }
 
-    $('new-project').addEventListener('click', () => {
-        newProject().catch(error => setStatus('Réinitialisation impossible. ' + error.message));
-    });
-    $('import-project').addEventListener('click', () => $('file-project').click());
     $('file-project').addEventListener('change', (event) => {
         const file = event.target.files && event.target.files[0];
         event.target.value = '';
