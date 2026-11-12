@@ -1105,9 +1105,11 @@ const createScene = async function() {
             }
             
             // Mouvement vertical : contrôler la rotation X des objets avec limites (inversé pour plus naturel)
+            // De l'autre côté de l'objet (rotation 0° à 180°), l'axe X est vu à l'envers : on inverse le sens.
             if (Math.abs(deltaY) > 0) {
                 const objectRotationSensitivity = 0.006;
-                const rotationDelta = -deltaY * objectRotationSensitivity; // Inversé avec le signe négatif
+                const tiltSign = Math.sin(camera.alpha) >= 0 ? -1 : 1;
+                const rotationDelta = -deltaY * objectRotationSensitivity * tiltSign;
                 
                 // Calculer la nouvelle rotation avec limites
                 const newRotationX = currentObjectRotationX + rotationDelta;
