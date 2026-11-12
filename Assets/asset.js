@@ -1,7 +1,7 @@
 const assetConfiguration = {
   "models": {
     "part_model": {
-      "name": "Modèle Part",
+      "name": "model-test",
       "file": "model.bin",
       "format": "bin",
       "dataOffset": 66,
@@ -211,7 +211,25 @@ const assetConfiguration = {
     },
     "engravingText": "Test",
     "engravingFont": "Stencil"
-  }
+  },
+  "fonts": [
+    {
+      "name": "Stencil",
+      "file": "stencil.ttf"
+    }
+  ],
+  "engravings": [
+    {
+      "id": "engraving",
+      "label": "Gravure",
+      "mesh": "engraving",
+      "text": "Test",
+      "font": "Stencil",
+      "fonts": [
+        "Stencil"
+      ]
+    }
+  ]
 };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = assetConfiguration;

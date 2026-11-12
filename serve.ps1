@@ -363,6 +363,39 @@ try {
                 Write-Host "Error updating asset.js: $($_.Exception.Message)"
             }
         }
+        elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'api/project/clear') {
+            try {
+                $removed = 0
+                $targets = @(
+                    @{ dir = 'Assets'; keep = @('asset.js') },
+                    @{ dir = 'Textures'; keep = @('materials.json') },
+                    @{ dir = 'Textures\HDR'; keep = @('default.env') },
+                    @{ dir = 'fonts'; keep = @() }
+                )
+                foreach ($target in $targets) {
+                    $dir = Join-Path $PSScriptRoot $target.dir
+                    if (-not (Test-Path $dir -PathType Container)) { continue }
+                    Get-ChildItem -Path $dir -File | Where-Object { $target.keep -notcontains $_.Name } | ForEach-Object {
+                        Remove-Item -LiteralPath $_.FullName -Force
+                        $removed++
+                    }
+                }
+                $response.StatusCode = 200
+                $response.ContentType = 'application/json'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes('{"status":"success","removed":' + $removed + '}')
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "Project cleared ($removed files removed)"
+            } catch {
+                $response.StatusCode = 500
+                $response.ContentType = 'application/json'
+                $errorMsg = '{"status":"error","message":"' + $_.Exception.Message.Replace('"','\"') + '"}'
+                $responseBuffer = [System.Text.Encoding]::UTF8.GetBytes($errorMsg)
+                $response.ContentLength64 = $responseBuffer.Length
+                $response.OutputStream.Write($responseBuffer, 0, $responseBuffer.Length)
+                Write-Host "Error clearing project: $($_.Exception.Message)"
+            }
+        }
         elseif ($request.HttpMethod -eq 'POST' -and $path -eq 'api/upload') {
             try {
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
@@ -569,6 +602,7 @@ try {
                 default { $response.ContentType = 'text/plain' }
             }
             
+            $response.Headers.Add('Cache-Control', 'no-cache')
             $content = [System.IO.File]::ReadAllBytes($full)
             $response.ContentLength64 = $content.Length
             $response.OutputStream.Write($content, 0, $content.Length)

@@ -85,6 +85,12 @@
     border-top: 1px solid #000;
 }
 
+.editor-footer .footer-row {
+    display: flex;
+    gap: 8px;
+    flex: 1 0 100%;
+}
+
 .editor-footer button.ghost {
     background: #fff;
     color: #000;

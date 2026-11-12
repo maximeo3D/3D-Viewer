@@ -95,7 +95,7 @@
 
     function ensureEngravings(asset) {
         if (!asset) return;
-        if (!Array.isArray(asset.fonts) || !asset.fonts.length) asset.fonts = defaultFonts();
+        if (!Array.isArray(asset.fonts)) asset.fonts = defaultFonts();
         if (!Array.isArray(asset.engravings)) {
             asset.engravings = [];
             const meshes = (asset.models && asset.models.part_model && asset.models.part_model.meshes) || {};

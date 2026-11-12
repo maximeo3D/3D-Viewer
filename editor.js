@@ -412,6 +412,7 @@
         }).join('');
         return `
             <div class="stack">
+                <label class="field">Nom du projet<input type="text" data-model="name" value="${esc(model.name || '')}" placeholder="Nouveau projet"></label>
                 <div class="field">Fichiers</div>
                 ${fileRows || '<p class="help">Aucun fichier.</p>'}
                 <label class="field">Décalage XOR<input type="number" data-model="dataOffset" value="${Number(model.dataOffset || 0)}"></label>
@@ -1956,6 +1957,178 @@
         }
     }
 
+    const PROJECT_FOLDERS = {
+        'Assets': ['.bin', '.glb', '.gltf'],
+        'Textures': ['.png', '.jpg', '.jpeg', '.webp'],
+        'Textures/HDR': ['.hdr', '.env'],
+        'fonts': ['.ttf', '.otf', '.woff', '.woff2']
+    };
+    const FLASH_KEY = 'editor-flash';
+
+    function emptyAsset(dataOffset) {
+        return {
+            models: {
+                part_model: {
+                    name: 'Nouveau projet',
+                    file: '',
+                    format: 'bin',
+                    dataOffset: Number(dataOffset || 0),
+                    meshes: {},
+                    files: []
+                }
+            },
+            rules: [],
+            engravings: [],
+            fonts: [],
+            defaults: { rules: {}, engravingText: '', engravingFont: '' }
+        };
+    }
+
+    function emptyStudio() {
+        const beta = 1.2;
+        return {
+            environment: {
+                backgroundColor: '#ebebeb',
+                hdrExposure: 1,
+                orientation: 0,
+                file: 'default.env',
+                visible: false
+            },
+            camera: {
+                alpha: -Math.PI / 2,
+                beta,
+                radius: 10,
+                fov: 45,
+                minDistance: 1,
+                maxDistance: 100,
+                zoomSpeed: 2,
+                zoomSensitivity: 0.7,
+                inertia: 0.85,
+                zoomSmoothness: 0.1,
+                targetX: 0,
+                targetY: 0,
+                targetZ: 0,
+                showTarget: false,
+                pitchElasticity: false,
+                lowerBetaLimit: beta,
+                upperBetaLimit: beta,
+                initialPitch: beta * 180 / Math.PI
+            },
+            viewpoints: {},
+            defaultViewpoint: ''
+        };
+    }
+
+    function setProjectBusy(busy) {
+        ['new-project', 'import-project', 'export-project', 'save-all', 'revert-all'].forEach(id => {
+            const button = $(id);
+            if (button) button.disabled = busy;
+        });
+    }
+
+    async function clearProjectFiles() {
+        const response = await fetch('api/project/clear', { method: 'POST' });
+        if (!response.ok) throw new Error(await response.text());
+    }
+
+    function reloadWithMessage(message) {
+        try { sessionStorage.setItem(FLASH_KEY, message); } catch (_) {}
+        location.reload();
+    }
+
+    async function newProject() {
+        const ok = window.confirm('Créer un nouveau projet ?\n\nLes modèles, textures, polices, environnements et réglages actuels seront supprimés du disque. Exportez le projet avant si vous voulez le garder.');
+        if (!ok) return;
+        setProjectBusy(true);
+        try {
+            setStatus('Réinitialisation du projet…');
+            const current = window.getAssetConfig && window.getAssetConfig();
+            const model = current && current.models && current.models.part_model;
+            const offset = model ? model.dataOffset : 0;
+            await clearProjectFiles();
+            await postText('Assets/asset.js', serializeAsset(emptyAsset(offset)));
+            await postText('studio.json', JSON.stringify(emptyStudio(), null, 2));
+            await postText('materials.json', JSON.stringify({ materials: {} }, null, 2));
+            reloadWithMessage('Nouveau projet créé.');
+        } catch (error) {
+            setProjectBusy(false);
+            setStatus('Réinitialisation impossible. Le serveur d’écriture doit être lancé. ' + error.message);
+        }
+    }
+
+    function projectEntryFolder(relativePath) {
+        const slash = relativePath.lastIndexOf('/');
+        if (slash < 0) return null;
+        const folder = relativePath.slice(0, slash);
+        const name = relativePath.slice(slash + 1);
+        const allowed = PROJECT_FOLDERS[folder];
+        if (!allowed || !name) return null;
+        const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
+        return allowed.includes(ext) ? { folder, name } : null;
+    }
+
+    async function readProjectZip(file) {
+        const zip = await window.JSZip.loadAsync(file);
+        const entries = Object.values(zip.files).filter(entry => !entry.dir && !/(^|\/)__MACOSX\//.test(entry.name));
+        const assetEntry = entries.find(entry => /(^|\/)Assets\/asset\.js$/.test(entry.name));
+        if (!assetEntry) throw new Error('Assets/asset.js est absent du zip.');
+        const prefix = assetEntry.name.slice(0, assetEntry.name.length - 'Assets/asset.js'.length);
+        const studioEntry = zip.file(prefix + 'studio.json');
+        const materialsEntry = zip.file(prefix + 'Textures/materials.json');
+        if (!studioEntry) throw new Error('studio.json est absent du zip.');
+        if (!materialsEntry) throw new Error('Textures/materials.json est absent du zip.');
+        const assetText = await assetEntry.async('string');
+        const studioText = await studioEntry.async('string');
+        const materialsText = await materialsEntry.async('string');
+        parseAssetScript(assetText);
+        JSON.parse(studioText);
+        JSON.parse(materialsText);
+        const files = [];
+        for (const entry of entries) {
+            if (!entry.name.startsWith(prefix)) continue;
+            const target = projectEntryFolder(entry.name.slice(prefix.length));
+            if (!target) continue;
+            const blob = await entry.async('blob');
+            files.push({ folder: target.folder, file: new File([blob], target.name) });
+        }
+        return { assetText, studioText, materialsText, files };
+    }
+
+    async function importProject(file) {
+        if (!window.JSZip) {
+            setStatus('Import impossible : JSZip n’est pas chargé.');
+            return;
+        }
+        let project;
+        try {
+            setStatus('Lecture du zip…');
+            project = await readProjectZip(file);
+        } catch (error) {
+            setStatus('Zip invalide. ' + error.message);
+            return;
+        }
+        const ok = window.confirm(`Importer « ${file.name} » ?\n\nLe projet actuel sera remplacé : ses modèles, textures, polices et réglages seront supprimés du disque. Exportez-le avant si vous voulez le garder.`);
+        if (!ok) {
+            setStatus('');
+            return;
+        }
+        setProjectBusy(true);
+        try {
+            setStatus('Import du projet…');
+            await clearProjectFiles();
+            for (const item of project.files) {
+                await upload(item.folder, item.file);
+            }
+            await postText('Assets/asset.js', project.assetText);
+            await postText('studio.json', project.studioText);
+            await postText('materials.json', project.materialsText);
+            reloadWithMessage(`${file.name} importé.`);
+        } catch (error) {
+            setProjectBusy(false);
+            setStatus('Import impossible. Le serveur d’écriture doit être lancé. ' + error.message);
+        }
+    }
+
     function replaceContents(target, source) {
         Object.keys(target).forEach(key => delete target[key]);
         Object.assign(target, source);
@@ -2207,6 +2380,13 @@
         loadLists().then(() => { if (state.tab === 'materials' || state.tab === 'light') render(); });
         bindMaterialPick();
         render();
+        try {
+            const flash = sessionStorage.getItem(FLASH_KEY);
+            if (flash) {
+                sessionStorage.removeItem(FLASH_KEY);
+                setStatus(flash);
+            }
+        } catch (_) {}
     }
 
     function bindMaterialPick() {
@@ -2240,6 +2420,16 @@
             }
         });
     }
+
+    $('new-project').addEventListener('click', () => {
+        newProject().catch(error => setStatus('Réinitialisation impossible. ' + error.message));
+    });
+    $('import-project').addEventListener('click', () => $('file-project').click());
+    $('file-project').addEventListener('change', (event) => {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = '';
+        if (file) importProject(file).catch(error => setStatus('Import impossible. ' + error.message));
+    });
 
     window.addEventListener('viewer-api-ready', start);
     setInterval(start, 200);
