@@ -169,11 +169,16 @@
             lightmapUVSet: 0
         };
     }
-    function resolvedMaterial(name) {
-        const all = materials().materials;
+    const INHERIT_KEYS = Object.keys(blankMaterial()).filter(key => key !== 'type' && key !== 'parent');
+    function resolvedMaterial(name, seen) {
+        const all = (materials() && materials().materials) || {};
         const current = all[name] || {};
-        if (current.parent && current.parent !== 'none' && all[current.parent]) {
-            return { ...all[current.parent], ...current, parent: current.parent };
+        const visiting = seen || new Set();
+        if (visiting.has(name)) return { ...blankMaterial(), ...current };
+        visiting.add(name);
+        const parentName = current.parent;
+        if (parentName && parentName !== 'none' && all[parentName]) {
+            return { ...resolvedMaterial(parentName, visiting), ...current, parent: parentName };
         }
         return { ...blankMaterial(), ...current };
     }
@@ -345,8 +350,8 @@
         const decimals = text.includes('.') ? text.split('.')[1].length : 0;
         return number.toFixed(decimals);
     }
-    function sliderReadout(id, label, shown) {
-        return `<input class="slider-readout" id="${id}" value="${shown}" inputmode="decimal" spellcheck="false" aria-label="${esc(label)}">`;
+    function sliderReadout(id, label, shown, locked) {
+        return `<input class="slider-readout" id="${id}" value="${shown}" inputmode="decimal" spellcheck="false" aria-label="${esc(label)}"${locked ? ' disabled' : ''}>`;
     }
     function sliderField(label, attrs, min, max, step, value, readoutId) {
         const shown = formatNum(value, step);
@@ -362,6 +367,20 @@
     }
     function isOwn(raw, key) {
         return Object.prototype.hasOwnProperty.call(raw, key);
+    }
+    function paramLocked(raw, key) {
+        return hasParent(raw) && !isOwn(raw, key);
+    }
+    function isDescendant(name, ancestor) {
+        const all = (materials() && materials().materials) || {};
+        const seen = new Set();
+        let current = name;
+        while (current && all[current] && !seen.has(current)) {
+            seen.add(current);
+            if (all[current].parent === ancestor) return true;
+            current = all[current].parent;
+        }
+        return false;
     }
     function inheritButton(raw, key) {
         if (!hasParent(raw)) return '';
@@ -558,16 +577,17 @@
     function renderMaterialForm(name) {
         const raw = materials().materials[name];
         const view = resolvedMaterial(name);
-        const parents = ['none'].concat(materialNames().filter(item => item !== name)).map(item =>
+        const parents = ['none'].concat(materialNames().filter(item => item !== name && !isDescendant(item, name))).map(item =>
             `<option value="${esc(item)}" ${view.parent === item ? 'selected' : ''}>${esc(item)}</option>`
         ).join('');
         const slider = (key, label, min, max, step) => {
             const shown = formatNum(view[key], step);
+            const locked = paramLocked(raw, key) ? ' disabled' : '';
             return `<div class="${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body slider-row">
-                    <input type="range" min="${min}" max="${max}" step="${step}" data-mat="${key}" data-kind="number" data-readout="out-${key}" value="${shown}">
-                    ${sliderReadout(`out-${key}`, label, shown)}
+                    <input type="range" min="${min}" max="${max}" step="${step}" data-mat="${key}" data-kind="number" data-readout="out-${key}" value="${shown}"${locked}>
+                    ${sliderReadout(`out-${key}`, label, shown, paramLocked(raw, key))}
                 </div>
             </div>`;
         };
@@ -579,17 +599,19 @@
                 `<option value="${esc(file)}" ${file === current ? 'selected' : ''}>${esc(file)}</option>`
             )).join('');
             const thumb = current ? `<img src="Textures/${esc(encodeURIComponent(current))}" alt="">` : '';
+            const locked = paramLocked(raw, key);
+            const lockAttr = locked ? ' disabled' : '';
             return `<div class="${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body tex-block">
                     <div class="thumb${current ? '' : ' empty'}">
                         ${thumb}
                         <div class="thumb-actions">
-                            <button type="button" class="ghost icon-btn" data-action="import-image" data-slot="${key}" title="Ajouter" aria-label="Ajouter">${icon('plus')}</button>
-                            <button type="button" class="ghost icon-btn" data-action="clear-texture" data-slot="${key}" title="Supprimer" aria-label="Supprimer" ${current ? '' : 'disabled'}>${icon('trash')}</button>
+                            <button type="button" class="ghost icon-btn" data-action="import-image" data-slot="${key}" title="Ajouter" aria-label="Ajouter"${lockAttr}>${icon('plus')}</button>
+                            <button type="button" class="ghost icon-btn" data-action="clear-texture" data-slot="${key}" title="Supprimer" aria-label="Supprimer"${current && !locked ? '' : ' disabled'}>${icon('trash')}</button>
                         </div>
                     </div>
-                    <select data-mat="${key}" data-tex="1">${options}</select>
+                    <select data-mat="${key}" data-tex="1"${lockAttr}>${options}</select>
                 </div>
             </div>`;
         }).join('');
@@ -597,7 +619,7 @@
         const numbers = Object.keys(uvLabels).map(key =>
             `<div class="field ${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${uvLabels[key]}</span>${inheritButton(raw, key)}</div>
-                <input class="param-body" type="number" step="0.01" data-mat="${key}" data-kind="number" value="${view[key] ?? 0}">
+                <input class="param-body" type="number" step="0.01" data-mat="${key}" data-kind="number" value="${view[key] ?? 0}"${paramLocked(raw, key) ? ' disabled' : ''}>
             </div>`
         ).join('');
         return `<div class="card">
@@ -617,12 +639,12 @@
                     ${numbers}
                     <div class="field ${paramClass(raw, 'lightmapUVSet')}" data-param="lightmapUVSet">
                         <div class="param-head"><span>Lightmap UV</span>${inheritButton(raw, 'lightmapUVSet')}</div>
-                        <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}">
+                        <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}"${paramLocked(raw, 'lightmapUVSet') ? ' disabled' : ''}>
                     </div>
                 </div>
                 <div class="${paramClass(raw, 'useLightmapAsShadowmap')}" data-param="useLightmapAsShadowmap">
                     <div class="param-head"><span>Lightmap en ombre</span>${inheritButton(raw, 'useLightmapAsShadowmap')}</div>
-                    <div class="param-body"><input type="checkbox" data-mat="useLightmapAsShadowmap" ${view.useLightmapAsShadowmap ? 'checked' : ''}></div>
+                    <div class="param-body"><input type="checkbox" data-mat="useLightmapAsShadowmap" ${view.useLightmapAsShadowmap ? 'checked' : ''}${paramLocked(raw, 'useLightmapAsShadowmap') ? ' disabled' : ''}></div>
                 </div>
             </details>
             <div class="row">
@@ -1047,6 +1069,8 @@
         if (root.dataset.colorTarget === 'background') {
             window.applyEnvironment({ backgroundColor: hex }, { reloadTexture: false });
         } else if (state.material) {
+            const mat = materials().materials[state.material];
+            if (mat && hasParent(mat) && !isOwn(mat, 'baseColor')) return;
             writeMaterial(state.material, 'baseColor', hex);
         }
     }
@@ -1076,6 +1100,7 @@
     function onColorPointerDown(event) {
         const sv = event.target.closest('[data-sv]');
         if (!sv || event.button !== 0) return;
+        if (sv.closest('.param.inherited')) return;
         const root = sv.closest('[data-color-picker]');
         event.preventDefault();
         const drag = (pointer) => {
@@ -1095,9 +1120,31 @@
         drag(event);
     }
 
+    function setMaterialParent(name, parentName) {
+        const mat = materials().materials[name];
+        if (!mat) return;
+        if (parentName && parentName !== 'none' && parentName !== name && materials().materials[parentName] && !isDescendant(parentName, name)) {
+            materials().materials[name] = { type: mat.type || 'pbr', parent: parentName };
+            return;
+        }
+        const baked = resolvedMaterial(name);
+        const next = Object.assign(blankMaterial(), baked);
+        next.type = mat.type || 'pbr';
+        next.parent = 'none';
+        INHERIT_KEYS.forEach(key => {
+            if (baked[key] !== undefined) next[key] = baked[key];
+        });
+        materials().materials[name] = next;
+    }
     function writeMaterial(name, key, value) {
         const mat = materials().materials[name];
         if (!mat) return;
+        if (key === 'parent') {
+            setMaterialParent(name, value);
+            window.refreshMaterials();
+            return;
+        }
+        if (hasParent(mat) && !isOwn(mat, key)) return;
         mat[key] = value;
         window.refreshMaterials();
         markOwn(key);
@@ -1370,6 +1417,8 @@
             writeMaterial(state.material, button.dataset.slot, 'None');
             render();
         } else if (action === 'import-image') {
+            const mat = state.material && materials().materials[state.material];
+            if (mat && paramLocked(mat, button.dataset.slot)) return;
             state.textureSlot = button.dataset.slot;
             $('file-image').click();
         } else if (action === 'import-env') $('file-env').click();
@@ -1582,9 +1631,8 @@
     function inheritMaterial() {
         const name = state.material;
         const mat = name && materials().materials[name];
-        if (!mat || !mat.parent || mat.parent === 'none') return;
-        const parent = mat.parent;
-        materials().materials[name] = { type: 'pbr', parent };
+        if (!mat || !hasParent(mat)) return;
+        materials().materials[name] = { type: mat.type || 'pbr', parent: mat.parent };
         window.refreshMaterials();
         render();
     }

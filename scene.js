@@ -344,15 +344,33 @@ function isEngravingTexture(texture) {
     return !!(texture.name && /^engraving(DT|AODT|NormalDT)/.test(texture.name));
 }
 
+function resolvedMaterialConfig(name, materialConfig) {
+    const all = materialsConfig && materialsConfig.materials;
+    const seen = new Set();
+    function walk(currentName, fallback) {
+        const current = (all && all[currentName]) || fallback || {};
+        if (!currentName || seen.has(currentName)) return Object.assign({}, current);
+        seen.add(currentName);
+        const parentName = current.parent;
+        if (parentName && parentName !== 'none' && all && all[parentName]) {
+            const merged = Object.assign({}, walk(parentName), current);
+            merged.parent = parentName;
+            return merged;
+        }
+        return Object.assign({}, current);
+    }
+    if (name && all && all[name]) return walk(name);
+    if (materialConfig && materialConfig.parent && materialConfig.parent !== 'none' && all && all[materialConfig.parent]) {
+        const merged = Object.assign({}, walk(materialConfig.parent), materialConfig);
+        merged.parent = materialConfig.parent;
+        return merged;
+    }
+    return Object.assign({}, materialConfig || {});
+}
+
 // Function to create PBR material according to Babylon.js documentation
 function createPBRMaterial(materialConfig, scene, materialName) {
-    // Handle parent-child material inheritance
-    let finalMaterialConfig = materialConfig;
-    if (materialConfig.parent && materialConfig.parent !== 'none' && materialsConfig && materialsConfig.materials[materialConfig.parent]) {
-        const parentMaterial = materialsConfig.materials[materialConfig.parent];
-        // Merge parent properties with child properties (child overrides parent)
-        finalMaterialConfig = { ...parentMaterial, ...materialConfig };
-    }
+    const finalMaterialConfig = resolvedMaterialConfig(materialName, materialConfig);
     
     const name = materialName || `${finalMaterialConfig.name || "pbr"}_material`;
     // Reuse existing material instance if available

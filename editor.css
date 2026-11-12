@@ -359,6 +359,7 @@
 .param.inherited .param-head > span,
 .param.inherited .param-body {
     opacity: 0.45;
+    pointer-events: none;
 }
 
 .param-head {
