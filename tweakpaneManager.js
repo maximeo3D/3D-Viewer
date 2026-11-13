@@ -252,6 +252,7 @@ class TweakpaneManager {
                 studio.viewpoints[name] = {
                     alpha: cam.alpha,
                     beta: cam.beta,
+                    initialPitch: BABYLON.Tools.ToDegrees(cam.beta),
                     radius: cam.radius,
                     fov: Math.round(fovDeg * 100) / 100,
                     minDistance: cam.lowerRadiusLimit ?? 0,
@@ -415,6 +416,7 @@ class TweakpaneManager {
                 studio.viewpoints[vpName] = {
                     alpha: cam.alpha,
                     beta: cam.beta,
+                    initialPitch: BABYLON.Tools.ToDegrees(cam.beta),
                     radius: cam.radius,
                     fov: Math.round(fovDeg * 100) / 100,
                     minDistance: cam.lowerRadiusLimit ?? 0,

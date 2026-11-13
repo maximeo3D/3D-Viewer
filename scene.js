@@ -632,10 +632,31 @@ const createScene = async function() {
     // Enable inertia for smoother camera movements
     camera.inertia = config.camera.inertia !== undefined ? config.camera.inertia : 0.9;
 
+    function pitchFromViewpoint(vp, fallbackRadians) {
+        if (vp && vp.initialPitch !== undefined && Number.isFinite(Number(vp.initialPitch))) {
+            return BABYLON.Tools.ToRadians(Number(vp.initialPitch));
+        }
+        if (vp && vp.beta !== undefined && Number.isFinite(Number(vp.beta))) return Number(vp.beta);
+        return fallbackRadians;
+    }
+    function applyLockedPitch(radians) {
+        if (!camera || !Number.isFinite(radians)) return;
+        camera.beta = radians;
+        camera.lowerBetaLimit = radians;
+        camera.upperBetaLimit = radians;
+        if (config.camera) {
+            config.camera.beta = radians;
+            config.camera.lowerBetaLimit = radians;
+            config.camera.upperBetaLimit = radians;
+            config.camera.initialPitch = BABYLON.Tools.ToDegrees(radians);
+        }
+    }
+
     window.captureViewpoint = function() {
         return {
             alpha: camera.alpha,
             beta: camera.beta,
+            initialPitch: BABYLON.Tools.ToDegrees(camera.beta),
             radius: camera.radius,
             fov: BABYLON.Tools.ToDegrees(camera.fov),
             minDistance: camera.lowerRadiusLimit,
@@ -753,6 +774,7 @@ const createScene = async function() {
 
         const start = {
             alpha: camera.alpha,
+            pitch: camera.beta,
             fov: camera.fov,
             target: camera.target.clone(),
             radius: camera.radius,
@@ -762,6 +784,7 @@ const createScene = async function() {
 
         const end = {
             alpha: (vp.alpha !== undefined ? vp.alpha : start.alpha),
+            pitch: pitchFromViewpoint(vp, start.pitch),
             fov: (vp.fov !== undefined ? (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov) : start.fov),
             target: new BABYLON.Vector3(
                 vp.targetX !== undefined ? vp.targetX : start.target.x,
@@ -815,7 +838,7 @@ const createScene = async function() {
             requestAnimationFrame(tick);
         });
 
-        // Phase 1: Rotation alpha uniquement, avec overlap démarrant la phase 2 avant la fin
+        // Phase 1: Rotation alpha + inclinaison, avec overlap démarrant la phase 2 avant la fin
         const alphaStart = normalizeRadTau(start.alpha);
         const alphaTarget = shortestAnglePositive(alphaStart, end.alpha);
         const alphaDuration = Math.max(200, Math.round(totalDurationMs * 0.5));
@@ -831,6 +854,7 @@ const createScene = async function() {
                 const t = Math.min(1, elapsed / alphaDuration);
                 const k = easeInOutCubic(t);
                 camera.alpha = normalizeRadTau(alphaStart + (alphaTarget - alphaStart) * k);
+                applyLockedPitch(start.pitch + (end.pitch - start.pitch) * k);
 
                 // Lancer la phase 2 sur les derniers X ms de la rotation pour lisser la transition
                 if (!phase2Promise && elapsed >= alphaDuration - overlap) {
@@ -854,6 +878,7 @@ const createScene = async function() {
             phase2Promise = startZoomPhase(restDuration, null);
         }
         await phase2Promise;
+        applyLockedPitch(end.pitch);
         if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
     }
 
@@ -865,7 +890,7 @@ const createScene = async function() {
     function applyViewpointNow(vp) {
         if (!vp) return;
         camera.alpha = (vp.alpha !== undefined ? vp.alpha : camera.alpha);
-        if (vp.beta !== undefined) camera.beta = vp.beta;
+        applyLockedPitch(pitchFromViewpoint(vp, camera.beta));
         camera.radius = (vp.radius !== undefined ? vp.radius : camera.radius);
         if (vp.fov !== undefined) camera.fov = (vp.fov > 2 ? BABYLON.Tools.ToRadians(vp.fov) : vp.fov);
         camera.target = new BABYLON.Vector3(

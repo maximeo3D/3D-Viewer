@@ -869,6 +869,9 @@
         const camera = studio().camera || {};
         const live = window.captureViewpoint ? window.captureViewpoint() : null;
         const alpha = wrap180(deg(live ? live.alpha : (camera.alpha || 0)));
+        const pitch = live
+            ? (live.initialPitch !== undefined ? live.initialPitch : deg(live.beta))
+            : (camera.initialPitch ?? 60);
         const radius = live ? live.radius : (camera.radius ?? 10);
         const fov = live ? live.fov : (camera.fov > 2 ? camera.fov : deg(camera.fov || 0.8));
         const minDistance = live ? live.minDistance : (camera.minDistance ?? 1);
@@ -897,7 +900,7 @@
         return `
             <div class="stack">
                 ${slider('alphaDeg', 'Rotation', -180, 180, 1, alpha)}
-                ${slider('initialPitch', 'Inclinaison', 5, 175, 0.5, camera.initialPitch ?? 60)}
+                ${slider('initialPitch', 'Inclinaison', 5, 175, 0.5, pitch)}
                 ${slider('radius', 'Distance', 0.1, 100, 0.1, radius)}
                 ${slider('minDistance', 'Distance min', 0.1, 100, 0.1, minDistance)}
                 ${slider('maxDistance', 'Distance max', 0.1, 100, 0.1, maxDistance)}
@@ -1237,6 +1240,7 @@
         if (state.tab !== 'camera' || !window.captureViewpoint) return;
         const shot = window.captureViewpoint();
         paintCameraField('alphaDeg', wrap180(deg(shot.alpha)), 1);
+        paintCameraField('initialPitch', shot.initialPitch !== undefined ? shot.initialPitch : deg(shot.beta), 0.5);
         paintCameraField('radius', shot.radius, 0.1);
         paintCameraField('minDistance', shot.minDistance, 0.1);
         paintCameraField('maxDistance', shot.maxDistance, 0.1);
@@ -1727,7 +1731,7 @@
             targetX: shot.targetX,
             targetY: shot.targetY,
             targetZ: shot.targetZ,
-            initialPitch: deg(shot.beta)
+            initialPitch: shot.initialPitch !== undefined ? shot.initialPitch : deg(shot.beta)
         });
         render();
     }
