@@ -109,7 +109,8 @@ function applyEngravingFontFaces(fonts) {
 
 window.applyEngravingFontFaces = applyEngravingFontFaces;
 
-const ENGRAVING_MAPS = ['alphaDT', 'normalDT', 'diffuseDT'];
+const ENGRAVING_MAPS = ['alphaDT', 'detailTex', 'aoDT'];
+const ENGRAVING_FLAT_NORMAL = 'engravingDetailFlat';
 
 class EngravingManager {
     constructor(scene, assetConfig) {
@@ -162,7 +163,7 @@ class EngravingManager {
 
     isEngravingTexture(texture) {
         if (!texture) return false;
-        if (texture.name && /^engraving(DT|AODT|NormalDT|DiffuseDT)/.test(texture.name)) return true;
+        if (texture.name && /^engraving(DT|AODT|NormalDT|DiffuseDT|Detail)/.test(texture.name)) return true;
         for (const layer of this.layers.values()) {
             if (ENGRAVING_MAPS.some(key => layer[key] === texture)) return true;
         }
@@ -344,6 +345,31 @@ class EngravingManager {
         return texture;
     }
 
+    // RGBA brut : le format detail map range la normale X dans l'alpha, qu'un canvas prémultiplierait.
+    ensureRaw(layer, key, name, size) {
+        const current = layer[key];
+        if (current) {
+            const s = current.getSize();
+            if (s.width === size.width && s.height === size.height) return current;
+            try { current.dispose(); } catch (_) {}
+        }
+        const data = new Uint8Array(size.width * size.height * 4);
+        const texture = new BABYLON.RawTexture(data, size.width, size.height, BABYLON.Constants.TEXTUREFORMAT_RGBA,
+            this.scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        texture.name = name;
+        texture.gammaSpace = false;
+        try {
+            const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
+            texture.updateSamplingMode(anisotropicMode);
+            const maxAniso = (this.scene.getEngine().getCaps().maxAnisotropy || 8);
+            texture.anisotropicFilteringLevel = Math.min(16, maxAniso);
+        } catch (_) {}
+        texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        layer[key] = texture;
+        return texture;
+    }
+
     // Masque du texte (couverture 0..1) + distance au bord, mis en cache tant que texte/police/taille ne changent pas.
     buildMask(layer, text, fontName, size) {
         const config = this.fontConfigs[fontName] || {
@@ -395,7 +421,7 @@ class EngravingManager {
         this.syncFonts();
         let layer = this.layers.get(id);
         if (!layer) {
-            layer = { mesh: zone.mesh, alphaDT: null, normalDT: null, diffuseDT: null, mask: null, token: 0 };
+            layer = { mesh: zone.mesh, alphaDT: null, detailTex: null, aoDT: null, mask: null, token: 0 };
             this.layers.set(id, layer);
         }
         const token = ++layer.token;
@@ -450,17 +476,16 @@ class EngravingManager {
         }
 
         const alphaDT = this.ensureMap(layer, 'alphaDT', `engravingDT_${id}`, size, false);
-        const normalDT = this.ensureMap(layer, 'normalDT', `engravingNormalDT_${id}`, size, true);
-        const diffuseDT = this.ensureMap(layer, 'diffuseDT', `engravingDiffuseDT_${id}`, size, true);
+        const detailTex = this.ensureRaw(layer, 'detailTex', `engravingDetail_${id}`, size);
+        const aoDT = this.ensureMap(layer, 'aoDT', `engravingAODT_${id}`, size, true);
         alphaDT.hasAlpha = true;
 
         const aCtx = alphaDT.getContext();
-        const nCtx = normalDT.getContext();
-        const dCtx = diffuseDT.getContext();
+        const dCtx = aoDT.getContext();
         const aImg = aCtx.createImageData(width, height);
-        const nImg = nCtx.createImageData(width, height);
         const dImg = dCtx.createImageData(width, height);
-        const ad = aImg.data, nd = nImg.data, dd = dImg.data;
+        const nd = new Uint8Array(count * 4);
+        const ad = aImg.data, dd = dImg.data;
         const inv8p = 1 / (8 * worldPerPixel);
         const at = (x, y) => depth[y * width + x];
         const cavityRadius = Math.min(48, Math.max(4, Math.round(maxDepth / worldPerPixel)));
@@ -480,11 +505,13 @@ class EngravingManager {
                 const dy = ((at(xm, yp) + 2 * at(x, yp) + at(xp, yp)) - (at(xm, ym) + 2 * at(x, ym) + at(xp, ym))) * inv8p;
                 let nx = dx, ny = -dy, nz = 1;
                 const len = Math.hypot(nx, ny, nz);
-                nx /= len; ny /= len; nz /= len;
-                nd[o] = (nx + 1) * 127.5;
-                nd[o + 1] = (ny + 1) * 127.5;
-                nd[o + 2] = (nz + 1) * 127.5;
-                nd[o + 3] = 255;
+                nx /= len; ny /= len;
+                // Detail map : R = diffuse neutre, G = normale Y, B = rugosité neutre, A = normale X ; lignes de bas en haut.
+                const r = ((height - 1 - y) * width + x) * 4;
+                nd[r] = 128;
+                nd[r + 1] = Math.round((ny + 1) * 127.5);
+                nd[r + 2] = 128;
+                nd[r + 3] = Math.round((nx + 1) * 127.5);
 
                 const occlusion = Math.min(1, Math.max(0, (depth[i] - surround[i]) * cavityScale));
                 const shade = Math.round((1 - ENGRAVING_SHADE_STRENGTH * occlusion) * 255);
@@ -492,11 +519,10 @@ class EngravingManager {
             }
         }
         aCtx.putImageData(aImg, 0, 0);
-        nCtx.putImageData(nImg, 0, 0);
         dCtx.putImageData(dImg, 0, 0);
         alphaDT.update(true);
-        normalDT.update(true);
-        diffuseDT.update(true);
+        detailTex.update(nd);
+        aoDT.update(true);
     }
 
     getAspect(meshName) {
@@ -512,6 +538,8 @@ class EngravingManager {
                 this.restoreMaterial(pbr);
                 return;
             }
+            const legacyBump = this.isEngravingTexture(pbr.bumpTexture) && !this.isFlatNormal(pbr.bumpTexture);
+            if (legacyBump || this.isEngravingTexture(pbr.albedoTexture)) this.restoreMaterial(pbr);
             pbr.opacityTexture = layer.alphaDT;
             pbr.opacityTexture.getAlphaFromRGB = true;
             pbr.opacityTexture.vFlip = false;
@@ -521,25 +549,46 @@ class EngravingManager {
             pbr.needDepthPrePass = true;
             pbr.unlit = false;
 
-            pbr.bumpTexture = layer.normalDT;
-            pbr.bumpTexture.level = 1;
-            pbr.bumpTexture.vFlip = false;
-            pbr.invertNormalMapX = false;
-            pbr.invertNormalMapY = false;
+            // La normale de gravure passe par la detail map, que Babylon combine (RNM) avec la normal map du matériau.
+            // Sans normal map, Babylon prend un repère tangent inversé pour la detail map seule : on pose une normale plate.
+            if (!pbr.bumpTexture) pbr.bumpTexture = this.createFlatNormal();
+            const bumpLevel = pbr.bumpTexture.level > 0 ? pbr.bumpTexture.level : 1;
+            pbr.detailMap.texture = layer.detailTex;
+            pbr.detailMap.isEnabled = true;
+            pbr.detailMap.diffuseBlendLevel = 0;
+            pbr.detailMap.roughnessBlendLevel = 0;
+            pbr.detailMap.bumpLevel = 1 / bumpLevel;
+            pbr.detailMap.normalBlendMethod = BABYLON.Material.MATERIAL_NORMALBLENDMETHOD_RNM;
 
-            pbr.albedoTexture = layer.diffuseDT;
-            pbr.albedoTexture.vFlip = false;
-
-            if (this.isEngravingTexture(pbr.ambientTexture)) pbr.ambientTexture = null;
+            pbr.ambientTexture = layer.aoDT;
+            pbr.ambientTextureStrength = 1;
             pbr.markAsDirty(BABYLON.Material.TextureDirtyFlag);
         });
+    }
+
+    createFlatNormal() {
+        const texture = new BABYLON.RawTexture(new Uint8Array([128, 128, 255, 255]), 1, 1, BABYLON.Constants.TEXTUREFORMAT_RGBA,
+            this.scene, false, false, BABYLON.Texture.NEAREST_SAMPLINGMODE);
+        texture.name = ENGRAVING_FLAT_NORMAL;
+        texture.gammaSpace = false;
+        return texture;
+    }
+
+    isFlatNormal(texture) {
+        return !!(texture && texture.name === ENGRAVING_FLAT_NORMAL);
     }
 
     // Retire les cartes de gravure et recharge les textures configurées du matériau.
     restoreMaterial(pbr) {
         let touched = false;
+        if (pbr.detailMap && this.isEngravingTexture(pbr.detailMap.texture)) {
+            pbr.detailMap.texture = null;
+            pbr.detailMap.isEnabled = false;
+            touched = true;
+        }
         ['opacityTexture', 'bumpTexture', 'albedoTexture', 'ambientTexture'].forEach(slot => {
             if (this.isEngravingTexture(pbr[slot])) {
+                if (this.isFlatNormal(pbr[slot])) pbr[slot].dispose();
                 pbr[slot] = null;
                 touched = true;
             }

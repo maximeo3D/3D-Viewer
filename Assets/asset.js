@@ -11,12 +11,7 @@ const assetConfiguration = {
   },
   "rules": [],
   "engravings": [],
-  "fonts": [
-    {
-      "name": "ARIAL",
-      "file": "ARIAL.TTF"
-    }
-  ],
+  "fonts": [],
   "defaults": {
     "rules": {},
     "engravingText": "",

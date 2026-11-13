@@ -341,7 +341,7 @@ function isEngravingTexture(texture) {
     if (!texture) return false;
     const manager = window.engravingManager;
     if (manager && manager.isEngravingTexture) return manager.isEngravingTexture(texture);
-    return !!(texture.name && /^engraving(DT|AODT|NormalDT|DiffuseDT)/.test(texture.name));
+    return !!(texture.name && /^engraving(DT|AODT|NormalDT|DiffuseDT|Detail)/.test(texture.name));
 }
 
 function resolvedMaterialConfig(name, materialConfig) {
@@ -415,7 +415,8 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     }
     
     // Normal/Bump texture
-    if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None' && !isEngravingTexture(pbr.bumpTexture)) {
+    const engravingFlatBump = !!(pbr.bumpTexture && pbr.bumpTexture.name === 'engravingDetailFlat');
+    if (finalMaterialConfig.bumpTexture && finalMaterialConfig.bumpTexture.trim() !== '' && finalMaterialConfig.bumpTexture !== 'None' && (engravingFlatBump || !isEngravingTexture(pbr.bumpTexture))) {
         if (!pbr.bumpTexture || pbr.bumpTexture.name !== finalMaterialConfig.bumpTexture) {
             if (pbr.bumpTexture) { try { pbr.bumpTexture.dispose(); } catch(_){} }
             pbr.bumpTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.bumpTexture}`, scene);
