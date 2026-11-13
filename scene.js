@@ -11,20 +11,20 @@ const isInIframe = (() => {
     }
 })();
 
+const isEditor = !!document.querySelector('.editor');
+
 // Create the BABYLON engine (tuned for mobile stability)
 const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: false,
     powerPreference: "high-performance",
     xrCompatible: false,
     disableUniformBuffers: true,
-    // Fix blurry rendering when embedded in an iframe on high-DPR devices (iOS/mobile)
-    adaptToDeviceRatio: isInIframe
+    adaptToDeviceRatio: true
 });
 
-// Reduce render resolution on mobile to avoid GPU memory issues
+// Standalone viewer on a phone: slightly lower resolution. The editor always stays at native DPR.
 try {
-    // Keep the existing perf optimization ONLY when not in iframe (iframe needs crisp DPR)
-    if (!isInIframe && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    if (!isEditor && !isInIframe && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         engine.setHardwareScalingLevel(1.5);
     }
 } catch (_) {}
