@@ -341,7 +341,7 @@ function isEngravingTexture(texture) {
     if (!texture) return false;
     const manager = window.engravingManager;
     if (manager && manager.isEngravingTexture) return manager.isEngravingTexture(texture);
-    return !!(texture.name && /^engraving(DT|AODT|NormalDT)/.test(texture.name));
+    return !!(texture.name && /^engraving(DT|AODT|NormalDT|DiffuseDT)/.test(texture.name));
 }
 
 function resolvedMaterialConfig(name, materialConfig) {
@@ -396,7 +396,9 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     
     // === TEXTURES ===
     // Albedo texture (base color)
-    if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
+    if (isEngravingTexture(pbr.albedoTexture)) {
+        // Diffuse générée par la gravure : laissée en place, le gestionnaire de gravure la gère.
+    } else if (finalMaterialConfig.albedoTexture && finalMaterialConfig.albedoTexture.trim() !== '' && finalMaterialConfig.albedoTexture !== 'None') {
         if (!pbr.albedoTexture || pbr.albedoTexture.name !== finalMaterialConfig.albedoTexture) {
             if (pbr.albedoTexture) { try { pbr.albedoTexture.dispose(); } catch(_){} }
             pbr.albedoTexture = new BABYLON.Texture(`Textures/${finalMaterialConfig.albedoTexture}`, scene);

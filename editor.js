@@ -200,6 +200,23 @@
         if (!listed.length && zone && zone.font && names.includes(zone.font)) listed.push(zone.font);
         return listed;
     }
+    function engravingDepth(zone) {
+        const value = Number(zone && zone.depth);
+        return Number.isFinite(value) ? value : (window.ENGRAVING_DEFAULT_DEPTH ?? 0.4);
+    }
+    function engravingAngle(zone) {
+        const value = Number(zone && zone.angle);
+        return Number.isFinite(value) ? value : (window.ENGRAVING_DEFAULT_ANGLE ?? 45);
+    }
+    function setEngravingParam(id, key, value) {
+        const zone = engravings().find(item => item.id === id);
+        if (!zone || !Number.isFinite(value)) return;
+        zone[key] = value;
+        if (window.engravingManager && window.engravingManager.setProfile) {
+            window.engravingManager.assetConfig = asset();
+            window.engravingManager.setProfile(id, { [key]: value });
+        }
+    }
     function addZoneFont(id, name) {
         const zone = engravings().find(item => item.id === id);
         if (!zone || !name) return;
@@ -980,6 +997,8 @@
                         </div>
                     </div>
                 </div>
+                ${sliderField('Profondeur (mm)', `data-engraving-param="depth" data-engraving="${esc(zone.id)}"`, 0, 2, 0.05, engravingDepth(zone), `out-engraving-depth-${esc(zone.id)}`)}
+                ${sliderField('Angle (°)', `data-engraving-param="angle" data-engraving="${esc(zone.id)}"`, 0, 90, 1, engravingAngle(zone), `out-engraving-angle-${esc(zone.id)}`)}
             </div>`;
         }).join('');
         return `
@@ -1220,6 +1239,10 @@
         }
         if (target.dataset.camera) {
             applyCameraField(target.dataset.camera, Number(target.value));
+            return;
+        }
+        if (target.dataset.engravingParam) {
+            setEngravingParam(target.dataset.engraving, target.dataset.engravingParam, Number(target.value));
             return;
         }
         if (target.dataset.ruleProp) {
@@ -1514,7 +1537,9 @@
             mesh: '',
             text: '',
             font: '',
-            fonts: []
+            fonts: [],
+            depth: window.ENGRAVING_DEFAULT_DEPTH ?? 0.4,
+            angle: window.ENGRAVING_DEFAULT_ANGLE ?? 45
         });
         render();
     }

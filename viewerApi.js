@@ -127,6 +127,8 @@
             zone.label = zone.label || zone.id;
             zone.mesh = zone.mesh || '';
             zone.text = zone.text || '';
+            if (!Number.isFinite(Number(zone.depth))) zone.depth = window.ENGRAVING_DEFAULT_DEPTH ?? 0.4;
+            if (!Number.isFinite(Number(zone.angle))) zone.angle = window.ENGRAVING_DEFAULT_ANGLE ?? 45;
             const catalog = (asset.fonts || []).map(font => font && font.name).filter(Boolean);
             if (!Array.isArray(zone.fonts)) zone.fonts = zone.font ? [zone.font] : [];
             zone.fonts = zone.fonts.filter(name => catalog.includes(name));
