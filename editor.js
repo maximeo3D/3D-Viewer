@@ -44,7 +44,8 @@
         fontPicker: null,
         textures: ['None'],
         environments: [],
-        started: false
+        started: false,
+        rulebarOpen: false
     };
 
     const ENGINE_CDN = 'https://cdn.jsdelivr.net/gh/maximeo3D/3D-Viewer@v1.0.0';
@@ -290,11 +291,25 @@
         const next = '#' + slug;
         if (location.hash !== next) history.replaceState(null, '', location.pathname + location.search + next);
     }
+    function isMobileEditor() {
+        return window.matchMedia('(max-width: 900px)').matches;
+    }
+    function setRulebarOpen(open) {
+        state.rulebarOpen = !!open && isMobileEditor();
+        const editor = document.querySelector('.editor');
+        if (editor) editor.classList.toggle('is-rulebar-open', state.rulebarOpen);
+        const toggle = document.querySelector('.rulebar-toggle');
+        if (toggle) {
+            toggle.classList.toggle('active', state.rulebarOpen);
+            toggle.setAttribute('aria-pressed', state.rulebarOpen ? 'true' : 'false');
+        }
+    }
     function setTab(id) {
         if (!hashByTab[id]) return;
         state.tab = id;
         state.fontPicker = null;
         state.renameMaterial = false;
+        state.rulebarOpen = false;
         syncTabHash();
         render();
     }
@@ -302,6 +317,7 @@
         renderTabs();
         renderPanel();
         renderRulebar();
+        setRulebarOpen(state.rulebarOpen);
     }
 
     function icon(name) {
@@ -309,9 +325,10 @@
     }
 
     function renderTabs() {
+        const toggle = `<button type="button" class="rulebar-toggle${state.rulebarOpen ? ' active' : ''}" data-action="toggle-rulebar" title="Configurations" aria-label="Configurations" aria-pressed="${state.rulebarOpen ? 'true' : 'false'}">${icon('bars')}</button>`;
         $('tabs').innerHTML = tabs.map(([id, label, symbol]) =>
             `<button type="button" data-tab="${id}" class="${state.tab === id ? 'active' : ''}">${icon(symbol)}<span>${label}</span></button>`
-        ).join('');
+        ).join('') + toggle;
     }
 
     function renderRulebar() {
@@ -1379,6 +1396,14 @@
             return;
         }
         const action = button.dataset.action;
+        if (action === 'toggle-rulebar') {
+            if (state.fontPicker) {
+                state.fontPicker = null;
+                render();
+            }
+            setRulebarOpen(!state.rulebarOpen);
+            return;
+        }
         if (action === 'new-project') {
             await newProject();
             return;
@@ -2381,6 +2406,16 @@
             requestAnimationFrame(watchCamera);
         };
         watchCamera();
+        const viewport = document.querySelector('.editor-viewport');
+        if (viewport && window.ResizeObserver) {
+            new ResizeObserver(() => {
+                if (window.requestViewerResize) window.requestViewerResize();
+            }).observe(viewport);
+        }
+        window.matchMedia('(max-width: 900px)').addEventListener('change', (event) => {
+            if (!event.matches) setRulebarOpen(false);
+            if (window.requestViewerResize) window.requestViewerResize();
+        });
         $('tabs').addEventListener('click', onClick);
         $('panel').addEventListener('click', onClick);
         $('panel').addEventListener('scroll', () => {
@@ -2394,6 +2429,7 @@
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'Escape') return;
             closeFontPicker();
+            if (state.rulebarOpen) setRulebarOpen(false);
             if (state.renameMaterial) {
                 state.renameMaterial = false;
                 render();

@@ -1829,6 +1829,7 @@ function requestViewerResize() {
     } catch (_) {}
 }
 
+window.requestViewerResize = requestViewerResize;
 window.addEventListener("resize", requestViewerResize);
 window.addEventListener("orientationchange", requestViewerResize);
 
