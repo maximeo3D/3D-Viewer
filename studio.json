@@ -2,53 +2,30 @@
   "environment": {
     "backgroundColor": "#ebebeb",
     "hdrExposure": 1,
-    "orientation": 121,
-    "file": "studio.hdr",
+    "orientation": 0,
+    "file": "default.env",
     "visible": false
   },
   "camera": {
     "alpha": -1.5707963267948966,
-    "beta": 1.1999999999999997,
+    "beta": 1.2,
     "radius": 10,
-    "fov": 15,
-    "minDistance": 6,
-    "maxDistance": 17.1,
+    "fov": 45,
+    "minDistance": 1,
+    "maxDistance": 100,
     "zoomSpeed": 2,
     "zoomSensitivity": 0.7,
     "inertia": 0.85,
     "zoomSmoothness": 0.1,
-    "targetX": -2.4,
+    "targetX": 0,
     "targetY": 0,
-    "targetZ": 0.3,
+    "targetZ": 0,
     "showTarget": false,
     "pitchElasticity": false,
-    "lowerBetaLimit": 1.1999999999999997,
-    "upperBetaLimit": 1.1999999999999997,
-    "initialPitch": 68.75493541569877
+    "lowerBetaLimit": 1.2,
+    "upperBetaLimit": 1.2,
+    "initialPitch": 68.75493541569878
   },
-  "viewpoints": {
-    "viewpoint_1": {
-      "alpha": 5.251695719250938,
-      "beta": 1.1999999999999997,
-      "radius": 25.441844294436233,
-      "fov": 14.999999999999998,
-      "minDistance": 11.9,
-      "maxDistance": 35.9,
-      "targetX": 0,
-      "targetY": 0,
-      "targetZ": 0
-    },
-    "viewpoint_2": {
-      "alpha": 2.2462387473167023,
-      "beta": 1.7976891295541593,
-      "radius": 7.083613290110995,
-      "fov": 14.999999999999998,
-      "minDistance": 6,
-      "maxDistance": 17.099999999999994,
-      "targetX": -2.4,
-      "targetY": 0,
-      "targetZ": 0.3
-    }
-  },
-  "defaultViewpoint": "viewpoint_1"
+  "viewpoints": {},
+  "defaultViewpoint": ""
 }
