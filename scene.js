@@ -1255,6 +1255,65 @@ const createScene = async function() {
         };
     }
 
+    function downscaleSquare(dataUrl, size) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas2d = document.createElement('canvas');
+                canvas2d.width = size;
+                canvas2d.height = size;
+                const ctx = canvas2d.getContext('2d', { alpha: true });
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, size, size);
+                ctx.drawImage(img, 0, 0, size, size);
+                resolve(canvas2d.toDataURL('image/png'));
+            };
+            img.onerror = () => reject(new Error('Downscale failed'));
+            img.src = dataUrl;
+        });
+    }
+
+    let shootingJob = null;
+    window.shooting = function() {
+        if (!scene || !camera || !engine) return Promise.reject(new Error('Viewer not ready'));
+        if (shootingJob) return shootingJob;
+        const size = 2048;
+        const caps = engine.getCaps() || {};
+        const maxSize = Math.min(caps.maxRenderTextureSize || 8192, caps.maxTextureSize || 8192, 8192);
+        const hi = Math.min(size * 2, maxSize);
+        const width = engine.getRenderWidth();
+        const height = engine.getRenderHeight();
+        const prevFovMode = camera.fovMode;
+        const restoreGizmo = cameraTargetVisible;
+        const prevClear = scene.clearColor.clone();
+        const restoreSky = !!(environmentSkybox && environmentSkybox.isEnabled());
+        camera.fovMode = width >= height ? BABYLON.Camera.FOVMODE_VERTICAL_FIXED : BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED;
+        if (window.setCameraTargetGizmoVisible) window.setCameraTargetGizmoVisible(false);
+        scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+        if (environmentSkybox) environmentSkybox.setEnabled(false);
+        shootingJob = (async () => {
+            try {
+                const dataUrl = await BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(
+                    engine,
+                    camera,
+                    { width: hi, height: hi },
+                    'image/png',
+                    1,
+                    false
+                );
+                return hi === size ? dataUrl : await downscaleSquare(dataUrl, size);
+            } finally {
+                camera.fovMode = prevFovMode;
+                scene.clearColor = prevClear;
+                if (environmentSkybox) environmentSkybox.setEnabled(restoreSky);
+                if (window.setCameraTargetGizmoVisible) window.setCameraTargetGizmoVisible(restoreGizmo);
+                shootingJob = null;
+            }
+        })();
+        return shootingJob;
+    };
+
     // Contrôles pour la rotation des objets seulement
     let cameraPointerDown = null;
     const cameraPointerObserver = scene.onPointerObservable.add((evt) => {

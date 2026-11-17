@@ -425,6 +425,7 @@
         )).join('');
         $('rulebar').innerHTML = `
             <label>Viewpoint<select id="live-viewpoint">${viewpointOptions}</select></label>
+            <button type="button" class="shooting-btn" data-action="shooting">Shooting</button>
             ${selects}
             ${engravingFields}
             <a class="rulebar-viewer" href="index.html" target="_blank" rel="noopener" title="Viewer" aria-label="Ouvrir le viewer dans un nouvel onglet">${icon('arrow-up-right-from-square')}</a>`;
@@ -1713,6 +1714,7 @@
             button.setAttribute('aria-pressed', state.pickCameraTarget ? 'true' : 'false');
             if (window.setCameraTargetPickMode) window.setCameraTargetPickMode(state.pickCameraTarget);
         }
+        else if (action === 'shooting') captureShooting();
         else if (action === 'add-viewpoint') addViewpoint();
         else if (action === 'goto-view') {
             state.viewpoint = button.dataset.id;
@@ -2002,6 +2004,21 @@
             button.setAttribute('aria-pressed', 'false');
         }
     };
+    async function captureShooting() {
+        const button = document.querySelector('[data-action="shooting"]');
+        if (button) button.disabled = true;
+        try {
+            const dataUrl = await window.viewer.shooting();
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = 'shooting.png';
+            link.click();
+        } catch (error) {
+            setStatus('Capture impossible. ' + ((error && error.message) || error));
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
     function nextViewpointName() {
         const used = new Set(Object.keys(studio().viewpoints || {}).map(name => name.toLowerCase()));
         let index = 1;
@@ -2233,6 +2250,10 @@
                 getDefaultViewpoint: {
                     call: 'viewer.getDefaultViewpoint()',
                     description: 'Identifiant du point de vue par défaut.'
+                },
+                shooting: {
+                    call: 'viewer.shooting()',
+                    description: 'Capture la vue actuelle en PNG carré 2048×2048 (promesse, data URL).'
                 },
                 getDefaults: {
                     call: 'viewer.getDefaults()',
@@ -2713,6 +2734,7 @@
         $('revert-all').addEventListener('click', () => {
             revertAll().catch(error => setStatus('Annulation impossible. ' + error.message));
         });
+        $('rulebar').addEventListener('click', onClick);
         $('rulebar').addEventListener('change', (event) => {
             const select = event.target.closest('[data-rule]');
             if (select) window.viewer.applyRule(select.dataset.rule, select.value);

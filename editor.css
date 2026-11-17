@@ -190,6 +190,10 @@
     overflow-y: auto;
 }
 
+.rulebar .shooting-btn {
+    width: 100%;
+}
+
 .rulebar-viewer {
     margin-top: auto;
     position: sticky;

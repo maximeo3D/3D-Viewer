@@ -6,6 +6,7 @@
 //   viewer.getEngravings()
 //   viewer.gotoViewpoint('viewpoint_1')
 //   viewer.getViewpoints()
+//   viewer.shooting()
 //   viewer.getRules()
 (function () {
     let booting = false;
@@ -216,6 +217,10 @@
                 getDefaultViewpoint: () => {
                     const studio = window.getStudioConfig ? window.getStudioConfig() : null;
                     return (studio && studio.defaultViewpoint) || '';
+                },
+                shooting: () => {
+                    if (!window.shooting) return Promise.reject(new Error('Shooting not ready'));
+                    return window.shooting();
                 },
                 getState: () => window.tagManager.getActiveTags()
             };
