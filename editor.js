@@ -30,9 +30,45 @@
         ['microSurfaceTexture', 'Roughness Map'],
         ['ambientTexture', 'Ambient Occlusion'],
         ['opacityTexture', 'Opacity Map'],
-        ['bumpTexture', 'Normal Map'],
-        ['lightmapTexture', 'Lightmap']
+        ['bumpTexture', 'Normal Map']
     ];
+    const EXTRA_PARAMS = [
+        { id: 'ior', label: 'IOR', keys: ['indexOfRefraction'], defaults: { indexOfRefraction: 1.5 } },
+        { id: 'reflectance', label: 'Reflectance', keys: ['metallicF0Factor'], defaults: { metallicF0Factor: 1 } },
+        {
+            id: 'emissive',
+            label: 'Emissive',
+            keys: ['emissiveColor', 'emissiveIntensity', 'emissiveTexture'],
+            defaults: { emissiveColor: '#000000', emissiveIntensity: 1, emissiveTexture: 'None' }
+        },
+        { id: 'direct', label: 'Direct Light', keys: ['directIntensity'], defaults: { directIntensity: 1 } },
+        { id: 'ibl', label: 'IBL Intensity', keys: ['environmentIntensity'], defaults: { environmentIntensity: 1 } },
+        {
+            id: 'lightmap',
+            label: 'Lightmap',
+            keys: ['lightmapTexture', 'lightmapUVSet', 'useLightmapAsShadowmap'],
+            defaults: { lightmapTexture: 'None', lightmapUVSet: 0, useLightmapAsShadowmap: true }
+        },
+        {
+            id: 'clearCoat',
+            label: 'Clear Coat',
+            keys: ['clearCoatEnabled', 'clearCoatIntensity', 'clearCoatRoughness', 'clearCoatIOR', 'clearCoatTexture'],
+            defaults: { clearCoatEnabled: true, clearCoatIntensity: 1, clearCoatRoughness: 0, clearCoatIOR: 1.5, clearCoatTexture: 'None' }
+        },
+        {
+            id: 'anisotropy',
+            label: 'Anisotropie',
+            keys: ['anisotropyEnabled', 'anisotropyIntensity', 'anisotropyAngle'],
+            defaults: { anisotropyEnabled: true, anisotropyIntensity: 0.5, anisotropyAngle: 0 }
+        },
+        {
+            id: 'sheen',
+            label: 'Sheen',
+            keys: ['sheenEnabled', 'sheenIntensity', 'sheenColor', 'sheenRoughness'],
+            defaults: { sheenEnabled: true, sheenIntensity: 1, sheenColor: '#ffffff', sheenRoughness: 1 }
+        }
+    ];
+    const EXTRA_PARAM_KEYS = EXTRA_PARAMS.flatMap(item => item.keys);
     const state = {
         tab: 'model',
         material: null,
@@ -42,6 +78,7 @@
         confirmRule: null,
         openOptions: new Set(),
         fontPicker: null,
+        paramPicker: false,
         textures: ['None'],
         environments: [],
         started: false,
@@ -52,7 +89,7 @@
     const BABYLON_CDN = 'https://cdn.babylonjs.com/v7.54.2';
     const TEXTURE_SLOTS = [
         'albedoTexture', 'metallicTexture', 'microSurfaceTexture',
-        'ambientTexture', 'opacityTexture', 'bumpTexture', 'lightmapTexture'
+        'ambientTexture', 'emissiveTexture', 'opacityTexture', 'bumpTexture', 'lightmapTexture', 'clearCoatTexture'
     ];
 
     const $ = (id) => document.getElementById(id);
@@ -160,18 +197,15 @@
             opacityTexture: 'None',
             bumpTexture: 'None',
             bumpTextureIntensity: 1,
-            lightmapTexture: 'None',
-            useLightmapAsShadowmap: true,
             backFaceCulling: true,
             uOffset: 0,
             vOffset: 0,
             uScale: 1,
             vScale: 1,
-            wRotation: 0,
-            lightmapUVSet: 0
+            wRotation: 0
         };
     }
-    const INHERIT_KEYS = Object.keys(blankMaterial()).filter(key => key !== 'type' && key !== 'parent');
+    const INHERIT_KEYS = Object.keys(blankMaterial()).filter(key => key !== 'type' && key !== 'parent').concat(EXTRA_PARAM_KEYS);
     function resolvedMaterial(name, seen) {
         const all = (materials() && materials().materials) || {};
         const current = all[name] || {};
@@ -325,6 +359,7 @@
         if (!hashByTab[id]) return;
         state.tab = id;
         state.fontPicker = null;
+        state.paramPicker = false;
         state.renameMaterial = false;
         state.rulebarOpen = false;
         syncTabHash();
@@ -430,6 +465,63 @@
         if (!hasParent(raw)) return 'param';
         return `param ${isOwn(raw, key) ? 'own' : 'inherited'}`;
     }
+    function extraParam(id) {
+        return EXTRA_PARAMS.find(item => item.id === id) || null;
+    }
+    function extraParamList(raw) {
+        return Array.isArray(raw && raw.extraParams) ? raw.extraParams.filter(id => extraParam(id)) : [];
+    }
+    function hasExtraParam(raw, id) {
+        const spec = extraParam(id);
+        if (!raw || !spec) return false;
+        if (extraParamList(raw).includes(id)) return true;
+        if (id === 'lightmap') {
+            const tex = raw.lightmapTexture;
+            return isOwn(raw, 'lightmapTexture') && !!tex && tex !== 'None';
+        }
+        return spec.keys.some(key => isOwn(raw, key));
+    }
+    function extraParamValue(name, spec, key) {
+        const view = resolvedMaterial(name);
+        if (view[key] !== undefined) return view[key];
+        return spec.defaults[key];
+    }
+    function addMaterialParam(id) {
+        const spec = extraParam(id);
+        const mat = state.material && materials().materials[state.material];
+        if (!spec || !mat || hasExtraParam(mat, spec.id)) {
+            state.paramPicker = false;
+            render();
+            return;
+        }
+        spec.keys.forEach(key => {
+            mat[key] = extraParamValue(state.material, spec, key);
+        });
+        const extras = extraParamList(mat);
+        if (!extras.includes(spec.id)) extras.push(spec.id);
+        mat.extraParams = extras;
+        state.paramPicker = false;
+        window.refreshMaterials();
+        render();
+    }
+    function removeMaterialParam(id) {
+        const spec = extraParam(id);
+        const mat = state.material && materials().materials[state.material];
+        if (!spec || !mat) return;
+        spec.keys.forEach(key => { delete mat[key]; });
+        const extras = extraParamList(mat).filter(item => item !== spec.id);
+        if (extras.length) mat.extraParams = extras;
+        else delete mat.extraParams;
+        state.paramPicker = false;
+        window.refreshMaterials();
+        render();
+    }
+    function closeParamPicker() {
+        if (!state.paramPicker) return;
+        state.paramPicker = false;
+        render();
+    }
+    function placeParamPicker() {}
 
     function renderPanel() {
         const builders = {
@@ -445,6 +537,7 @@
         panel.innerHTML = builders[state.tab]();
         panel.scrollTop = scroll;
         placeFontPicker();
+        placeParamPicker();
         if (state.tab === 'materials' && state.renameMaterial) {
             const input = $('rename-material');
             if (input) {
@@ -642,7 +735,18 @@
                 </div>
             </div>`;
         };
-        const textures = textureSlots.map(([key, label]) => {
+        const toggle = (key, label) => {
+            const locked = paramLocked(raw, key) ? ' disabled' : '';
+            return `<div class="${paramClass(raw, key)}" data-param="${key}">
+                <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
+                <label class="param-body env-visible"><input type="checkbox" data-mat="${key}" ${view[key] ? 'checked' : ''}${locked}> Activé</label>
+            </div>`;
+        };
+        const colorField = (key, label, hex) => `<div class="${paramClass(raw, key)}" data-param="${key}">
+                <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
+                <div class="param-body">${colorPickerHtml(hex || '#ffffff', 'material', key)}</div>
+            </div>`;
+        const textureField = (key, label) => {
             const current = view[key] && view[key] !== 'None' ? view[key] : '';
             const files = state.textures.filter(file => file && file !== 'None');
             if (current && !files.includes(current)) files.unshift(current);
@@ -652,10 +756,6 @@
             const thumb = current ? `<img src="Textures/${esc(encodeURIComponent(current))}" alt="">` : '';
             const locked = paramLocked(raw, key);
             const lockAttr = locked ? ' disabled' : '';
-            const extra = key === 'lightmapTexture' ? `<div class="field ${paramClass(raw, 'lightmapUVSet')}" data-param="lightmapUVSet">
-                    <div class="param-head"><span>Lightmap UV</span>${inheritButton(raw, 'lightmapUVSet')}</div>
-                    <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}"${paramLocked(raw, 'lightmapUVSet') ? ' disabled' : ''}>
-                </div>` : '';
             return `<div class="${paramClass(raw, key)}" data-param="${key}">
                 <div class="param-head"><span>${label}</span>${inheritButton(raw, key)}</div>
                 <div class="param-body tex-block">
@@ -668,8 +768,68 @@
                     </div>
                     <select data-mat="${key}" data-tex="1"${lockAttr}>${options}</select>
                 </div>
-            </div>${extra}`;
+            </div>`;
+        };
+        const extraHead = (spec) => `<div class="mat-extra-head">
+                <span>${esc(spec.label)}</span>
+                <button type="button" class="icon-btn mesh-remove" data-action="remove-material-param" data-param="${esc(spec.id)}" title="Retirer ${esc(spec.label)}" aria-label="Retirer ${esc(spec.label)}">${icon('xmark')}</button>
+            </div>`;
+        const extraBlock = (spec, inner) => `<div class="mat-extra" data-extra="${esc(spec.id)}">${extraHead(spec)}<div class="mat-extra-body">${inner}</div></div>`;
+        const sliderBody = (key, min, max, step, label) => {
+            const shown = formatNum(view[key], step);
+            const locked = paramLocked(raw, key) ? ' disabled' : '';
+            return `<div class="${paramClass(raw, key)}" data-param="${key}">
+                <div class="param-body slider-row">
+                    <input type="range" min="${min}" max="${max}" step="${step}" data-mat="${key}" data-kind="number" data-readout="out-${key}" value="${shown}"${locked}>
+                    ${sliderReadout(`out-${key}`, label, shown, paramLocked(raw, key))}
+                </div>
+            </div>`;
+        };
+        const extraBodies = {
+            ior: () => sliderBody('indexOfRefraction', 1, 3, 0.01, 'IOR'),
+            reflectance: () => sliderBody('metallicF0Factor', 0, 1, 0.01, 'Reflectance'),
+            emissive: () => [
+                colorField('emissiveColor', 'Emissive Color', view.emissiveColor || '#000000'),
+                slider('emissiveIntensity', 'Emissive Intensity', 0, 10, 0.05),
+                textureField('emissiveTexture', 'Emissive Map')
+            ].join(''),
+            direct: () => sliderBody('directIntensity', 0, 4, 0.05, 'Direct Light'),
+            ibl: () => sliderBody('environmentIntensity', 0, 4, 0.05, 'IBL Intensity'),
+            lightmap: () => textureField('lightmapTexture', 'Lightmap Map') + `<div class="field ${paramClass(raw, 'lightmapUVSet')}" data-param="lightmapUVSet">
+                    <div class="param-head"><span>Lightmap UV</span>${inheritButton(raw, 'lightmapUVSet')}</div>
+                    <input class="param-body" type="number" min="0" max="1" data-mat="lightmapUVSet" data-kind="number" value="${view.lightmapUVSet || 0}"${paramLocked(raw, 'lightmapUVSet') ? ' disabled' : ''}>
+                </div>`,
+            clearCoat: () => [
+                toggle('clearCoatEnabled', 'Activer'),
+                slider('clearCoatIntensity', 'Intensité', 0, 1, 0.01),
+                slider('clearCoatRoughness', 'Rugosité', 0, 1, 0.01),
+                slider('clearCoatIOR', 'IOR', 1, 3, 0.01),
+                textureField('clearCoatTexture', 'Clear Coat Map')
+            ].join(''),
+            anisotropy: () => [
+                toggle('anisotropyEnabled', 'Activer'),
+                slider('anisotropyIntensity', 'Intensité', 0, 1, 0.01),
+                slider('anisotropyAngle', 'Angle', -180, 180, 1)
+            ].join(''),
+            sheen: () => [
+                toggle('sheenEnabled', 'Activer'),
+                slider('sheenIntensity', 'Intensité', 0, 1, 0.01),
+                slider('sheenRoughness', 'Rugosité', 0, 1, 0.01),
+                colorField('sheenColor', 'Couleur', view.sheenColor || '#ffffff')
+            ].join('')
+        };
+        const addedExtras = EXTRA_PARAMS.filter(spec => hasExtraParam(raw, spec.id)).map(spec => {
+            const body = extraBodies[spec.id] ? extraBodies[spec.id]() : '';
+            return extraBlock(spec, body);
         }).join('');
+        const remaining = EXTRA_PARAMS.filter(spec => !hasExtraParam(raw, spec.id));
+        const picker = state.paramPicker
+            ? `<div class="font-picker" role="menu">${remaining.length
+                ? remaining.map(spec => `<button type="button" role="menuitem" data-action="add-material-param" data-param="${esc(spec.id)}">${esc(spec.label)}</button>`).join('')
+                : '<div class="font-picker-empty">Tous les paramètres sont déjà ajoutés.</div>'
+            }</div>`
+            : '';
+        const textures = textureSlots.map(([key, label]) => textureField(key, label)).join('');
         const uvLabels = { uScale: 'U Scale', vScale: 'V Scale' };
         const numbers = Object.keys(uvLabels).map(key =>
             `<div class="field ${paramClass(raw, key)}" data-param="${key}">
@@ -679,15 +839,17 @@
         ).join('');
         return `<div class="card">
             <label class="field">Parent<select data-mat="parent">${parents}</select></label>
-            <div class="${paramClass(raw, 'baseColor')}" data-param="baseColor">
-                <div class="param-head"><span>Base Color</span>${inheritButton(raw, 'baseColor')}</div>
-                <div class="param-body">${colorPickerHtml(view.baseColor || '#ffffff', 'material')}</div>
+            <div class="add-param" data-param-picker>
+                <button type="button" class="ghost add-param-btn" data-action="toggle-param-picker" aria-expanded="${state.paramPicker ? 'true' : 'false'}">Add parameter</button>
+                ${picker}
             </div>
+            ${colorField('baseColor', 'Base Color', view.baseColor || '#ffffff')}
             ${slider('metallic', 'Metalness', 0, 1, 0.01)}
             ${slider('roughness', 'Roughness', 0, 1, 0.01)}
             ${slider('alpha', 'Opacity', 0, 1, 0.01)}
             ${slider('bumpTextureIntensity', 'Normal Strength', 0, 5, 0.05)}
             ${textures}
+            ${addedExtras}
             <details open>
                 <summary>Transformations</summary>
                 ${slider('uOffset', 'U Offset', 0, 1, 0.01)}
@@ -1076,12 +1238,13 @@
         else { red = chroma; blue = x; }
         return { r: (red + m) * 255, g: (green + m) * 255, b: (blue + m) * 255 };
     }
-    function colorPickerHtml(hexValue, target) {
+    function colorPickerHtml(hexValue, target, key) {
         const rgb = hexToRgb(hexValue);
         const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
         const hue = Math.round(hsv.h);
         const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-        return `<div class="color-picker" data-color-picker data-color-target="${target || 'material'}" data-h="${hue}" data-s="${hsv.s}" data-v="${hsv.v}">
+        const param = key ? ` data-color-key="${esc(key)}"` : '';
+        return `<div class="color-picker" data-color-picker data-color-target="${target || 'material'}"${param} data-h="${hue}" data-s="${hsv.s}" data-v="${hsv.v}">
             <div class="color-sv" data-sv style="background:hsl(${hue},100%,50%)">
                 <div class="color-sv-white"></div>
                 <div class="color-sv-black"></div>
@@ -1120,9 +1283,10 @@
         if (root.dataset.colorTarget === 'background') {
             window.applyEnvironment({ backgroundColor: hex }, { reloadTexture: false });
         } else if (state.material) {
+            const key = root.dataset.colorKey || 'baseColor';
             const mat = materials().materials[state.material];
-            if (mat && hasParent(mat) && !isOwn(mat, 'baseColor')) return;
-            writeMaterial(state.material, 'baseColor', hex);
+            if (mat && hasParent(mat) && !isOwn(mat, key)) return;
+            writeMaterial(state.material, key, hex);
         }
     }
     function updateColorFromControl(target) {
@@ -1412,6 +1576,7 @@
         const button = event.target.closest('[data-action], [data-tab]');
         if (!button) {
             closeFontPicker();
+            closeParamPicker();
             return;
         }
         if (button.dataset.tab) {
@@ -1482,6 +1647,13 @@
             });
         }
         else if (action === 'delete-option') deleteOption(button.dataset.option);
+        else if (action === 'toggle-param-picker') {
+            state.paramPicker = !state.paramPicker;
+            state.fontPicker = null;
+            render();
+        }
+        else if (action === 'add-material-param') addMaterialParam(button.dataset.param);
+        else if (action === 'remove-material-param') removeMaterialParam(button.dataset.param);
         else if (action === 'add-material') addMaterial();
         else if (action === 'rename-material') startRenameMaterial();
         else if (action === 'delete-material') deleteMaterial();
@@ -2445,15 +2617,16 @@
         $('panel').addEventListener('click', onClick);
         $('panel').addEventListener('scroll', () => {
             if (state.fontPicker) placeFontPicker();
+            if (state.paramPicker) placeParamPicker();
         });
         document.addEventListener('click', (event) => {
-            if (!state.fontPicker) return;
-            if (event.target.closest('[data-font-picker], [data-action="open-font-picker"]')) return;
-            closeFontPicker();
+            if (state.fontPicker && !event.target.closest('[data-font-picker], [data-action="open-font-picker"]')) closeFontPicker();
+            if (state.paramPicker && !event.target.closest('[data-param-picker], [data-action="toggle-param-picker"]')) closeParamPicker();
         });
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'Escape') return;
             closeFontPicker();
+            closeParamPicker();
             if (state.rulebarOpen) setRulebarOpen(false);
             if (state.renameMaterial) {
                 state.renameMaterial = false;

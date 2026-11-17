@@ -55,6 +55,26 @@ class TweakpaneManager {
             opacityTexture: 'None',
             bumpTexture: 'None',
             bumpTextureIntensity: 1.0,
+            emissiveColor: { r: 0, g: 0, b: 0 },
+            emissiveIntensity: 1.0,
+            emissiveTexture: 'None',
+            indexOfRefraction: 1.5,
+            metallicF0Factor: 1.0,
+            ambientTextureStrength: 1.0,
+            directIntensity: 1.0,
+            environmentIntensity: 1.0,
+            clearCoatEnabled: false,
+            clearCoatIntensity: 1.0,
+            clearCoatRoughness: 0.0,
+            clearCoatIOR: 1.5,
+            clearCoatTexture: 'None',
+            anisotropyEnabled: false,
+            anisotropyIntensity: 0.0,
+            anisotropyAngle: 0.0,
+            sheenEnabled: false,
+            sheenIntensity: 1.0,
+            sheenColor: { r: 1, g: 1, b: 1 },
+            sheenRoughness: 1.0,
             lightmapTexture: 'None',
             useLightmapAsShadowmap: true,
             lightmapUVSet: 0,
@@ -547,6 +567,51 @@ class TweakpaneManager {
             this.applyMaterialChanges();
         });
         this.materialControls.set('alpha', alphaCtrl);
+
+        const iorCtrl = this.materialsFolder.addInput(this.materialProperties, 'indexOfRefraction', {
+            min: 1.0,
+            max: 3.0,
+            step: 0.01,
+            label: 'IOR'
+        }).on('change', (ev) => {
+            this.materialProperties.indexOfRefraction = ev.value;
+            this.independentProperties.add('indexOfRefraction');
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set('indexOfRefraction', iorCtrl);
+
+        const f0Ctrl = this.materialsFolder.addInput(this.materialProperties, 'metallicF0Factor', {
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+            label: 'Reflectance'
+        }).on('change', (ev) => {
+            this.materialProperties.metallicF0Factor = ev.value;
+            this.independentProperties.add('metallicF0Factor');
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set('metallicF0Factor', f0Ctrl);
+
+        this.emissiveColorDisplay = { hex: '#000000' };
+        const emissiveColorCtrl = this.materialsFolder.addInput(this.emissiveColorDisplay, 'hex', {
+            label: 'Emissive'
+        }).on('change', (ev) => {
+            this.updateNamedRGBFromHex('emissiveColor', ev.value);
+            this.independentProperties.add('emissiveColor');
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set('emissiveColor', emissiveColorCtrl);
+
+        const emissiveIntensityCtrl = this.materialsFolder.addInput(this.materialProperties, 'emissiveIntensity', {
+            min: 0.0,
+            max: 10.0,
+            step: 0.05
+        }).on('change', (ev) => {
+            this.materialProperties.emissiveIntensity = ev.value;
+            this.independentProperties.add('emissiveIntensity');
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set('emissiveIntensity', emissiveIntensityCtrl);
         
         // Texture controls (async)
         await this.createTextureControls();
@@ -592,6 +657,14 @@ class TweakpaneManager {
         }));
         
         // Ambient Texture
+        this.materialControls.set('emissiveTexture', textureFolder.addInput(this.materialProperties, 'emissiveTexture', {
+            options: availableImages
+        }).on('change', (ev) => {
+            this.materialProperties.emissiveTexture = ev.value;
+            this.independentProperties.add('emissiveTexture');
+            this.applyMaterialChanges();
+        }));
+
         this.materialControls.set('ambientTexture', textureFolder.addInput(this.materialProperties, 'ambientTexture', {
             options: availableImages
         }).on('change', (ev) => {
@@ -656,7 +729,73 @@ class TweakpaneManager {
             this.applyMaterialChanges();
         });
         this.materialControls.set('backFaceCulling', bfcCtrl);
+
+        const aoCtrl = textureFolder.addInput(this.materialProperties, 'ambientTextureStrength', {
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+            label: 'AO Strength'
+        }).on('change', (ev) => {
+            this.materialProperties.ambientTextureStrength = ev.value;
+            this.independentProperties.add('ambientTextureStrength');
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set('ambientTextureStrength', aoCtrl);
+
+        this.bindScalar(textureFolder, 'directIntensity', { min: 0, max: 4, step: 0.05, label: 'Direct Light' });
+        this.bindScalar(textureFolder, 'environmentIntensity', { min: 0, max: 4, step: 0.05, label: 'IBL Intensity' });
+
+        const coatFolder = this.materialsFolder.addFolder({ title: 'Clear Coat', expanded: false });
+        this.bindToggle(coatFolder, 'clearCoatEnabled', 'Enabled');
+        this.bindScalar(coatFolder, 'clearCoatIntensity', { min: 0, max: 1, step: 0.01, label: 'Intensity' });
+        this.bindScalar(coatFolder, 'clearCoatRoughness', { min: 0, max: 1, step: 0.01, label: 'Roughness' });
+        this.bindScalar(coatFolder, 'clearCoatIOR', { min: 1, max: 3, step: 0.01, label: 'IOR' });
+        this.materialControls.set('clearCoatTexture', coatFolder.addInput(this.materialProperties, 'clearCoatTexture', {
+            options: availableImages
+        }).on('change', (ev) => {
+            this.materialProperties.clearCoatTexture = ev.value;
+            this.independentProperties.add('clearCoatTexture');
+            this.applyMaterialChanges();
+        }));
+
+        const anisoFolder = this.materialsFolder.addFolder({ title: 'Anisotropy', expanded: false });
+        this.bindToggle(anisoFolder, 'anisotropyEnabled', 'Enabled');
+        this.bindScalar(anisoFolder, 'anisotropyIntensity', { min: 0, max: 1, step: 0.01, label: 'Intensity' });
+        this.bindScalar(anisoFolder, 'anisotropyAngle', { min: -180, max: 180, step: 1, label: 'Angle' });
+
+        const sheenFolder = this.materialsFolder.addFolder({ title: 'Sheen', expanded: false });
+        this.bindToggle(sheenFolder, 'sheenEnabled', 'Enabled');
+        this.bindScalar(sheenFolder, 'sheenIntensity', { min: 0, max: 1, step: 0.01, label: 'Intensity' });
+        this.bindScalar(sheenFolder, 'sheenRoughness', { min: 0, max: 1, step: 0.01, label: 'Roughness' });
+        this.sheenColorDisplay = { hex: '#ffffff' };
+        this.materialControls.set('sheenColor', sheenFolder.addInput(this.sheenColorDisplay, 'hex', {
+            label: 'Color'
+        }).on('change', (ev) => {
+            this.updateNamedRGBFromHex('sheenColor', ev.value);
+            this.independentProperties.add('sheenColor');
+            this.applyMaterialChanges();
+        }));
         
+    }
+
+    bindScalar(folder, key, opts) {
+        const ctrl = folder.addInput(this.materialProperties, key, opts).on('change', (ev) => {
+            this.materialProperties[key] = ev.value;
+            this.independentProperties.add(key);
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set(key, ctrl);
+        return ctrl;
+    }
+
+    bindToggle(folder, key, label) {
+        const ctrl = folder.addInput(this.materialProperties, key, { label }).on('change', (ev) => {
+            this.materialProperties[key] = ev.value;
+            this.independentProperties.add(key);
+            this.applyMaterialChanges();
+        });
+        this.materialControls.set(key, ctrl);
+        return ctrl;
     }
     
     createTextureTransformationControls() {
@@ -862,6 +1001,26 @@ class TweakpaneManager {
         this.materialProperties.opacityTexture = getEffective('opacityTexture', 'None') || 'None';
         this.materialProperties.bumpTexture = getEffective('bumpTexture', 'None') || 'None';
         this.materialProperties.bumpTextureIntensity = getEffective('bumpTextureIntensity', 1.0);
+        this.materialProperties.emissiveIntensity = getEffective('emissiveIntensity', 1.0);
+        this.materialProperties.emissiveTexture = getEffective('emissiveTexture', 'None') || 'None';
+        this.materialProperties.indexOfRefraction = getEffective('indexOfRefraction', 1.5);
+        this.materialProperties.metallicF0Factor = getEffective('metallicF0Factor', 1.0);
+        this.materialProperties.ambientTextureStrength = getEffective('ambientTextureStrength', 1.0);
+        this.materialProperties.directIntensity = getEffective('directIntensity', 1.0);
+        this.materialProperties.environmentIntensity = getEffective('environmentIntensity', 1.0);
+        this.materialProperties.clearCoatEnabled = !!getEffective('clearCoatEnabled', false);
+        this.materialProperties.clearCoatIntensity = getEffective('clearCoatIntensity', 1.0);
+        this.materialProperties.clearCoatRoughness = getEffective('clearCoatRoughness', 0.0);
+        this.materialProperties.clearCoatIOR = getEffective('clearCoatIOR', 1.5);
+        this.materialProperties.clearCoatTexture = getEffective('clearCoatTexture', 'None') || 'None';
+        this.materialProperties.anisotropyEnabled = !!getEffective('anisotropyEnabled', false);
+        this.materialProperties.anisotropyIntensity = getEffective('anisotropyIntensity', 0.0);
+        this.materialProperties.anisotropyAngle = getEffective('anisotropyAngle', 0.0);
+        this.materialProperties.sheenEnabled = !!getEffective('sheenEnabled', false);
+        this.materialProperties.sheenIntensity = getEffective('sheenIntensity', 1.0);
+        this.materialProperties.sheenRoughness = getEffective('sheenRoughness', 1.0);
+        this.setHexColor('emissiveColor', getEffective('emissiveColor', '#000000'), 'emissiveColorDisplay');
+        this.setHexColor('sheenColor', getEffective('sheenColor', '#ffffff'), 'sheenColorDisplay');
         this.materialProperties.lightmapTexture = getEffective('lightmapTexture', 'None') || 'None';
         this.materialProperties.useLightmapAsShadowmap = getEffective('useLightmapAsShadowmap', true);
         this.materialProperties.lightmapUVSet = getEffective('lightmapUVSet', 0);
@@ -894,8 +1053,28 @@ class TweakpaneManager {
             case 'ambientTexture':
             case 'opacityTexture':
             case 'bumpTexture':
+            case 'emissiveTexture':
+            case 'clearCoatTexture':
             case 'lightmapTexture': return 'None';
             case 'bumpTextureIntensity': return 1.0;
+            case 'emissiveColor': return '#000000';
+            case 'emissiveIntensity': return 1.0;
+            case 'indexOfRefraction': return 1.5;
+            case 'metallicF0Factor': return 1.0;
+            case 'ambientTextureStrength': return 1.0;
+            case 'directIntensity':
+            case 'environmentIntensity': return 1.0;
+            case 'clearCoatEnabled':
+            case 'anisotropyEnabled':
+            case 'sheenEnabled': return false;
+            case 'clearCoatIntensity': return 1.0;
+            case 'clearCoatRoughness': return 0.0;
+            case 'clearCoatIOR': return 1.5;
+            case 'anisotropyIntensity':
+            case 'anisotropyAngle': return 0.0;
+            case 'sheenIntensity':
+            case 'sheenRoughness': return 1.0;
+            case 'sheenColor': return '#ffffff';
             case 'useLightmapAsShadowmap': return true;
             case 'lightmapUVSet': return 0;
             case 'backFaceCulling': return true;
@@ -908,19 +1087,38 @@ class TweakpaneManager {
         }
     }
     
-    updateRGBFromHex(hexValue) {
-        // Convertir Hex vers RGB
+    rgbFromHex(hexValue, fallback) {
         try {
-            const hex = hexValue.replace('#', '');
+            const hex = String(hexValue || '').replace('#', '');
             if (hex.length === 6) {
-                const r = parseInt(hex.substr(0, 2), 16) / 255;
-                const g = parseInt(hex.substr(2, 2), 16) / 255;
-                const b = parseInt(hex.substr(4, 2), 16) / 255;
-                this.materialProperties.baseColor = { r, g, b };
+                return {
+                    r: parseInt(hex.substr(0, 2), 16) / 255,
+                    g: parseInt(hex.substr(2, 2), 16) / 255,
+                    b: parseInt(hex.substr(4, 2), 16) / 255
+                };
             }
-        } catch (error) {
-            console.warn('⚠️ Valeur hexadécimale invalide:', hexValue);
-        }
+        } catch (_) {}
+        return fallback || { r: 0, g: 0, b: 0 };
+    }
+
+    setHexColor(prop, hexValue, displayKey) {
+        const hex = hexValue && String(hexValue).charAt(0) === '#' ? hexValue : `#${hexValue || '000000'}`;
+        this.materialProperties[prop] = this.rgbFromHex(hex, this.materialProperties[prop]);
+        if (this[displayKey]) this[displayKey].hex = hex;
+    }
+
+    updateNamedRGBFromHex(prop, hexValue) {
+        this.materialProperties[prop] = this.rgbFromHex(hexValue, this.materialProperties[prop]);
+    }
+
+    updateRGBFromHex(hexValue) {
+        this.updateNamedRGBFromHex('baseColor', hexValue);
+    }
+
+    hexFromRgb(rgb) {
+        if (!rgb) return '#000000';
+        const to = (v) => Math.round((Number(v) || 0) * 255).toString(16).padStart(2, '0');
+        return `#${to(rgb.r)}${to(rgb.g)}${to(rgb.b)}`;
     }
     
     updateParentChildDisplay() {
@@ -1031,6 +1229,10 @@ class TweakpaneManager {
             if (propertyName === 'baseColor' && typeof parentVal === 'string') {
                 this.baseColorDisplay.hex = parentVal || '#ffffff';
                 this.updateRGBFromHex(this.baseColorDisplay.hex);
+            } else if (propertyName === 'emissiveColor' && typeof parentVal === 'string') {
+                this.setHexColor('emissiveColor', parentVal, 'emissiveColorDisplay');
+            } else if (propertyName === 'sheenColor' && typeof parentVal === 'string') {
+                this.setHexColor('sheenColor', parentVal, 'sheenColorDisplay');
             } else {
                 this.materialProperties[propertyName] = parentVal;
             }
@@ -1039,6 +1241,10 @@ class TweakpaneManager {
             let valueToSet = this.materialProperties[propertyName];
             if (propertyName === 'baseColor' && this.baseColorDisplay?.hex) {
                 valueToSet = this.baseColorDisplay.hex;
+            } else if (propertyName === 'emissiveColor' && this.emissiveColorDisplay?.hex) {
+                valueToSet = this.emissiveColorDisplay.hex;
+            } else if (propertyName === 'sheenColor' && this.sheenColorDisplay?.hex) {
+                valueToSet = this.sheenColorDisplay.hex;
             }
             currentMaterial[propertyName] = valueToSet;
             this.independentProperties.add(propertyName);
@@ -1066,11 +1272,8 @@ class TweakpaneManager {
         
         // Sauvegarder les propriétés
         propertiesToSave.forEach(propertyName => {
-            if (propertyName === 'baseColor') {
-                const r = Math.round(this.materialProperties.baseColor.r * 255);
-                const g = Math.round(this.materialProperties.baseColor.g * 255);
-                const b = Math.round(this.materialProperties.baseColor.b * 255);
-                currentMaterial[propertyName] = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            if (propertyName === 'baseColor' || propertyName === 'emissiveColor' || propertyName === 'sheenColor') {
+                currentMaterial[propertyName] = this.hexFromRgb(this.materialProperties[propertyName]);
             } else {
                 currentMaterial[propertyName] = this.materialProperties[propertyName];
             }
@@ -1099,96 +1302,8 @@ class TweakpaneManager {
             return;
         }
         const scene = (window.tagManager && window.tagManager.scene) ? window.tagManager.scene : (this.scene || window.scene);
-        if (!scene) return;
-
-        let updatedCount = 0;
-        // Si des instances sont traquées, préférer celles-ci
-        const candidates = (window.materialInstances && window.materialInstances[selectedMaterial])
-            ? window.materialInstances[selectedMaterial]
-            : scene.materials.filter(m => m && m.name === selectedMaterial);
-
-        candidates.forEach(mat => {
-            if (mat) {
-                updatedCount++;
-                // Couleur de base
-                if (this.materialProperties.baseColor) {
-                    mat.albedoColor = new BABYLON.Color3(
-                        this.materialProperties.baseColor.r,
-                        this.materialProperties.baseColor.g,
-                        this.materialProperties.baseColor.b
-                    );
-                }
-                // Scalars
-                if (this.materialProperties.metallic !== undefined) mat.metallic = this.materialProperties.metallic;
-                if (this.materialProperties.roughness !== undefined) mat.roughness = this.materialProperties.roughness;
-                if (this.materialProperties.alpha !== undefined) mat.alpha = this.materialProperties.alpha;
-                // Back Face Culling
-                if (this.materialProperties.backFaceCulling !== undefined) {
-                    mat.backFaceCulling = !!this.materialProperties.backFaceCulling;
-                }
-
-                // Textures (réutiliser si même nom, sinon remplacer proprement)
-                const setTexture = (current, desiredName) => {
-                    if (!desiredName || desiredName === 'None') {
-                        if (current) { try { current.dispose(); } catch(_){} }
-                        return null;
-                    }
-                    if (!current || current.name !== desiredName) {
-                        if (current) { try { current.dispose(); } catch(_){} }
-                        const t = new BABYLON.Texture(`Textures/${desiredName}`, scene);
-                        t.name = desiredName;
-                        return t;
-                    }
-                    return current;
-                };
-
-                mat.albedoTexture = setTexture(mat.albedoTexture, this.materialProperties.albedoTexture);
-                mat.metallicTexture = setTexture(mat.metallicTexture, this.materialProperties.metallicTexture);
-                mat.microSurfaceTexture = setTexture(mat.microSurfaceTexture, this.materialProperties.microSurfaceTexture);
-                mat.ambientTexture = setTexture(mat.ambientTexture, this.materialProperties.ambientTexture);
-                mat.opacityTexture = setTexture(mat.opacityTexture, this.materialProperties.opacityTexture);
-                mat.bumpTexture = setTexture(mat.bumpTexture, this.materialProperties.bumpTexture);
-                if (mat.bumpTexture && this.materialProperties.bumpTextureIntensity !== undefined) {
-                    mat.bumpTexture.level = this.materialProperties.bumpTextureIntensity;
-                    // Réduire le moiré: filtrage trilineaire + anisotropie
-                    try {
-                        const anisotropicMode = BABYLON.Texture.ANISOTROPIC_SAMPLINGMODE || BABYLON.Texture.TRILINEAR_SAMPLINGMODE;
-                        mat.bumpTexture.updateSamplingMode(anisotropicMode);
-                        const maxAniso = (scene.getEngine().getCaps().maxAnisotropy || 8);
-                        mat.bumpTexture.anisotropicFilteringLevel = Math.min(16, maxAniso);
-                    } catch (_) {}
-                }
-                mat.lightmapTexture = setTexture(mat.lightmapTexture, this.materialProperties.lightmapTexture);
-                if (mat.lightmapTexture) {
-                    mat.useLightmapAsShadowmap = true;
-                    const uvSet = (this.materialProperties.lightmapUVSet !== undefined) ? this.materialProperties.lightmapUVSet : 1;
-                    mat.lightmapTexture.coordinatesIndex = uvSet;
-                }
-
-                // Transformations de textures
-                const applyTransform = (t) => {
-                    if (!t) return;
-                    if (this.materialProperties.uOffset !== undefined) t.uOffset = this.materialProperties.uOffset;
-                    if (this.materialProperties.vOffset !== undefined) t.vOffset = this.materialProperties.vOffset;
-                    if (this.materialProperties.uScale !== undefined) t.uScale = this.materialProperties.uScale;
-                    if (this.materialProperties.vScale !== undefined) t.vScale = this.materialProperties.vScale;
-                    if (this.materialProperties.wRotation !== undefined) t.wAng = BABYLON.Tools.ToRadians(this.materialProperties.wRotation);
-                };
-                applyTransform(mat.albedoTexture);
-                applyTransform(mat.bumpTexture);
-                applyTransform(mat.metallicTexture);
-                applyTransform(mat.microSurfaceTexture);
-                applyTransform(mat.ambientTexture);
-                applyTransform(mat.opacityTexture);
-
-                mat.markAsDirty(BABYLON.Material.TextureDirtyFlag);
-            }
-        });
-
-        if (updatedCount === 0) {
-            // Rien à mettre à jour: aucun matériau avec ce nom n'est présent sur la scène
-            // C'est attendu si le matériau sélectionné n'est pas actuellement utilisé par un mesh visible
-        }
+        if (!scene || typeof createPBRMaterial !== 'function') return;
+        createPBRMaterial(this.materialsConfig.materials[selectedMaterial], scene, selectedMaterial);
     }
     
     createNewMaterial() {

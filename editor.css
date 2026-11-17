@@ -670,6 +670,59 @@
     margin-bottom: 8px;
 }
 
+.add-param {
+    position: relative;
+    margin: 8px 0 12px;
+}
+
+.editor-panel button.add-param-btn {
+    width: 100%;
+    justify-content: center;
+}
+
+.add-param .font-picker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    min-width: 0;
+    max-height: 240px;
+}
+
+.mat-extra {
+    border: 1px solid #000;
+    margin: 10px 0 0;
+    padding: 0 0 8px;
+}
+
+.mat-extra-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 29px;
+    padding: 4px 6px 4px 8px;
+    border-bottom: 1px solid #000;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mat-extra-body {
+    padding: 8px 8px 0;
+}
+
+.mat-extra-body > .param,
+.mat-extra-body > .field {
+    margin-top: 8px;
+}
+
+.mat-extra-body > .param:first-child,
+.mat-extra-body > .field:first-child {
+    margin-top: 0;
+}
+
 .editor-panel .rule-card {
     position: relative;
     background: #e5e5e5;

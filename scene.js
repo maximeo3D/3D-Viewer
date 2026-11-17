@@ -337,6 +337,60 @@ window.reloadModels = async function() {
     window.dispatchEvent(new CustomEvent('viewer-model-loaded'));
 };
 
+function isNoneTexture(value) {
+    return !value || String(value).trim() === '' || value === 'None';
+}
+
+function applyOptionalTexture(pbr, slot, fileName, scene) {
+    if (isEngravingTexture(pbr[slot])) return;
+    if (!isNoneTexture(fileName)) {
+        if (!pbr[slot] || pbr[slot].name !== fileName) {
+            if (pbr[slot]) { try { pbr[slot].dispose(); } catch (_) {} }
+            pbr[slot] = new BABYLON.Texture(`Textures/${fileName}`, scene);
+            pbr[slot].name = fileName;
+        }
+        pbr[slot].vFlip = false;
+    } else if (pbr[slot]) {
+        try { pbr[slot].dispose(); } catch (_) {}
+        pbr[slot] = null;
+    }
+}
+
+function applyClearCoat(pbr, config, scene) {
+    const coat = pbr.clearCoat;
+    const enabled = !!config.clearCoatEnabled;
+    coat.isEnabled = enabled;
+    if (!enabled) {
+        if (coat.texture) { try { coat.texture.dispose(); } catch (_) {} }
+        coat.texture = null;
+        return;
+    }
+    coat.intensity = config.clearCoatIntensity !== undefined ? config.clearCoatIntensity : 1;
+    coat.roughness = config.clearCoatRoughness !== undefined ? config.clearCoatRoughness : 0;
+    coat.indexOfRefraction = config.clearCoatIOR !== undefined ? config.clearCoatIOR : 1.5;
+    applyOptionalTexture(coat, 'texture', config.clearCoatTexture, scene);
+}
+
+function applyAnisotropy(pbr, config) {
+    const aniso = pbr.anisotropy;
+    const enabled = !!config.anisotropyEnabled;
+    aniso.isEnabled = enabled;
+    if (!enabled) return;
+    aniso.intensity = config.anisotropyIntensity !== undefined ? config.anisotropyIntensity : 0;
+    const angle = BABYLON.Tools.ToRadians(config.anisotropyAngle !== undefined ? config.anisotropyAngle : 0);
+    aniso.direction = new BABYLON.Vector2(Math.cos(angle), Math.sin(angle));
+}
+
+function applySheen(pbr, config) {
+    const sheen = pbr.sheen;
+    const enabled = !!config.sheenEnabled;
+    sheen.isEnabled = enabled;
+    if (!enabled) return;
+    sheen.intensity = config.sheenIntensity !== undefined ? config.sheenIntensity : 1;
+    sheen.roughness = config.sheenRoughness !== undefined ? config.sheenRoughness : 1;
+    sheen.color = BABYLON.Color3.FromHexString(config.sheenColor || '#ffffff');
+}
+
 function isEngravingTexture(texture) {
     if (!texture) return false;
     const manager = window.engravingManager;
@@ -393,6 +447,13 @@ function createPBRMaterial(materialConfig, scene, materialName) {
     pbr.metallic = finalMaterialConfig.metallic !== undefined ? finalMaterialConfig.metallic : 0;
     pbr.roughness = finalMaterialConfig.roughness !== undefined ? finalMaterialConfig.roughness : 0.5;
     pbr.alpha = finalMaterialConfig.alpha !== undefined ? finalMaterialConfig.alpha : 1.0;
+    pbr.indexOfRefraction = finalMaterialConfig.indexOfRefraction !== undefined ? finalMaterialConfig.indexOfRefraction : 1.5;
+    pbr.metallicF0Factor = finalMaterialConfig.metallicF0Factor !== undefined ? finalMaterialConfig.metallicF0Factor : 1;
+    pbr.ambientTextureStrength = finalMaterialConfig.ambientTextureStrength !== undefined ? finalMaterialConfig.ambientTextureStrength : 1;
+    pbr.directIntensity = finalMaterialConfig.directIntensity !== undefined ? finalMaterialConfig.directIntensity : 1;
+    pbr.environmentIntensity = finalMaterialConfig.environmentIntensity !== undefined ? finalMaterialConfig.environmentIntensity : 1;
+    pbr.emissiveIntensity = finalMaterialConfig.emissiveIntensity !== undefined ? finalMaterialConfig.emissiveIntensity : 1;
+    pbr.emissiveColor = BABYLON.Color3.FromHexString(finalMaterialConfig.emissiveColor || '#000000');
     
     // === TEXTURES ===
     // Albedo texture (base color)
@@ -468,6 +529,9 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         }
         pbr.ambientTexture.vFlip = false; // Corriger l'effet miroir
     } else if (pbr.ambientTexture && !isEngravingTexture(pbr.ambientTexture)) { try { pbr.ambientTexture.dispose(); } catch(_){} pbr.ambientTexture = null; }
+    if (pbr.ambientTexture) pbr.ambientTextureStrength = finalMaterialConfig.ambientTextureStrength !== undefined ? finalMaterialConfig.ambientTextureStrength : 1;
+
+    applyOptionalTexture(pbr, 'emissiveTexture', finalMaterialConfig.emissiveTexture, scene);
     
     // Opacity texture for local transparency control
     if (finalMaterialConfig.opacityTexture && finalMaterialConfig.opacityTexture.trim() !== '' && finalMaterialConfig.opacityTexture !== 'None' && !isEngravingTexture(pbr.opacityTexture)) {
@@ -505,6 +569,10 @@ function createPBRMaterial(materialConfig, scene, materialName) {
         pbr.useLightmapAsShadowmap = true;
     } else if (pbr.lightmapTexture) { try { pbr.lightmapTexture.dispose(); } catch(_){} pbr.lightmapTexture = null; }
     
+    applyClearCoat(pbr, finalMaterialConfig, scene);
+    applyAnisotropy(pbr, finalMaterialConfig);
+    applySheen(pbr, finalMaterialConfig);
+
     // === TEXTURE TRANSFORMATIONS ===
     // Apply transformations to all textures except lightmap
     applyTextureTransformations(pbr, finalMaterialConfig);
@@ -550,6 +618,9 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
         pbr.bumpTexture
     ].filter(texture => texture && texture !== pbr.lightmapTexture && !isEngravingTexture(texture));
     
+    if (pbr.emissiveTexture && !isEngravingTexture(pbr.emissiveTexture)) textures.push(pbr.emissiveTexture);
+    if (pbr.clearCoat && pbr.clearCoat.texture) textures.push(pbr.clearCoat.texture);
+
     textures.forEach(texture => {
         if (texture) {
             
