@@ -66,6 +66,21 @@
             label: 'Sheen',
             keys: ['sheenEnabled', 'sheenIntensity', 'sheenColor', 'sheenRoughness'],
             defaults: { sheenEnabled: true, sheenIntensity: 1, sheenColor: '#ffffff', sheenRoughness: 1 }
+        },
+        {
+            id: 'subSurface',
+            label: 'Subsurface',
+            keys: [
+                'subSurfaceEnabled', 'subSurfaceColor', 'subSurfaceIntensity',
+                'subSurfaceThickness', 'subSurfaceThicknessTexture'
+            ],
+            defaults: {
+                subSurfaceEnabled: true,
+                subSurfaceColor: '#e8c4a0',
+                subSurfaceIntensity: 1,
+                subSurfaceThickness: 1,
+                subSurfaceThicknessTexture: 'None'
+            }
         }
     ];
     const EXTRA_PARAM_KEYS = EXTRA_PARAMS.flatMap(item => item.keys);
@@ -89,7 +104,7 @@
     const BABYLON_CDN = 'https://cdn.babylonjs.com/v7.54.2';
     const TEXTURE_SLOTS = [
         'albedoTexture', 'metallicTexture', 'microSurfaceTexture',
-        'ambientTexture', 'emissiveTexture', 'opacityTexture', 'bumpTexture', 'lightmapTexture', 'clearCoatTexture'
+        'ambientTexture', 'emissiveTexture', 'opacityTexture', 'bumpTexture', 'lightmapTexture', 'clearCoatTexture', 'subSurfaceThicknessTexture'
     ];
 
     const $ = (id) => document.getElementById(id);
@@ -816,6 +831,13 @@
                 slider('sheenIntensity', 'Intensité', 0, 1, 0.01),
                 slider('sheenRoughness', 'Rugosité', 0, 1, 0.01),
                 colorField('sheenColor', 'Couleur', view.sheenColor || '#ffffff')
+            ].join(''),
+            subSurface: () => [
+                toggle('subSurfaceEnabled', 'Translucidité'),
+                colorField('subSurfaceColor', 'Teinte', view.subSurfaceColor || '#e8c4a0'),
+                slider('subSurfaceIntensity', 'Intensité', 0, 1, 0.01),
+                slider('subSurfaceThickness', 'Épaisseur', 0, 5, 0.05),
+                textureField('subSurfaceThicknessTexture', 'Thickness Map')
             ].join('')
         };
         const addedExtras = EXTRA_PARAMS.filter(spec => hasExtraParam(raw, spec.id)).map(spec => {

@@ -391,6 +391,26 @@ function applySheen(pbr, config) {
     sheen.color = BABYLON.Color3.FromHexString(config.sheenColor || '#ffffff');
 }
 
+function applySubSurface(pbr, config, scene) {
+    const ss = pbr.subSurface;
+    const enabled = !!config.subSurfaceEnabled;
+    ss.isTranslucencyEnabled = enabled;
+    ss.isScatteringEnabled = false;
+    if (!enabled) {
+        ss.isRefractionEnabled = false;
+        if (ss.thicknessTexture) { try { ss.thicknessTexture.dispose(); } catch (_) {} }
+        ss.thicknessTexture = null;
+        return;
+    }
+    ss.tintColor = BABYLON.Color3.FromHexString(config.subSurfaceColor || '#e8c4a0');
+    ss.translucencyIntensity = config.subSurfaceIntensity !== undefined ? config.subSurfaceIntensity : 1;
+    const thickness = config.subSurfaceThickness !== undefined ? Math.max(0, Number(config.subSurfaceThickness)) : 1;
+    const hasMap = !isNoneTexture(config.subSurfaceThicknessTexture);
+    ss.minimumThickness = hasMap ? 0 : thickness;
+    ss.maximumThickness = hasMap ? Math.max(thickness, 0.001) : thickness;
+    applyOptionalTexture(ss, 'thicknessTexture', config.subSurfaceThicknessTexture, scene);
+}
+
 function isEngravingTexture(texture) {
     if (!texture) return false;
     const manager = window.engravingManager;
@@ -561,17 +581,15 @@ function createPBRMaterial(materialConfig, scene, materialName) {
             pbr.lightmapTexture.name = finalMaterialConfig.lightmapTexture;
         }
         pbr.lightmapTexture.vFlip = false; // Corriger l'effet miroir
-        // Set lightmap UV set (0 or 1)
         const lmUV = (finalMaterialConfig.lightmapUVSet !== undefined) ? finalMaterialConfig.lightmapUVSet : 0;
         pbr.lightmapTexture.coordinatesIndex = lmUV;
-        
-        // Enable lightmap as shadowmap by default for better performance
         pbr.useLightmapAsShadowmap = true;
     } else if (pbr.lightmapTexture) { try { pbr.lightmapTexture.dispose(); } catch(_){} pbr.lightmapTexture = null; }
     
     applyClearCoat(pbr, finalMaterialConfig, scene);
     applyAnisotropy(pbr, finalMaterialConfig);
     applySheen(pbr, finalMaterialConfig);
+    applySubSurface(pbr, finalMaterialConfig, scene);
 
     // === TEXTURE TRANSFORMATIONS ===
     // Apply transformations to all textures except lightmap
@@ -620,6 +638,7 @@ function applyTextureTransformations(pbr, finalMaterialConfig) {
     
     if (pbr.emissiveTexture && !isEngravingTexture(pbr.emissiveTexture)) textures.push(pbr.emissiveTexture);
     if (pbr.clearCoat && pbr.clearCoat.texture) textures.push(pbr.clearCoat.texture);
+    if (pbr.subSurface && pbr.subSurface.thicknessTexture) textures.push(pbr.subSurface.thicknessTexture);
 
     textures.forEach(texture => {
         if (texture) {
