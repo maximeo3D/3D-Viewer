@@ -96,7 +96,8 @@
         textures: ['None'],
         environments: [],
         started: false,
-        rulebarOpen: false
+        rulebarOpen: false,
+        pickCameraTarget: false
     };
 
     const ENGINE_CDN = 'https://cdn.jsdelivr.net/gh/maximeo3D/3D-Viewer@v1.0.0';
@@ -565,6 +566,7 @@
         panel.scrollTop = scroll;
         placeFontPicker();
         placeParamPicker();
+        syncCameraTargetTools();
         if (state.tab === 'materials' && state.renameMaterial) {
             const input = $('rename-material');
             if (input) {
@@ -1143,7 +1145,7 @@
                 ${slider('targetX', 'Cible X', -20, 20, 0.1, targetX)}
                 ${slider('targetY', 'Cible Y', -20, 20, 0.1, targetY)}
                 ${slider('targetZ', 'Cible Z', -20, 20, 0.1, targetZ)}
-                <button type="button" class="ghost" data-action="read-camera">Lire la vue actuelle</button>
+                <button type="button" class="target-pick${state.pickCameraTarget ? ' active' : ''}" data-action="pick-camera-target" aria-pressed="${state.pickCameraTarget ? 'true' : 'false'}">${icon('crosshairs')} Définir la target</button>
                 <label class="field">Viewpoint par défaut<select data-default-viewpoint>${defaultOptions}</select></label>
             </div>
             <button type="button" class="dashed-add" data-action="add-viewpoint" aria-label="Ajouter un viewpoint">${icon('plus')}</button>
@@ -1705,7 +1707,12 @@
             state.textureSlot = button.dataset.slot;
             $('file-image').click();
         } else if (action === 'import-env') $('file-env').click();
-        else if (action === 'read-camera') readCamera();
+        else if (action === 'pick-camera-target') {
+            state.pickCameraTarget = !state.pickCameraTarget;
+            button.classList.toggle('active', state.pickCameraTarget);
+            button.setAttribute('aria-pressed', state.pickCameraTarget ? 'true' : 'false');
+            if (window.setCameraTargetPickMode) window.setCameraTargetPickMode(state.pickCameraTarget);
+        }
         else if (action === 'add-viewpoint') addViewpoint();
         else if (action === 'goto-view') {
             state.viewpoint = button.dataset.id;
@@ -1981,21 +1988,20 @@
         window.refreshMaterials();
         render();
     }
-    function readCamera() {
-        const shot = window.captureViewpoint();
-        window.applyCameraState({
-            alpha: shot.alpha,
-            radius: shot.radius,
-            fov: shot.fov,
-            minDistance: shot.minDistance,
-            maxDistance: shot.maxDistance,
-            targetX: shot.targetX,
-            targetY: shot.targetY,
-            targetZ: shot.targetZ,
-            initialPitch: shot.initialPitch !== undefined ? shot.initialPitch : deg(shot.beta)
-        });
-        render();
+    function syncCameraTargetTools() {
+        const on = state.tab === 'camera';
+        if (!on) state.pickCameraTarget = false;
+        if (window.setCameraTargetGizmoVisible) window.setCameraTargetGizmoVisible(on);
+        if (window.setCameraTargetPickMode) window.setCameraTargetPickMode(on && state.pickCameraTarget);
     }
+    window.onCameraTargetPlaced = () => {
+        state.pickCameraTarget = false;
+        const button = document.querySelector('[data-action="pick-camera-target"]');
+        if (button) {
+            button.classList.remove('active');
+            button.setAttribute('aria-pressed', 'false');
+        }
+    };
     function nextViewpointName() {
         const used = new Set(Object.keys(studio().viewpoints || {}).map(name => name.toLowerCase()));
         let index = 1;

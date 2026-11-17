@@ -537,6 +537,23 @@
     cursor: pointer;
 }
 
+.editor-panel button.target-pick {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+}
+
+.editor-panel button.target-pick.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
 .editor-panel input[type="checkbox"] {
     width: auto;
 }

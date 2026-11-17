@@ -1192,8 +1192,103 @@ const createScene = async function() {
     let targetObjectRotationX = 0; // Rotation cible (toujours 0°)
     let objectRotationElasticityEnabled = true; // Activer l'élasticité par défaut
     
+    // Gizmo de la cible, éditeur seulement : trois axes, visibles dans l'onglet Caméra.
+    let cameraTargetAnchor = null;
+    let cameraTargetGizmo = null;
+    let cameraTargetVisible = false;
+    let cameraTargetDragging = false;
+    let cameraTargetPick = false;
+    function commitCameraTarget(point) {
+        camera.target.set(point.x, point.y, point.z);
+        if (cameraTargetAnchor) cameraTargetAnchor.position.copyFrom(camera.target);
+        config.camera.targetX = point.x;
+        config.camera.targetY = point.y;
+        config.camera.targetZ = point.z;
+    }
+    function pointerHitsCameraGizmo() {
+        if (!cameraTargetGizmo || !cameraTargetVisible || !cameraTargetGizmo.gizmoLayer) return false;
+        const util = cameraTargetGizmo.gizmoLayer.utilityLayerScene;
+        if (!util) return false;
+        const pick = util.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.isPickable && mesh.isEnabled());
+        return !!(pick && pick.hit);
+    }
+    function cameraGizmoDragging() {
+        if (!cameraTargetGizmo || !cameraTargetVisible) return false;
+        return ['xGizmo', 'yGizmo', 'zGizmo'].some((key) => {
+            const axis = cameraTargetGizmo[key];
+            return !!(axis && axis.dragBehavior && axis.dragBehavior.dragging);
+        });
+    }
+    if (isEditor && BABYLON.PositionGizmo) {
+        cameraTargetAnchor = new BABYLON.TransformNode('cameraTargetAnchor', scene);
+        cameraTargetAnchor.position.copyFrom(camera.target);
+        cameraTargetGizmo = new BABYLON.PositionGizmo(undefined, undefined, undefined, {
+            xPlaneGizmo: false,
+            yPlaneGizmo: false,
+            zPlaneGizmo: false
+        });
+        // La flèche native va jusqu'à 0.3375 puis est réduite d'un tiers. Sans mise à l'échelle écran, 1 unité de scène.
+        cameraTargetGizmo.updateScale = false;
+        cameraTargetGizmo.scaleRatio = 1 / (0.3375 / 3);
+        cameraTargetGizmo.planarGizmoEnabled = false;
+        cameraTargetGizmo.updateGizmoRotationToMatchAttachedMesh = false;
+        cameraTargetGizmo.onDragStartObservable.add(() => { cameraTargetDragging = true; });
+        cameraTargetGizmo.onDragObservable.add(() => commitCameraTarget(cameraTargetAnchor.position));
+        cameraTargetGizmo.onDragEndObservable.add(() => {
+            cameraTargetDragging = false;
+            commitCameraTarget(cameraTargetAnchor.position);
+        });
+        scene.onBeforeRenderObservable.add(() => {
+            if (!cameraTargetVisible || cameraTargetDragging || !cameraTargetAnchor) return;
+            if (!cameraTargetAnchor.position.equalsWithEpsilon(camera.target, 0.0001)) {
+                cameraTargetAnchor.position.copyFrom(camera.target);
+            }
+        });
+        window.setCameraTargetGizmoVisible = (visible) => {
+            cameraTargetVisible = !!visible;
+            cameraTargetGizmo.attachedNode = cameraTargetVisible ? cameraTargetAnchor : null;
+            if (cameraTargetVisible) cameraTargetAnchor.position.copyFrom(camera.target);
+        };
+        window.setCameraTargetPickMode = (enabled) => {
+            cameraTargetPick = !!enabled;
+            canvas.style.cursor = cameraTargetPick ? 'crosshair' : '';
+        };
+    }
+
     // Contrôles pour la rotation des objets seulement
-    scene.onPointerObservable.add((evt) => {
+    let cameraPointerDown = null;
+    const cameraPointerObserver = scene.onPointerObservable.add((evt) => {
+        const onGizmo = pointerHitsCameraGizmo() || cameraGizmoDragging();
+        if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN && evt.event && evt.event.button === 0) {
+            cameraPointerDown = {
+                x: evt.event.clientX,
+                y: evt.event.clientY,
+                gizmo: onGizmo
+            };
+        }
+        if (onGizmo || (cameraPointerDown && cameraPointerDown.gizmo) || cameraTargetDragging) {
+            if (evt.type === BABYLON.PointerEventTypes.POINTERUP) {
+                cameraPointerDown = null;
+                isMouseDown = false;
+                isRightClick = false;
+                objectRotationElasticityEnabled = true;
+            }
+            return;
+        }
+        if (evt.type === BABYLON.PointerEventTypes.POINTERUP && cameraPointerDown && cameraTargetPick && evt.event && evt.event.button === 0) {
+            const dx = evt.event.clientX - cameraPointerDown.x;
+            const dy = evt.event.clientY - cameraPointerDown.y;
+            if ((dx * dx) + (dy * dy) <= 25) {
+                const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh.isPickable && mesh.isEnabled() && mesh.isVisible);
+                if (pick && pick.hit && pick.pickedPoint) {
+                    commitCameraTarget(pick.pickedPoint);
+                    cameraTargetPick = false;
+                    canvas.style.cursor = '';
+                    if (window.onCameraTargetPlaced) window.onCameraTargetPlaced();
+                }
+            }
+        }
+        if (evt.type === BABYLON.PointerEventTypes.POINTERUP) cameraPointerDown = null;
         if (evt.type === BABYLON.PointerEventTypes.POINTERDOWN) {
             // Ignorer si c'est un pinch (2+ doigts) ou si on est en train de pincher
             if ((evt.event.touches && evt.event.touches.length > 1) || isPinching) {
@@ -1269,6 +1364,7 @@ const createScene = async function() {
             lastMouseY = evt.event.clientY;
         }
     });
+    scene.onPointerObservable.makeObserverBottomPriority(cameraPointerObserver);
     
     // Désactiver complètement le menu contextuel et le clic droit
     canvas.addEventListener('contextmenu', (evt) => {
