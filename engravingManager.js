@@ -384,7 +384,7 @@ class EngravingManager {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, size.width, size.height);
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'alphabetic';
         const spacing = config.letterSpacing * (size.height / 512);
         if (spacing) ctx.letterSpacing = `${spacing}px`;
         let fontPx = Math.floor(size.height * config.fontSizeScale);
@@ -396,7 +396,14 @@ class EngravingManager {
         }
         ctx.font = `${config.fontStyle} ${config.fontWeight} ${fontPx}px "${fontName}"`;
         ctx.fillStyle = 'white';
-        ctx.fillText(text, size.width / 2, size.height / 2);
+        // Le milieu de l'em-box laisse les capitales trop hautes : on centre l'encre de tout le mot.
+        const metrics = ctx.measureText(text);
+        const ascent = metrics.actualBoundingBoxAscent || 0;
+        const descent = metrics.actualBoundingBoxDescent || 0;
+        const y = ascent + descent > 0
+            ? size.height / 2 + (ascent - descent) / 2
+            : size.height / 2;
+        ctx.fillText(text, size.width / 2, y);
         const pixels = ctx.getImageData(0, 0, size.width, size.height).data;
         const count = size.width * size.height;
         const coverage = new Float32Array(count);
