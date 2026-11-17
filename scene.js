@@ -13,6 +13,24 @@ const isInIframe = (() => {
 
 const isEditor = !!document.querySelector('.editor');
 
+// Babylon multiplies the diffuse by (1 - intensity) before adding the transmitted light,
+// so thick areas go dark and raising the thickness darkens the whole object.
+// Keep the base light and let transmission only brighten the thin parts.
+(function keepBaseLightUnderTranslucency() {
+    const store = BABYLON.ShaderStore;
+    if (!store) return;
+    const pattern = /finalIrradiance\s*\*=\s*\(\s*1\.0?\s*-\s*subSurfaceOut\.translucencyIntensity\s*\)\s*;/g;
+    [store.IncludesShadersStore, store.IncludesShadersStoreWGSL].forEach(includes => {
+        if (!includes) return;
+        Object.keys(includes).forEach(name => {
+            pattern.lastIndex = 0;
+            if (typeof includes[name] !== 'string' || !pattern.test(includes[name])) return;
+            pattern.lastIndex = 0;
+            includes[name] = includes[name].replace(pattern, '');
+        });
+    });
+})();
+
 // Create the BABYLON engine (tuned for mobile stability)
 const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: false,
@@ -402,7 +420,7 @@ function applySubSurface(pbr, config, scene) {
         ss.thicknessTexture = null;
         return;
     }
-    ss.tintColor = BABYLON.Color3.FromHexString(config.subSurfaceColor || '#e8c4a0');
+    ss.tintColor = BABYLON.Color3.FromHexString(config.baseColor || '#ffffff');
     ss.translucencyIntensity = config.subSurfaceIntensity !== undefined ? config.subSurfaceIntensity : 1;
     const thickness = config.subSurfaceThickness !== undefined ? Math.max(0, Number(config.subSurfaceThickness)) : 1;
     const hasMap = !isNoneTexture(config.subSurfaceThicknessTexture);

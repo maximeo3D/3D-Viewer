@@ -71,12 +71,11 @@
             id: 'subSurface',
             label: 'Subsurface',
             keys: [
-                'subSurfaceEnabled', 'subSurfaceColor', 'subSurfaceIntensity',
+                'subSurfaceEnabled', 'subSurfaceIntensity',
                 'subSurfaceThickness', 'subSurfaceThicknessTexture'
             ],
             defaults: {
                 subSurfaceEnabled: true,
-                subSurfaceColor: '#e8c4a0',
                 subSurfaceIntensity: 1,
                 subSurfaceThickness: 1,
                 subSurfaceThicknessTexture: 'None'
@@ -209,6 +208,7 @@
             metallicTexture: 'None',
             microSurfaceTexture: 'None',
             ambientTexture: 'None',
+            ambientTextureStrength: 1,
             opacityTexture: 'None',
             bumpTexture: 'None',
             bumpTextureIntensity: 1,
@@ -486,7 +486,7 @@
     function extraParamList(raw) {
         return Array.isArray(raw && raw.extraParams) ? raw.extraParams.filter(id => extraParam(id)) : [];
     }
-    function hasExtraParam(raw, id) {
+    function ownsExtraParam(raw, id) {
         const spec = extraParam(id);
         if (!raw || !spec) return false;
         if (extraParamList(raw).includes(id)) return true;
@@ -495,6 +495,18 @@
             return isOwn(raw, 'lightmapTexture') && !!tex && tex !== 'None';
         }
         return spec.keys.some(key => isOwn(raw, key));
+    }
+    function hasExtraParam(raw, id) {
+        const all = (materials() && materials().materials) || {};
+        const seen = new Set();
+        let current = raw;
+        while (current && !seen.has(current)) {
+            seen.add(current);
+            if (ownsExtraParam(current, id)) return true;
+            const parentName = current.parent;
+            current = parentName && parentName !== 'none' ? all[parentName] : null;
+        }
+        return false;
     }
     function extraParamValue(name, spec, key) {
         const view = resolvedMaterial(name);
@@ -785,10 +797,12 @@
                 </div>
             </div>`;
         };
-        const extraHead = (spec) => `<div class="mat-extra-head">
-                <span>${esc(spec.label)}</span>
-                <button type="button" class="icon-btn mesh-remove" data-action="remove-material-param" data-param="${esc(spec.id)}" title="Retirer ${esc(spec.label)}" aria-label="Retirer ${esc(spec.label)}">${icon('xmark')}</button>
-            </div>`;
+        const extraHead = (spec) => {
+            const remove = ownsExtraParam(raw, spec.id)
+                ? `<button type="button" class="icon-btn mesh-remove" data-action="remove-material-param" data-param="${esc(spec.id)}" title="Retirer ${esc(spec.label)}" aria-label="Retirer ${esc(spec.label)}">${icon('xmark')}</button>`
+                : '';
+            return `<div class="mat-extra-head"><span>${esc(spec.label)}</span>${remove}</div>`;
+        };
         const extraBlock = (spec, inner) => `<div class="mat-extra" data-extra="${esc(spec.id)}">${extraHead(spec)}<div class="mat-extra-body">${inner}</div></div>`;
         const sliderBody = (key, min, max, step, label) => {
             const shown = formatNum(view[key], step);
@@ -834,7 +848,6 @@
             ].join(''),
             subSurface: () => [
                 toggle('subSurfaceEnabled', 'Translucidité'),
-                colorField('subSurfaceColor', 'Teinte', view.subSurfaceColor || '#e8c4a0'),
                 slider('subSurfaceIntensity', 'Intensité', 0, 1, 0.01),
                 slider('subSurfaceThickness', 'Épaisseur', 0, 5, 0.05),
                 textureField('subSurfaceThicknessTexture', 'Thickness Map')
@@ -851,7 +864,11 @@
                 : '<div class="font-picker-empty">Tous les paramètres sont déjà ajoutés.</div>'
             }</div>`
             : '';
-        const textures = textureSlots.map(([key, label]) => textureField(key, label)).join('');
+        const textures = textureSlots.map(([key, label]) => {
+            const field = textureField(key, label);
+            if (key !== 'ambientTexture') return field;
+            return field + slider('ambientTextureStrength', 'Intensité AO', 0, 1, 0.01);
+        }).join('');
         const uvLabels = { uScale: 'U Scale', vScale: 'V Scale' };
         const numbers = Object.keys(uvLabels).map(key =>
             `<div class="field ${paramClass(raw, key)}" data-param="${key}">
