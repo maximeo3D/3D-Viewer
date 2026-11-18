@@ -880,8 +880,9 @@ const createScene = async function() {
 
     function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
 
-    async function animateToViewpoint(vp, totalDurationMs = 1000) {
-        if (!vp || !camera) return;
+    let viewpointAnim = 0;
+    function animateToViewpoint(vp, totalDurationMs = 1000) {
+        if (!vp || !camera) return Promise.resolve();
 
         const start = {
             alpha: camera.alpha,
@@ -892,7 +893,6 @@ const createScene = async function() {
             min: camera.lowerRadiusLimit ?? 0.1,
             max: camera.upperRadiusLimit ?? 1000
         };
-
         const end = {
             alpha: (vp.alpha !== undefined ? vp.alpha : start.alpha),
             pitch: pitchFromViewpoint(vp, start.pitch),
@@ -906,91 +906,39 @@ const createScene = async function() {
             max: (vp.maxDistance !== undefined ? vp.maxDistance : start.max),
             radius: (vp.radius !== undefined ? vp.radius : start.radius)
         };
-
-        const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-        // Helper: démarrer la phase 2 (zoom/target/limites/radius) pour une durée donnée
-        const startZoomPhase = (durationMs, startSnapshot) => new Promise(resolve => {
-            const s2 = startSnapshot || {
-                fov: camera.fov,
-                target: camera.target.clone(),
-                radius: camera.radius,
-                min: camera.lowerRadiusLimit ?? start.min,
-                max: camera.upperRadiusLimit ?? start.max
-            };
-            const t0 = performance.now();
-            const tick = () => {
-                const now = performance.now();
-                const t = Math.min(1, (now - t0) / durationMs);
-                const k = easeInOutCubic(t);
-
-                // FOV
-                camera.fov = s2.fov + (end.fov - s2.fov) * k;
-
-                // Target
-                const tx = s2.target.x + (end.target.x - s2.target.x) * k;
-                const ty = s2.target.y + (end.target.y - s2.target.y) * k;
-                const tz = s2.target.z + (end.target.z - s2.target.z) * k;
-                camera.target = new BABYLON.Vector3(tx, ty, tz);
-
-                // Limites
-                const curMin = s2.min + (end.min - s2.min) * k;
-                const curMax = s2.max + (end.max - s2.max) * k;
-                camera.lowerRadiusLimit = curMin;
-                camera.upperRadiusLimit = curMax;
-
-                // Radius clampé
-                const desiredRadius = s2.radius + (end.radius - s2.radius) * k;
-                camera.radius = Math.max(curMin, Math.min(curMax, desiredRadius));
-                if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
-
-                if (t < 1) requestAnimationFrame(tick); else resolve();
-            };
-            requestAnimationFrame(tick);
-        });
-
-        // Phase 1: Rotation alpha + inclinaison, avec overlap démarrant la phase 2 avant la fin
         const alphaStart = normalizeRadTau(start.alpha);
         const alphaTarget = shortestAnglePositive(alphaStart, end.alpha);
-        const alphaDuration = Math.max(200, Math.round(totalDurationMs * 0.5));
-        const overlap = Math.min(250, Math.max(80, Math.round(alphaDuration * 0.5))); // chevauchement doux
-        const restDuration = Math.max(200, totalDurationMs - alphaDuration);
-        let phase2Promise = null;
+        const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const token = ++viewpointAnim;
 
-        await new Promise(resolve => {
+        return new Promise(resolve => {
             const t0 = performance.now();
             const tick = () => {
-                const now = performance.now();
-                const elapsed = now - t0;
-                const t = Math.min(1, elapsed / alphaDuration);
+                if (token !== viewpointAnim) return resolve();
+                const t = Math.min(1, (performance.now() - t0) / totalDurationMs);
                 const k = easeInOutCubic(t);
                 camera.alpha = normalizeRadTau(alphaStart + (alphaTarget - alphaStart) * k);
                 applyLockedPitch(start.pitch + (end.pitch - start.pitch) * k);
-
-                // Lancer la phase 2 sur les derniers X ms de la rotation pour lisser la transition
-                if (!phase2Promise && elapsed >= alphaDuration - overlap) {
-                    const startSnapshot = {
-                        fov: camera.fov,
-                        target: camera.target.clone(),
-                        radius: camera.radius,
-                        min: camera.lowerRadiusLimit ?? start.min,
-                        max: camera.upperRadiusLimit ?? start.max
-                    };
-                    phase2Promise = startZoomPhase(restDuration + overlap, startSnapshot);
+                camera.fov = start.fov + (end.fov - start.fov) * k;
+                camera.target.set(
+                    start.target.x + (end.target.x - start.target.x) * k,
+                    start.target.y + (end.target.y - start.target.y) * k,
+                    start.target.z + (end.target.z - start.target.z) * k
+                );
+                const curMin = start.min + (end.min - start.min) * k;
+                const curMax = start.max + (end.max - start.max) * k;
+                camera.lowerRadiusLimit = curMin;
+                camera.upperRadiusLimit = curMax;
+                camera.radius = Math.max(curMin, Math.min(curMax, start.radius + (end.radius - start.radius) * k));
+                if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
+                if (t < 1) requestAnimationFrame(tick);
+                else {
+                    applyLockedPitch(end.pitch);
+                    resolve();
                 }
-
-                if (t < 1) requestAnimationFrame(tick); else resolve();
             };
             requestAnimationFrame(tick);
         });
-
-        // Si la phase 2 n'a pas démarré pendant l'overlap, la démarrer maintenant
-        if (!phase2Promise) {
-            phase2Promise = startZoomPhase(restDuration, null);
-        }
-        await phase2Promise;
-        applyLockedPitch(end.pitch);
-        if (window.commitCameraRadius) window.commitCameraRadius(camera.radius);
     }
 
     window.gotoViewpoint = (name) => {
